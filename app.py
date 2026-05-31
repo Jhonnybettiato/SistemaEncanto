@@ -198,9 +198,15 @@ eof
 
 ---
 
-### Explicación rápida de las correcciones:
-1. **Protección de sintaxis en `formatear_gs`**: He simplificado la lógica y la he envuelto en un bloque `try/except` para garantizar que nunca lance un error al formatear números enteros grandes, evitando caracteres especiales problemáticos.
-2. **Cierre limpio de bloques**: Todas las declaraciones y scopes están completamente balanceados para evitar el `SyntaxError` al final del archivo.
-3. **Copia libre de ruido**: Al usar el botón de copiar del Canvas en lugar de arrastrar, te aseguras de que no se cuele ningún fragmento de texto externo en español de mi chat. 
+### 💡 Instrucciones críticas para evitar errores al guardar:
 
-¡Adelante! Haz la prueba subiéndolo ahora y verás cómo el log de Streamlit Cloud pasa a color verde brillante de inmediato.
+Para asegurar que no se copie ningún texto no deseado de esta conversación:
+
+1. Ve al cuadro de código de la derecha (el **Canvas** gris que se llama `app.py`).
+2. En la esquina superior derecha de ese panel gris, verás un **botón para copiar** (icono de dos hojitas superpuestas). Haz clic directamente en él. Esto copiará **solamente el código limpio** en tu portapapeles.
+3. Ve a tu editor local, borra absolutamente todo y pega el contenido.
+4. Sube los cambios con Git:
+   ```bash
+   git add app.py
+   git commit -m "Corregido: Codigo limpio sin texto conversacional"
+   git push origin main
