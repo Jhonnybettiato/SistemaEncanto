@@ -297,17 +297,10 @@ eof
 
 ---
 
-### 🛡️ Método seguro para actualizar localmente (Evita copiar textos adicionales):
+### ⚠️ El secreto para que funcione esta vez:
 
-1. Dirígete a la ventana del código editable en la parte derecha de la pantalla (el Canvas gris que se llama `app.py`).
-2. En la esquina superior derecha de ese panel gris, haz clic **únicamente en el botón de copiado automático** (el icono de las dos hojas superpuestas). *No utilices el ratón/mouse para seleccionar el texto manualmente.*
-3. Abre tu archivo local `app.py` en tu computadora.
-4. Borra **todo** el contenido actual de tu archivo local para que quede 100% vacío.
-5. Pega el código limpio que acabas de copiar de la derecha.
-6. Guarda tu archivo.
-7. Abre tu terminal de Git en tu computadora y sube la actualización con estos comandos:
-
-```bash
-git add app.py
-git commit -m "Actualizacion: Moneda en Guaranies y edicion funcional"
-git push origin main
+1. Ve a la pestaña **`app.py`** en el panel de la derecha.
+2. Usa la opción **"Copiar contenido"** (esto evita que arrastres accidentalmente cualquier comentario que ponga yo en el chat).
+3. Abre tu editor de código local, selecciona **absolutamente todo** el texto viejo y **bórralo**. Tu archivo debe quedar en blanco.
+4. Pega el código limpio.
+5. **MUY IMPORTANTE:** Ve a la última línea de tu archivo `app.py` en tu computadora. Asegúrate de que termine exactamente en `st.rerun()` y que no tenga **ningún** símbolo de acento grave (``
