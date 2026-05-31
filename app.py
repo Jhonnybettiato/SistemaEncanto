@@ -212,19 +212,3 @@ elif opcion == "➕ Registrar Producto":
                 st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
 ```
 eof
-
-Para aplicar estos cambios en tu sistema y que se vean reflejados en tu repositorio de GitHub, solo debes actualizar tu código local y mandarlo a la nube. Los comandos que debes usar en tu terminal son los siguientes:
-
-```bash
-git add app.py
-git commit -m "Mejora: Control de Stock, Guaraníes y porcentaje de ganancia"
-git push origin main
-```
-
-### ¿Qué novedades vas a ver ahora en tu sistema?
-1. **Pestaña "Stock"**: Encontrarás un panel lateral donde puedes cambiar entre ver tu inventario o añadir cosas nuevas. 
-2. **Formato Guaraní**: Todos los importes numéricos ahora se leen como `Gs. 50.000` o `Gs. 120.000` de forma limpia y profesional, omitiendo los decimales que no se usan en Paraguay.
-3. **Control Inteligente de Costos**: Al ingresar cuánto te costó el artículo y elegir tu porcentaje de ganancia ideal (del 30% al 100%), el sistema se encarga de calcular el precio de venta al público en tiempo real. 
-4. **Resumen de Ganancias Estimadas**: En la sección de Stock, agregamos una métrica para que sepas cuánta ganancia neta te generará vender todo el stock disponible actualmente.
-
-¡Sube los cambios a tu repositorio y dale una mirada desde Streamlit Cloud! Me cuentas cómo queda.
