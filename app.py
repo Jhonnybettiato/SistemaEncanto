@@ -380,16 +380,3 @@ elif opcion == "✏️ Editar / Modificar Producto":
             eliminar_producto(id_seleccionado)
             st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
             st.rerun()
-```
-eof
-
----
-
-### Paso obligatorio 2: Actualizar `requirements.txt`
-Para que Streamlit Cloud pueda conectarse con la base de datos de Google, debes decirle que instale la librería correspondiente.
-
-Abre el archivo `requirements.txt` en GitHub y asegúrate de que tenga estas líneas:
-```text
-streamlit
-pandas
-google-cloud-firestore
