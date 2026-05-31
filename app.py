@@ -297,18 +297,19 @@ eof
 
 ---
 
-### 🚀 Cómo aplicar esta actualización en tu servidor
+### 🛡️ Método infalible para actualizar sin cometer errores:
 
-Para asegurar una instalación limpia de estos cambios sin que falle nada:
+Para asegurarnos de que no vuelvas a copiar por accidente mis comentarios o textos informativos al final del archivo local:
 
-1. Ve a la ventana interactiva de la derecha que se llama `app.py`.
-2. Presiona el **botón de copia automático** en la esquina superior derecha de la caja gris para obtener el código limpio.
-3. Abre tu editor de código local, borra todo lo que esté en tu archivo `app.py` actual y pega esto de forma limpia.
-4. En tu consola o terminal, sube los cambios ejecutando los tres comandos clásicos:
-   ```bash
-   git add app.py
-   git commit -m "Modificacion: Sistema 100% en Guaranies y modulo de edicion agregado"
-   git push origin main
-   ```
+1. Ve a la parte superior derecha de la caja gris que contiene el código en la pantalla interactiva de la derecha (el Canvas llamado `app.py`).
+2. Haz clic únicamente en el **botón de copiado automático** (el icono de las dos hojas superpuestas). **No selecciones el texto arrastrando el ratón**.
+3. Abre tu editor de código local en tu computadora y abre tu archivo `app.py`.
+4. Selecciona todo el contenido y **bórralo por completo**. El documento debe quedar 100% en blanco.
+5. Pega el código de Python que acabas de copiar de manera directa.
+6. **Guarda los cambios de tu archivo.**
+7. Abre tu terminal de Git y sube la actualización con los siguientes comandos secuenciales:
 
-¡Una vez hecho esto, tu panel de Streamlit Cloud se actualizará automáticamente! Podrás ir a la nueva sección **✏️ Editar / Modificar Producto** para cambiar esos registros viejos de dólares (ej. cambiar un costo de `15` a `105.000` de forma directa). ¡Pruébalo y me cuentas qué tal te parece!
+```bash
+git add app.py
+git commit -m "Actualizacion: Moneda 100% Guaranies y modulo de edicion"
+git push origin main
