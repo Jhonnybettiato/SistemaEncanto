@@ -6,6 +6,7 @@ import streamlit as st
 # 1. CONFIGURACIÓN Y MIGRACIÓN DE LA BASE DE DATOS
 # ==========================================
 def init_db():
+    """Inicializa la base de datos sqlite y migra la estructura si es necesario."""
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
     
@@ -13,12 +14,12 @@ def init_db():
     cursor.execute("PRAGMA table_info(productos)")
     columnas = [col[1] for col in cursor.fetchall()]
     
-    # Si la tabla tiene el formato antiguo, la borramos para crear la nueva estructura limpia
+    # Si la tabla tiene el formato antiguo (precio simple), la borramos para reestructurar
     if columnas and "precio" in columnas:
         cursor.execute("DROP TABLE productos")
         conn.commit()
 
-    # Creamos la tabla con los nuevos campos de costo, ganancia y venta
+    # Creamos la tabla con los campos de costo, ganancia y venta adaptados a Guaraníes
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,6 +36,7 @@ def init_db():
     conn.close()
 
 def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
+    """Inserta un nuevo producto en la base de datos local."""
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
     cursor.execute("""
@@ -45,17 +47,16 @@ def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, pre
     conn.close()
 
 def obtener_productos():
+    """Recupera todos los productos de la tabla en formato DataFrame de Pandas."""
     conn = sqlite3.connect("inventario.db")
     df = pd.read_sql_query("SELECT * FROM productos", conn)
     conn.close()
     return df
 
-# Inicializar la base de datos
+# Inicializar la base de datos al arrancar el hilo de ejecución
 init_db()
 
-# ==========================================
-# HELPER: FORMATO DE MONEDA GUARANÍES (Gs.)
-# ==========================================
+# Helper para el formateo de los importes locales de Paraguay
 def formatear_gs(valor):
     """Formatea un número entero al estilo de Guaraníes paraguayos: Gs. 15.000"""
     return f"Gs. {int(valor):,}".replace(",", ".")
@@ -65,7 +66,7 @@ def formatear_gs(valor):
 # ==========================================
 st.set_page_config(page_title="Sistema Encanto - Stock", layout="wide", page_icon="📦")
 
-# Estilos personalizados para mejorar el diseño
+# Inyección de estilos CSS personalizados para mejorar el aspecto visual de la interfaz
 st.markdown("""
     <style>
     .main-title {
@@ -89,7 +90,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Menú de navegación lateral
+# Menú de navegación lateral intuitivo
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 opcion = st.sidebar.radio(
@@ -110,7 +111,7 @@ if opcion == "📦 Ver Stock / Inventario":
     if df_productos.empty:
         st.info("Aún no tienes productos registrados en el inventario. Ve a la pestaña 'Registrar Producto' en el menú de la izquierda.")
     else:
-        # Buscador rápido
+        # Buscador rápido por coincidencia de texto
         busqueda = st.text_input("🔍 Buscar producto por nombre", "", placeholder="Escribe el nombre del producto...")
         
         if busqueda:
@@ -118,14 +119,14 @@ if opcion == "📦 Ver Stock / Inventario":
         else:
             df_productos_filtrados = df_productos
 
-        # Crear copias formateadas para la tabla visual (evitando alterar los datos numéricos originales)
+        # Crear copias formateadas exclusivamente para la visualización (evitando alterar los números nativos)
         df_visual = df_productos_filtrados.copy()
         df_visual['precio_costo'] = df_visual['precio_costo'].apply(formatear_gs)
         df_visual['ganancia_porcentaje'] = df_visual['ganancia_porcentaje'].apply(lambda x: f"{x}%")
         df_visual['precio_venta'] = df_visual['precio_venta'].apply(formatear_gs)
         df_visual['stock'] = df_visual['stock'].apply(lambda x: f"{x} uds")
 
-        # Mostrar tabla organizada
+        # Configuración y visualización de la tabla
         st.dataframe(
             df_visual,
             column_config={
@@ -142,7 +143,7 @@ if opcion == "📦 Ver Stock / Inventario":
             use_container_width=True
         )
         
-        # Métricas del inventario
+        # Resumen financiero dinámico en base al inventario
         st.markdown("---")
         st.subheader("📊 Resumen Financiero (Gs.)")
         
@@ -151,7 +152,7 @@ if opcion == "📦 Ver Stock / Inventario":
         total_productos = len(df_productos_filtrados)
         total_stock = int(df_productos_filtrados['stock'].sum())
         
-        # Cálculos de valorización
+        # Cálculos de valorización financiera
         valor_costo = int((df_productos_filtrados['precio_costo'] * df_productos_filtrados['stock']).sum())
         valor_venta = int((df_productos_filtrados['precio_venta'] * df_productos_filtrados['stock']).sum())
         ganancia_estimada = valor_venta - valor_costo
@@ -213,18 +214,19 @@ elif opcion == "➕ Registrar Producto":
 ```
 eof
 
-Para aplicar estos cambios en tu sistema y que se vean reflejados en tu repositorio de GitHub, solo debes actualizar tu código local y mandarlo a la nube. Los comandos que debes usar en tu terminal son los siguientes:
+---
+
+### ¿Cómo aplicar la solución ahora?
+
+1. En tu editor o en local, **borra todo el contenido** que tiene actualmente tu archivo `app.py`.
+2. **Copia todo el contenido de la caja de código de arriba** y pégalo de forma limpia en tu `app.py`. Asegúrate de que no quede ningún texto suelto al principio o al final del archivo.
+3. Guarda el archivo.
+4. Ejecuta los siguientes comandos en tu terminal local para actualizar los archivos de tu repositorio en GitHub:
 
 ```bash
 git add app.py
-git commit -m "Mejora: Control de Stock, Guaraníes y porcentaje de ganancia"
+git commit -m "Solución: Se removió texto extra que causaba error de sintaxis"
 git push origin main
 ```
 
-### ¿Qué novedades vas a ver ahora en tu sistema?
-1. **Pestaña "Stock"**: Encontrarás un panel lateral donde puedes cambiar entre ver tu inventario o añadir cosas nuevas. 
-2. **Formato Guaraní**: Todos los importes numéricos ahora se leen como `Gs. 50.000` o `Gs. 120.000` de forma limpia y profesional, omitiendo los decimales que no se usan en Paraguay.
-3. **Control Inteligente de Costos**: Al ingresar cuánto te costó el artículo y elegir tu porcentaje de ganancia ideal (del 30% al 100%), el sistema se encarga de calcular el precio de venta al público en tiempo real. 
-4. **Resumen de Ganancias Estimadas**: En la sección de Stock, agregamos una métrica para que sepas cuánta ganancia neta te generará vender todo el stock disponible actualmente.
-
-¡Sube los cambios a tu repositorio y dale una mirada desde Streamlit Cloud! Me cuentas cómo queda.
+Una vez que mandes este envío a la nube, la plataforma de **Streamlit Cloud** se actualizará automáticamente en unos segundos, leerá el código correctamente y ¡verás tu sistema funcionando a la perfección en Guaraníes!
