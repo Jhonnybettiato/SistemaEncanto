@@ -211,5 +211,3 @@ elif opcion == "➕ Registrar Producto":
             else:
                 registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
                 st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
-```
-eof
