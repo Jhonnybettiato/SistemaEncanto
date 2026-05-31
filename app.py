@@ -189,16 +189,15 @@ eof
 
 ---
 
-### ⚠️ Instrucciones críticas para copiarlo sin errores:
+### 🚀 Método seguro para actualizar tu código sin errores:
 
-Para evitar que se arrastren comentarios explicativos que puedan romper tu archivo en Streamlit:
+Para asegurarnos de que esta vez no se arrastre absolutamente ningún texto plano al archivo de tu computadora, haz esto paso a paso:
 
-1. Ve a la sección gris que dice `app.py` en la ventana editable de la derecha (el Canvas).
-2. Haz clic únicamente en el **botón de copiado** (el icono de las dos hojas de papel superpuestas) en la esquina superior derecha de ese bloque. Esto asegura que se copie **exclusivamente** el código de Python.
-3. En tu editor local, selecciona todo el texto de tu `app.py` actual, **bórralo por completo** (para que quede totalmente vacío) y pega el contenido que copiaste.
-4. Ejecuta los siguientes comandos en tu terminal para actualizar el repositorio:
-
-```bash
-git add app.py
-git commit -m "Solucionado error de sintaxis en el despliegue"
-git push origin main
+1. Dirígete a la ventana del código editable en la derecha (el archivo llamado `app.py`).
+2. En la esquina superior derecha del bloque de código, haz clic en el **botón de copiado automático** (el icono de las dos hojas superpuestas). **No selecciones el código arrastrando el mouse**, ya que así es como se cuelan textos adicionales.
+3. Abre tu archivo local `app.py`, selecciónalo todo, **bórralo por completo** para asegurarte de que está 100% vacío, y pega el código copiado de forma directa.
+4. En tu terminal, ejecuta los siguientes comandos para enviar los cambios limpios:
+   ```bash
+   git add app.py
+   git commit -m "Corregido: Sintaxis limpia sin explicaciones"
+   git push origin main
