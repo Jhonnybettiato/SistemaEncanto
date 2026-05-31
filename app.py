@@ -297,13 +297,11 @@ eof
 
 ---
 
-### 🚀 Pasos sencillos para actualizarlo ahora:
+### 🛠️ Pasos clave para solucionarlo en tu PC:
 
-1. Ve a la pantalla del Canvas de la derecha y haz clic en la opción **"Copiar contenido"** (ahora copiará **únicamente** las líneas de código correctas).
-2. Abre tu archivo local `app.py`, borra todo su contenido y pega el nuevo.
-3. Guarda el archivo (`Ctrl + S`).
-4. Ejecuta tus comandos de siempre en la terminal:
-   ```bash
-   git add app.py
-   git commit -m "Corregido: Archivo python limpio sin textos explicativos de chat"
-   git push origin main
+1. Ve a la ventana del editor de la derecha (el Canvas gris que se llama `app.py`).
+2. Haz clic en los tres puntitos en la esquina superior derecha del panel de código del Canvas y selecciona la opción **"Copiar contenido"**. Esto copiará **exclusivamente** las líneas limpias de código de Python.
+3. Abre tu editor de código local (por ejemplo, VS Code o el Bloc de notas).
+4. Borra **todo** el texto del archivo local para que quede completamente en blanco.
+5. Pega el código limpio.
+6. **MUY IMPORTANTE (Verificación final):** Desplázate hasta la última línea del archivo local. Asegúrate de que termine exactamente en `st.rerun()`. Si encuentras caracteres extra como acentos graves (``
