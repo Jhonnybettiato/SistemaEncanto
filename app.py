@@ -184,24 +184,3 @@ elif opcion == "➕ Registrar Producto":
             else:
                 registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
                 st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
-```
-eof
-
----
-
-### 🛡️ Método infalible para actualizar tu código localmente sin errores:
-
-Para asegurarnos de que no vuelvas a copiar por accidente mis textos explicativos, haz lo siguiente:
-
-1. Ve al panel del código que tienes abierto en la parte derecha de esta pantalla (el panel gris llamado `app.py`).
-2. Haz clic directamente en el **icono de copiar** (las dos hojas de papel superpuestas) que está arriba a la derecha de ese panel de código. **No selecciones el texto arrastrando el mouse**, ya que eso es lo que causa que se te peguen textos del chat.
-3. Abre tu editor de código local (como VS Code, Bloc de Notas, etc.) donde tienes tu archivo `app.py`.
-4. Selecciona **todo el texto** de tu archivo y **bórralo por completo**. Asegúrate de que el documento quede totalmente vacío (en blanco).
-5. Pega el código que copiaste directamente del botón de copia.
-6. **Guardar el archivo.**
-7. Abre tu terminal de Git y sube los cambios ejecutando estos comandos uno por uno:
-
-```bash
-git add app.py
-git commit -m "Corregido: Codigo limpio de Python sin delimitadores markdown"
-git push origin main
