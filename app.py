@@ -186,7 +186,6 @@ elif opcion == "➕ Registrar Producto":
                 st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
 eof
 
----
 
 ### 🚀 Método seguro para actualizar tu código sin errores:
 
