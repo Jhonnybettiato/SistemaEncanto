@@ -216,17 +216,17 @@ eof
 
 ---
 
-### ¿Cómo aplicar la solución ahora?
+### ¿Cómo aplicar la solución ahora en tu terminal?
 
-1. En tu editor o en local, **borra todo el contenido** que tiene actualmente tu archivo `app.py`.
-2. **Copia todo el contenido de la caja de código de arriba** y pégalo de forma limpia en tu `app.py`. Asegúrate de que no quede ningún texto suelto al principio o al final del archivo.
-3. Guarda el archivo.
-4. Ejecuta los siguientes comandos en tu terminal local para actualizar los archivos de tu repositorio en GitHub:
+Abre tu terminal local en la misma carpeta del proyecto y ejecuta estos comandos secuencialmente para actualizar el archivo corregido en GitHub:
 
 ```bash
+# 1. Asegúrate de guardar los cambios del archivo app.py en tu computadora.
+# 2. Agrega el archivo al gestor de Git
 git add app.py
-git commit -m "Solución: Se removió texto extra que causaba error de sintaxis"
-git push origin main
-```
 
-Una vez que mandes este envío a la nube, la plataforma de **Streamlit Cloud** se actualizará automáticamente en unos segundos, leerá el código correctamente y ¡verás tu sistema funcionando a la perfección en Guaraníes!
+# 3. Haz el commit con un mensaje descriptivo
+git commit -m "Corregido: Eliminadas todas las líneas de texto no pertenecientes a Python"
+
+# 4. Envía la actualización limpia a GitHub
+git push origin main
