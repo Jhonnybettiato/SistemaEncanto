@@ -189,15 +189,20 @@ eof
 
 ---
 
-### 🚀 Método seguro para actualizar tu código sin errores:
+### 🛠️ Pasos para copiar el código de forma segura:
 
-Para asegurarnos de que esta vez no se arrastre absolutamente ningún texto plano al archivo de tu computadora, haz esto paso a paso:
+Para asegurar que **únicamente** se copie el código Python y nada más:
 
-1. Dirígete a la ventana del código editable en la derecha (el archivo llamado `app.py`).
-2. En la esquina superior derecha del bloque de código, haz clic en el **botón de copiado automático** (el icono de las dos hojas superpuestas). **No selecciones el código arrastrando el mouse**, ya que así es como se cuelan textos adicionales.
-3. Abre tu archivo local `app.py`, selecciónalo todo, **bórralo por completo** para asegurarte de que está 100% vacío, y pega el código copiado de forma directa.
-4. En tu terminal, ejecuta los siguientes comandos para enviar los cambios limpios:
-   ```bash
-   git add app.py
-   git commit -m "Corregido: Sintaxis limpia sin explicaciones"
-   git push origin main
+1. Ve a la parte superior derecha de la caja gris que contiene el código en esta pantalla (la ventana de la derecha del chat que se titula `app.py`).
+2. Haz clic en el botón de **Copiar** (representado por un icono con dos cuadritos/hojas superpuestas). **No selecciones el código manualmente con el ratón/mouse**, ya que eso arrastra los textos explicativos del chat.
+3. Ve a tu editor local en tu computadora y abre tu archivo `app.py`.
+4. Borra **todo** lo que tenga adentro. Debe quedar completamente en blanco.
+5. Pega el código que acabas de copiar.
+6. Verifica visualmente que la **primera línea** de tu archivo sea `import sqlite3` y que la **última línea** termine en `formatear_gs(precio_venta_calculado)}!")`. No debe haber acentos graves (`` ` ``), ni la palabra `eof`, ni comandos de git dentro del archivo.
+7. Guarda tu archivo.
+8. En tu terminal, ejecuta estos tres comandos:
+
+```bash
+git add app.py
+git commit -m "Corregido: Codigo limpio de Python sin delimitadores markdown"
+git push origin main
