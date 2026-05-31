@@ -180,36 +180,36 @@ elif opcion == "➕ Registrar Producto":
     st.markdown('<p class="main-title">➕ Registro de Nuevo Producto</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Añade nuevos artículos definiendo su costo de compra y margen de utilidad deseado.</p>', unsafe_allow_html=True)
     
-    with st.form("registro_form", clear_on_submit=True):
-        col_a, col_b = st.columns(2)
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        nombre = st.text_input("Nombre del Producto *", placeholder="Ej. Encanto Imperial 100ml", key="reg_nombre")
+        categoria = st.selectbox("Categoría", ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"], key="reg_categoria")
+        stock = st.number_input("Cantidad inicial en stock *", min_value=1, step=1, value=1, key="reg_stock")
         
-        with col_a:
-            nombre = st.text_input("Nombre del Producto *", placeholder="Ej. Encanto Imperial 100ml")
-            categoria = st.selectbox("Categoría", ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"])
-            stock = st.number_input("Cantidad inicial en stock *", min_value=1, step=1, value=1)
-            
-        with col_b:
-            precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=0)
-            ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=30, max_value=100, step=5, value=30)
-            
-            precio_venta_calculado = int(precio_costo * (1 + (ganancia_porcentaje / 100.0)))
-            
-            st.markdown("**Precio de Venta Sugerido:**")
-            st.info(f"💰 {formatear_gs(precio_venta_calculado)}  \n*(Costo + {ganancia_porcentaje}% de ganancia)*")
+    with col_b:
+        precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=0, key="reg_costo")
+        ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=20, max_value=100, step=5, value=20, key="reg_ganancia")
+        
+        precio_venta_calculado = int(precio_costo * (1 + (ganancia_porcentaje / 100.0)))
+        
+        st.markdown("**Precio de Venta Sugerido:**")
+        st.info(f"💰 {formatear_gs(precio_venta_calculado)}  \n*(Costo + {ganancia_porcentaje}% de ganancia)*")
 
-        descripcion = st.text_area("Descripción del Producto (Opcional)", placeholder="Fragancias, notas u observaciones...")
-        
-        st.markdown("---")
-        guardar = st.form_submit_button("💾 Guardar y Registrar")
-        
-        if guardar:
-            if nombre.strip() == "":
-                st.error("El nombre del producto es requerido.")
-            elif precio_costo <= 0:
-                st.error("El precio de costo debe ser mayor a Gs. 0.")
-            else:
-                registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
-                st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
+    descripcion = st.text_area("Descripción del Producto (Opcional)", placeholder="Fragancias, notas u observaciones...", key="reg_desc")
+    
+    st.markdown("---")
+    guardar = st.button("💾 Guardar y Registrar", key="reg_guardar")
+    
+    if guardar:
+        if nombre.strip() == "":
+            st.error("El nombre del producto es requerido.")
+        elif precio_costo <= 0:
+            st.error("El precio de costo debe ser mayor a Gs. 0.")
+        else:
+            registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
+            st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
+            st.rerun()
 
 # ------------------------------------------
 # VISTA: EDITAR / MODIFICAR PRODUCTO
@@ -233,62 +233,61 @@ elif opcion == "✏️ Editar / Modificar Producto":
         
         st.markdown("---")
         
-        # Formulario de modificación pre-cargado con los datos actuales
-        with st.form("edicion_form", clear_on_submit=False):
-            col_a, col_b = st.columns(2)
+        # Formulario de modificación interactivo en tiempo real
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'], key="edit_nombre")
             
-            with col_a:
-                nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'])
+            categorias = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
+            try:
+                cat_index = categorias.index(prod_actual['categoria'])
+            except ValueError:
+                cat_index = 0
                 
-                categorias = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
-                try:
-                    cat_index = categorias.index(prod_actual['categoria'])
-                except ValueError:
-                    cat_index = 0
-                    
-                nueva_categoria = st.selectbox("Categoría", categorias, index=cat_index)
-                nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']))
-                
-            with col_b:
-                nuevo_precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=int(prod_actual['precio_costo']))
-                nueva_ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=30, max_value=100, step=5, value=int(prod_actual['ganancia_porcentaje']))
-                
-                nuevo_precio_venta_calculado = int(nuevo_precio_costo * (1 + (nueva_ganancia_porcentaje / 100.0)))
-                
-                st.markdown("**Nuevo Precio de Venta Sugerido:**")
-                st.info(f"💰 {formatear_gs(nuevo_precio_venta_calculado)}  \n*(Costo + {nueva_ganancia_porcentaje}% de ganancia)*")
+            nueva_categoria = st.selectbox("Categoría", categorias, index=cat_index, key="edit_categoria")
+            nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']), key="edit_stock")
+            
+        with col_b:
+            nuevo_precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=int(prod_actual['precio_costo']), key="edit_costo")
+            nueva_ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=20, max_value=100, step=5, value=int(prod_actual['ganancia_porcentaje']), key="edit_ganancia")
+            
+            nuevo_precio_venta_calculado = int(nuevo_precio_costo * (1 + (nueva_ganancia_porcentaje / 100.0)))
+            
+            st.markdown("**Nuevo Precio de Venta Sugerido:**")
+            st.info(f"💰 {formatear_gs(nuevo_precio_venta_calculado)}  \n*(Costo + {nueva_ganancia_porcentaje}% de ganancia)*")
 
-            nueva_descripcion = st.text_area("Descripción del Producto (Opcional)", value=prod_actual['descripcion'] if prod_actual['descripcion'] else "")
-            
-            st.markdown("---")
-            guardar_cambios = st.form_submit_button("💾 Guardar Cambios")
-            
-            if guardar_cambios:
-                if nuevo_nombre.strip() == "":
-                    st.error("El nombre del producto no puede quedar vacío.")
-                elif nuevo_precio_costo <= 0:
-                    st.error("El precio de costo debe ser mayor a Gs. 0.")
-                else:
-                    actualizar_producto(
-                        id_seleccionado, 
-                        nuevo_nombre, 
-                        nueva_categoria, 
-                        nuevo_precio_costo, 
-                        nueva_ganancia_porcentaje, 
-                        nuevo_precio_venta_calculado, 
-                        nuevo_stock, 
-                        nueva_descripcion
-                    )
-                    st.success(f"✔️ ¡El producto '{nuevo_nombre}' ha sido actualizado con éxito!")
-                    st.rerun()
+        nueva_descripcion = st.text_area("Descripción del Producto (Opcional)", value=prod_actual['descripcion'] if prod_actual['descripcion'] else "", key="edit_desc")
+        
+        st.markdown("---")
+        guardar_cambios = st.button("💾 Guardar Cambios", key="edit_guardar")
+        
+        if guardar_cambios:
+            if nuevo_nombre.strip() == "":
+                st.error("El nombre del producto no puede quedar vacío.")
+            elif nuevo_precio_costo <= 0:
+                st.error("El precio de costo debe ser mayor a Gs. 0.")
+            else:
+                actualizar_producto(
+                    id_seleccionado, 
+                    nuevo_nombre, 
+                    nueva_categoria, 
+                    nuevo_precio_costo, 
+                    nueva_ganancia_porcentaje, 
+                    nuevo_precio_venta_calculado, 
+                    nuevo_stock, 
+                    nueva_descripcion
+                )
+                st.success(f"✔️ ¡El producto '{nuevo_nombre}' ha sido actualizado con éxito!")
+                st.rerun()
 
         # Sección para eliminar producto de forma segura
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("⚠️ Zona de Eliminación")
         
-        confirmar_borrado = st.checkbox(f"Confirmo que deseo borrar de forma permanente el producto: **{prod_actual['nombre']}**")
+        confirmar_borrado = st.checkbox(f"Confirmo que deseo borrar de forma permanente el producto: **{prod_actual['nombre']}**", key="confirm_del")
         
-        if st.button("🗑️ Eliminar Producto Definitivamente", type="primary", disabled=not confirmar_borrado):
+        if st.button("🗑️ Eliminar Producto Definitivamente", type="primary", disabled=not confirmar_borrado, key="btn_del"):
             eliminar_producto(id_seleccionado)
             st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
             st.rerun()
