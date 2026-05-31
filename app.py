@@ -2,21 +2,45 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 
+# Intentar importar la librería de Google Firestore para base de datos permanente
+try:
+    from google.cloud import firestore
+    FIRESTORE_DISPONIBLE = True
+except ImportError:
+    FIRESTORE_DISPONIBLE = False
+
+# ==========================================
+# CONSTANTES Y CONFIGURACIÓN DE CONEXIÓN
+# ==========================================
+def obtener_conexion_db():
+    """Detecta si están configuradas las credenciales de Firestore en la nube, de lo contrario usa SQLite."""
+    if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
+        try:
+            # Conexión permanente a la nube
+            return firestore.Client.from_service_account_info(dict(st.secrets["gcp_service_account"]))
+        except Exception:
+            return None
+    return None
+
+# ==========================================
+# 1. CONTROL DE BASE DE DATOS (HÍBRIDO: SQLITE / CLOUD)
+# ==========================================
 def init_db():
-    """Inicializa la base de datos y migra la estructura si es necesario."""
+    """Inicializa la base de datos local SQLite si no se usa almacenamiento en la nube."""
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        # En la nube de Google Firestore, las colecciones se crean solas al insertar datos
+        return
+        
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
-    
-    # Comprobar si existe la tabla vieja para migrarla sin errores
     cursor.execute("PRAGMA table_info(productos)")
     columnas = [col[1] for col in cursor.fetchall()]
     
-    # Si la tabla tiene el formato antiguo, la reestructuramos
     if columnas and "precio" in columnas:
         cursor.execute("DROP TABLE productos")
         conn.commit()
 
-    # Creamos la tabla con los campos de costo, ganancia y venta adaptados a Guaraníes
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,44 +57,92 @@ def init_db():
     conn.close()
 
 def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
-    """Inserta un nuevo producto en la base de datos local."""
-    conn = sqlite3.connect("inventario.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO productos (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion))
-    conn.commit()
-    conn.close()
+    """Guarda un producto en la base de datos activa (Nube o SQLite)."""
+    db_cloud = obtener_conexion_db()
+    
+    if db_cloud is not None:
+        # Guardar permanentemente en la nube
+        db_cloud.collection("productos").add({
+            "nombre": nombre,
+            "categoria": categoria,
+            "precio_costo": int(precio_costo),
+            "ganancia_porcentaje": int(ganancia_porcentaje),
+            "precio_venta": int(precio_venta),
+            "stock": int(stock),
+            "descripcion": descripcion
+        })
+    else:
+        # Guardar de forma temporal en SQLite local
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO productos (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion))
+        conn.commit()
+        conn.close()
 
 def actualizar_producto(id_prod, nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
-    """Actualiza los datos de un producto existente en la base de datos."""
-    conn = sqlite3.connect("inventario.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE productos
-        SET nombre = ?, categoria = ?, precio_costo = ?, ganancia_porcentaje = ?, precio_venta = ?, stock = ?, descripcion = ?
-        WHERE id = ?
-    """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion, id_prod))
-    conn.commit()
-    conn.close()
+    """Modifica los datos de un producto en la nube o local."""
+    db_cloud = obtener_conexion_db()
+    
+    if db_cloud is not None:
+        db_cloud.collection("productos").document(str(id_prod)).update({
+            "nombre": nombre,
+            "categoria": categoria,
+            "precio_costo": int(precio_costo),
+            "ganancia_porcentaje": int(ganancia_porcentaje),
+            "precio_venta": int(precio_venta),
+            "stock": int(stock),
+            "descripcion": descripcion
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE productos
+            SET nombre = ?, categoria = ?, precio_costo = ?, ganancia_porcentaje = ?, precio_venta = ?, stock = ?, descripcion = ?
+            WHERE id = ?
+        """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion, int(id_prod)))
+        conn.commit()
+        conn.close()
 
 def eliminar_producto(id_prod):
-    """Elimina permanentemente un producto de la base de datos."""
-    conn = sqlite3.connect("inventario.db")
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM productos WHERE id = ?", (id_prod,))
-    conn.commit()
-    conn.close()
+    """Elimina permanentemente un producto de la base de datos activa."""
+    db_cloud = obtener_conexion_db()
+    
+    if db_cloud is not None:
+        db_cloud.collection("productos").document(str(id_prod)).delete()
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM productos WHERE id = ?", (int(id_prod),))
+        conn.commit()
+        conn.close()
 
 def obtener_productos():
-    """Recupera todos los productos de la tabla en formato DataFrame de Pandas."""
-    conn = sqlite3.connect("inventario.db")
-    df = pd.read_sql_query("SELECT * FROM productos", conn)
-    conn.close()
-    return df
+    """Obtiene los datos desde SQLite o Firestore en formato DataFrame."""
+    db_cloud = obtener_conexion_db()
+    
+    if db_cloud is not None:
+        # Recuperar desde la nube de forma segura
+        docs = db_cloud.collection("productos").stream()
+        lista = []
+        for doc in docs:
+            datos = doc.to_dict()
+            datos["id"] = doc.id  # ID alfanumérico de Firebase
+            lista.append(datos)
+        if not lista:
+            return pd.DataFrame(columns=["id", "nombre", "categoria", "precio_costo", "ganancia_porcentaje", "precio_venta", "stock", "descripcion"])
+        return pd.DataFrame(lista)
+    else:
+        # Recuperar de forma local
+        conn = sqlite3.connect("inventario.db")
+        df = pd.read_sql_query("SELECT * FROM productos", conn)
+        conn.close()
+        return df
 
-# Inicializar la base de datos al arrancar
+# Inicializar almacenamiento
 init_db()
 
 def formatear_gs(valor):
@@ -104,6 +176,23 @@ st.markdown("""
 # Menú lateral
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
+
+# Verificar estado de conexión para mostrar al usuario
+nube_activa = obtener_conexion_db() is not None
+
+if nube_activa:
+    st.sidebar.success("☁️ Conectado a Almacenamiento Permanente")
+else:
+    st.sidebar.warning("💾 Almacenamiento Temporal (SQLite)")
+    with st.sidebar.expander("🚀 Guardar datos para siempre"):
+        st.markdown("""
+        Los datos se borrarán si actualizas la app. Para activarlo de forma permanente:
+        1. Crea un proyecto gratis en **Google Firebase**.
+        2. Crea una base de datos **Cloud Firestore**.
+        3. Ve a Configuración del proyecto > Cuentas de servicio > Generar nueva clave privada (JSON).
+        4. Copia el contenido de ese archivo JSON y pégalo en la sección **Secrets** de Streamlit Cloud con el nombre `gcp_service_account`.
+        """)
+
 opcion = st.sidebar.radio(
     "Selecciona una opción:",
     ["📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto"],
@@ -228,7 +317,7 @@ elif opcion == "✏️ Editar / Modificar Producto":
         seleccion = st.selectbox("Selecciona el producto que deseas editar:", lista_productos)
         
         # Extraer el ID correspondiente
-        id_seleccionado = int(seleccion.split(" - ")[0])
+        id_seleccionado = seleccion.split(" - ")[0]
         prod_actual = df_productos[df_productos['id'] == id_seleccionado].iloc[0]
         
         st.markdown("---")
@@ -291,3 +380,16 @@ elif opcion == "✏️ Editar / Modificar Producto":
             eliminar_producto(id_seleccionado)
             st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
             st.rerun()
+```
+eof
+
+---
+
+### Paso obligatorio 2: Actualizar `requirements.txt`
+Para que Streamlit Cloud pueda conectarse con la base de datos de Google, debes decirle que instale la librería correspondiente.
+
+Abre el archivo `requirements.txt` en GitHub y asegúrate de que tenga estas líneas:
+```text
+streamlit
+pandas
+google-cloud-firestore
