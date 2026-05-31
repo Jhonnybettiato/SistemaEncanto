@@ -292,16 +292,3 @@ elif opcion == "✏️ Editar / Modificar Producto":
             eliminar_producto(id_seleccionado)
             st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
             st.rerun()
-```
-eof
-
----
-
-### 🛠️ Pasos clave para solucionarlo en tu PC:
-
-1. Ve a la ventana del editor de la derecha (el Canvas gris que se llama `app.py`).
-2. Haz clic en los tres puntitos en la esquina superior derecha del panel de código del Canvas y selecciona la opción **"Copiar contenido"**. Esto copiará **exclusivamente** las líneas limpias de código de Python.
-3. Abre tu editor de código local (por ejemplo, VS Code o el Bloc de notas).
-4. Borra **todo** el texto del archivo local para que quede completamente en blanco.
-5. Pega el código limpio.
-6. **MUY IMPORTANTE (Verificación final):** Desplázate hasta la última línea del archivo local. Asegúrate de que termine exactamente en `st.rerun()`. Si encuentras caracteres extra como acentos graves (``
