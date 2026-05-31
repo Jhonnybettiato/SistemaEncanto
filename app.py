@@ -2,43 +2,47 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 
-
 # ==========================================
-# 1. CONFIGURACIÓN DE LA BASE DE DATOS
+# 1. CONFIGURACIÓN Y MIGRACIÓN DE LA BASE DE DATOS
 # ==========================================
 def init_db():
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
-    # Creamos la tabla si no existe
-    cursor.execute(
-        """
+    
+    # Comprobar si existe la tabla vieja para migrarla sin errores
+    cursor.execute("PRAGMA table_info(productos)")
+    columnas = [col[1] for col in cursor.fetchall()]
+    
+    # Si la tabla tiene el formato antiguo, la borramos para crear la nueva estructura limpia
+    if columnas and "precio" in columnas:
+        cursor.execute("DROP TABLE productos")
+        conn.commit()
+
+    # Creamos la tabla con los nuevos campos de costo, ganancia y venta
+    cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             categoria TEXT,
-            precio REAL NOT NULL,
+            precio_costo INTEGER NOT NULL,
+            ganancia_porcentaje INTEGER NOT NULL,
+            precio_venta INTEGER NOT NULL,
             stock INTEGER NOT NULL,
             descripcion TEXT
         )
-    """
-    )
+    """)
     conn.commit()
     conn.close()
 
-
-def registrar_producto(nombre, categoria, precio, stock, descripcion):
+def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
-    cursor.execute(
-        """
-        INSERT INTO productos (nombre, categoria, precio, stock, descripcion)
-        VALUES (?, ?, ?, ?, ?)
-    """,
-        (nombre, categoria, precio, stock, descripcion),
-    )
+    cursor.execute("""
+        INSERT INTO productos (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion))
     conn.commit()
     conn.close()
-
 
 def obtener_productos():
     conn = sqlite3.connect("inventario.db")
@@ -46,94 +50,181 @@ def obtener_productos():
     conn.close()
     return df
 
-
-# Inicializar la base de datos al arrancar
+# Inicializar la base de datos
 init_db()
+
+# ==========================================
+# HELPER: FORMATO DE MONEDA GUARANÍES (Gs.)
+# ==========================================
+def formatear_gs(valor):
+    """Formatea un número entero al estilo de Guaraníes paraguayos: Gs. 15.000"""
+    return f"Gs. {int(valor):,}".replace(",", ".")
 
 # ==========================================
 # 2. INTERFAZ DE USUARIO (STREAMLIT)
 # ==========================================
-st.set_page_config(page_title="Registro de Inventario", layout="wide")
+st.set_page_config(page_title="Sistema Encanto - Stock", layout="wide", page_icon="📦")
 
-st.title("📦 Sistema de Registro de Productos")
-st.markdown("---")
+# Estilos personalizados para mejorar el diseño
+st.markdown("""
+    <style>
+    .main-title {
+        font-size: 38px;
+        font-weight: bold;
+        color: #1E293B;
+        margin-bottom: 5px;
+    }
+    .sub-title {
+        font-size: 16px;
+        color: #64748B;
+        margin-bottom: 25px;
+    }
+    .metric-card {
+        background-color: #F8FAFC;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Creamos dos columnas: una para el formulario y otra para ver el inventario
-col_form, col_vista = st.columns([1, 2])
+# Menú de navegación lateral
+st.sidebar.title("✨ Sistema Encanto")
+st.sidebar.markdown("---")
+opcion = st.sidebar.radio(
+    "Selecciona una opción:",
+    ["📦 Ver Stock / Inventario", "➕ Registrar Producto"],
+    captions=["Control de existencias", "Añadir nuevos artículos"]
+)
 
-with col_form:
-    st.subheader("📝 Registrar Nuevo Producto")
-
-    # Formulario de entrada
-    with st.form("form_producto", clear_on_submit=True):
-        nombre = st.text_input("Nombre del Producto *", placeholder="Ej. Resina Epoxi")
-        categoria = st.selectbox(
-            "Categoría",
-            ["Electrónica", "Herramientas", "Materiales", "Otros"],
-        )
-
-        # Usamos columnas pequeñas dentro del formulario para los números
-        col_p, col_s = st.columns(2)
-        with col_p:
-            precio = st.number_input("Precio ($) *", min_value=0.0, format="%.2f")
-        with col_s:
-            stock = st.number_input("Stock Inicial *", min_value=0, step=1)
-
-        descripcion = st.text_area(
-            "Descripción", placeholder="Detalles opcionales del producto..."
-        )
-
-        boton_guardar = st.form_submit_button("Guardar Producto")
-
-    # Lógica al enviar el formulario
-    if boton_guardar:
-        if nombre.strip() == "":
-            st.error("El nombre del producto es obligatorio.")
-        elif precio <= 0:
-            st.error("El precio debe ser mayor a 0.")
-        else:
-            registrar_producto(nombre, categoria, precio, stock, descripcion)
-            st.success(f"¡'{nombre}' registrado con éxito!")
-            # Recargar la página para actualizar la tabla visual
-            st.rerun()
-
-with col_vista:
-    st.subheader("📊 Productos en Inventario")
-
-    # Leer datos actuales
+# ------------------------------------------
+# VISTA: VER STOCK / INVENTARIO
+# ------------------------------------------
+if opcion == "📦 Ver Stock / Inventario":
+    st.markdown('<p class="main-title">📦 Control de Stock e Inventario</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Visualiza, busca y analiza el rendimiento financiero de tus productos en tiempo real.</p>', unsafe_allow_html=True)
+    
     df_productos = obtener_productos()
-
+    
     if df_productos.empty:
-        st.info("Aún no hay productos registrados. ¡Usa el formulario para añadir el primero!")
+        st.info("Aún no tienes productos registrados en el inventario. Ve a la pestaña 'Registrar Producto' en el menú de la izquierda.")
     else:
         # Buscador rápido
-        busqueda = st.text_input("🔍 Buscar producto por nombre", "")
+        busqueda = st.text_input("🔍 Buscar producto por nombre", "", placeholder="Escribe el nombre del producto...")
+        
         if busqueda:
-            df_productos = df_productos[
-                df_productos["nombre"].str.contains(busqueda, case=False)
-            ]
+            df_productos_filtrados = df_productos[df_productos['nombre'].str.contains(busqueda, case=False)]
+        else:
+            df_productos_filtrados = df_productos
 
-        # Mostrar tabla formateada de manera interactiva
+        # Crear copias formateadas para la tabla visual (evitando alterar los datos numéricos originales)
+        df_visual = df_productos_filtrados.copy()
+        df_visual['precio_costo'] = df_visual['precio_costo'].apply(formatear_gs)
+        df_visual['ganancia_porcentaje'] = df_visual['ganancia_porcentaje'].apply(lambda x: f"{x}%")
+        df_visual['precio_venta'] = df_visual['precio_venta'].apply(formatear_gs)
+        df_visual['stock'] = df_visual['stock'].apply(lambda x: f"{x} uds")
+
+        # Mostrar tabla organizada
         st.dataframe(
-            df_productos,
+            df_visual,
             column_config={
                 "id": "ID",
                 "nombre": "Producto",
                 "categoria": "Categoría",
-                "precio": st.column_config.NumberColumn("Precio", format="$ %.2f"),
-                "stock": st.column_config.NumberColumn("Stock", format="%d uds"),
-                "descripcion": "Descripción",
+                "precio_costo": "Precio Costo",
+                "ganancia_porcentaje": "Ganancia (%)",
+                "precio_venta": "Precio Venta",
+                "stock": "Stock",
+                "descripcion": "Descripción"
             },
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True
         )
-
-        # Métricas rápidas en la parte inferior
+        
+        # Métricas del inventario
         st.markdown("---")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Total Productos Únicos", len(df_productos))
-        m2.metric("Total Unidades en Stock", int(df_productos["stock"].sum()))
-        m3.metric(
-            "Valor Total del Inventario",
-            f"$ {(df_productos['precio'] * df_productos['stock']).sum():,.2f}",
-        )
+        st.subheader("📊 Resumen Financiero (Gs.)")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        total_productos = len(df_productos_filtrados)
+        total_stock = int(df_productos_filtrados['stock'].sum())
+        
+        # Cálculos de valorización
+        valor_costo = int((df_productos_filtrados['precio_costo'] * df_productos_filtrados['stock']).sum())
+        valor_venta = int((df_productos_filtrados['precio_venta'] * df_productos_filtrados['stock']).sum())
+        ganancia_estimada = valor_venta - valor_costo
+        
+        with col1:
+            st.metric("Total de Productos", f"{total_productos} tipos")
+        with col2:
+            st.metric("Existencias en Stock", f"{total_stock} uds")
+        with col3:
+            st.metric("Inversión (Total Costo)", formatear_gs(valor_costo))
+        with col4:
+            st.metric("Ganancia Estimada", formatear_gs(ganancia_estimada), help="Diferencia entre el precio de venta y el precio de costo de tu stock disponible.")
+
+# ------------------------------------------
+# VISTA: REGISTRAR PRODUCTO
+# ------------------------------------------
+elif opcion == "➕ Registrar Producto":
+    st.markdown('<p class="main-title">➕ Registro de Nuevo Producto</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Añade nuevos artículos definiendo su costo de compra y margen de utilidad deseado.</p>', unsafe_allow_html=True)
+    
+    # Formulario interactivo
+    with st.form("registro_form", clear_on_submit=True):
+        col_a, col_b = st.columns(2)
+        
+        with col_a:
+            nombre = st.text_input("Nombre del Producto *", placeholder="Ej. Encanto Imperial 100ml")
+            categoria = st.selectbox("Categoría", ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"])
+            stock = st.number_input("Cantidad inicial en stock *", min_value=1, step=1, value=1)
+            
+        with col_b:
+            # Entrada en Guaraníes para el costo de adquisición
+            precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=0, 
+                                           help="¿Cuánto te costó adquirir este producto?")
+            
+            # Selección interactiva de ganancia del 30% al 100%
+            ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=30, max_value=100, step=5, value=30,
+                                            help="Selecciona el margen que deseas ganar por encima del costo.")
+            
+            # Cálculo automático en tiempo real
+            precio_venta_calculado = int(precio_costo * (1 + (ganancia_porcentaje / 100)))
+            
+            # Mostramos el precio de venta calculado de manera llamativa
+            st.markdown(f"**Precio de Venta Sugerido:**")
+            st.info(f"💰 {formatear_gs(precio_venta_calculado)}  \n*(Costo + {ganancia_porcentaje}% de ganancia)*")
+
+        descripcion = st.text_area("Descripción del Producto (Opcional)", placeholder="Añade notas, especificaciones o fragancias...")
+        
+        st.markdown("---")
+        guardar = st.form_submit_button("💾 Guardar y Registrar")
+        
+        if guardar:
+            if nombre.strip() == "":
+                st.error("El nombre del producto es requerido para el registro.")
+            elif precio_costo <= 0:
+                st.error("El precio de costo debe ser mayor a Gs. 0.")
+            else:
+                registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
+                st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
+```
+eof
+
+Para aplicar estos cambios en tu sistema y que se vean reflejados en tu repositorio de GitHub, solo debes actualizar tu código local y mandarlo a la nube. Los comandos que debes usar en tu terminal son los siguientes:
+
+```bash
+git add app.py
+git commit -m "Mejora: Control de Stock, Guaraníes y porcentaje de ganancia"
+git push origin main
+```
+
+### ¿Qué novedades vas a ver ahora en tu sistema?
+1. **Pestaña "Stock"**: Encontrarás un panel lateral donde puedes cambiar entre ver tu inventario o añadir cosas nuevas. 
+2. **Formato Guaraní**: Todos los importes numéricos ahora se leen como `Gs. 50.000` o `Gs. 120.000` de forma limpia y profesional, omitiendo los decimales que no se usan en Paraguay.
+3. **Control Inteligente de Costos**: Al ingresar cuánto te costó el artículo y elegir tu porcentaje de ganancia ideal (del 30% al 100%), el sistema se encarga de calcular el precio de venta al público en tiempo real. 
+4. **Resumen de Ganancias Estimadas**: En la sección de Stock, agregamos una métrica para que sepas cuánta ganancia neta te generará vender todo el stock disponible actualmente.
+
+¡Sube los cambios a tu repositorio y dale una mirada desde Streamlit Cloud! Me cuentas cómo queda.
