@@ -189,18 +189,17 @@ eof
 
 ---
 
-### 🛠️ Pasos para copiar el código de forma segura:
+### 🛡️ Método infalible para actualizar tu código localmente sin errores:
 
-Para asegurar que **únicamente** se copie el código Python y nada más:
+Para asegurarnos de que no vuelvas a copiar por accidente mis textos explicativos, haz lo siguiente:
 
-1. Ve a la parte superior derecha de la caja gris que contiene el código en esta pantalla (la ventana de la derecha del chat que se titula `app.py`).
-2. Haz clic en el botón de **Copiar** (representado por un icono con dos cuadritos/hojas superpuestas). **No selecciones el código manualmente con el ratón/mouse**, ya que eso arrastra los textos explicativos del chat.
-3. Ve a tu editor local en tu computadora y abre tu archivo `app.py`.
-4. Borra **todo** lo que tenga adentro. Debe quedar completamente en blanco.
-5. Pega el código que acabas de copiar.
-6. Verifica visualmente que la **primera línea** de tu archivo sea `import sqlite3` y que la **última línea** termine en `formatear_gs(precio_venta_calculado)}!")`. No debe haber acentos graves (`` ` ``), ni la palabra `eof`, ni comandos de git dentro del archivo.
-7. Guarda tu archivo.
-8. En tu terminal, ejecuta estos tres comandos:
+1. Ve al panel del código que tienes abierto en la parte derecha de esta pantalla (el panel gris llamado `app.py`).
+2. Haz clic directamente en el **icono de copiar** (las dos hojas de papel superpuestas) que está arriba a la derecha de ese panel de código. **No selecciones el texto arrastrando el mouse**, ya que eso es lo que causa que se te peguen textos del chat.
+3. Abre tu editor de código local (como VS Code, Bloc de Notas, etc.) donde tienes tu archivo `app.py`.
+4. Selecciona **todo el texto** de tu archivo y **bórralo por completo**. Asegúrate de que el documento quede totalmente vacío (en blanco).
+5. Pega el código que copiaste directamente del botón de copia.
+6. **Guardar el archivo.**
+7. Abre tu terminal de Git y sube los cambios ejecutando estos comandos uno por uno:
 
 ```bash
 git add app.py
