@@ -215,18 +215,3 @@ elif opcion == "➕ Registrar Producto":
 eof
 
 ---
-
-### ¿Cómo aplicar la solución ahora en tu terminal?
-
-Abre tu terminal local en la misma carpeta del proyecto y ejecuta estos comandos secuencialmente para actualizar el archivo corregido en GitHub:
-
-```bash
-# 1. Asegúrate de guardar los cambios del archivo app.py en tu computadora.
-# 2. Agrega el archivo al gestor de Git
-git add app.py
-
-# 3. Haz el commit con un mensaje descriptivo
-git commit -m "Corregido: Eliminadas todas las líneas de texto no pertenecientes a Python"
-
-# 4. Envía la actualización limpia a GitHub
-git push origin main
