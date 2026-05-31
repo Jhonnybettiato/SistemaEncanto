@@ -7,11 +7,11 @@ def init_db():
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
     
-    # Comprobar si existe la tabla vieja para migrarla sin errores de tipos de columnas
+    # Comprobar si existe la tabla vieja para migrarla sin errores
     cursor.execute("PRAGMA table_info(productos)")
     columnas = [col[1] for col in cursor.fetchall()]
     
-    # Si la tabla tiene el formato antiguo (precio simple), la borramos para reestructurar
+    # Si la tabla tiene el formato antiguo, la reestructuramos
     if columnas and "precio" in columnas:
         cursor.execute("DROP TABLE productos")
         conn.commit()
@@ -50,16 +50,14 @@ def obtener_productos():
     conn.close()
     return df
 
-# Inicializar la base de datos al arrancar el hilo de ejecución
+# Inicializar la base de datos al arrancar
 init_db()
 
 def formatear_gs(valor):
     """Formatea un número entero al estilo de Guaraníes paraguayos: Gs. 15.000"""
     try:
         valor_entero = int(valor)
-        # Formatear con separador de miles estándar
         cadena_formateada = "{:,}".format(valor_entero)
-        # Reemplazar comas por puntos para el estándar de Paraguay
         cadena_paraguay = cadena_formateada.replace(",", ".")
         return f"Gs. {cadena_paraguay}"
     except Exception:
@@ -67,7 +65,6 @@ def formatear_gs(valor):
 
 st.set_page_config(page_title="Sistema Encanto - Stock", layout="wide", page_icon="📦")
 
-# Inyección de estilos CSS para mejorar el diseño
 st.markdown("""
     <style>
     .main-title {
@@ -84,7 +81,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Menú lateral de navegación con iconos visuales
+# Menú lateral
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 opcion = st.sidebar.radio(
@@ -110,14 +107,12 @@ if opcion == "📦 Ver Stock / Inventario":
         else:
             df_productos_filtrados = df_productos
 
-        # Crear copia limpia para dar formato de visualización (evita alterar los valores matemáticos de cálculo)
         df_visual = df_productos_filtrados.copy()
         df_visual['precio_costo'] = df_visual['precio_costo'].apply(formatear_gs)
         df_visual['ganancia_porcentaje'] = df_visual['ganancia_porcentaje'].apply(lambda x: f"{x}%")
         df_visual['precio_venta'] = df_visual['precio_venta'].apply(formatear_gs)
         df_visual['stock'] = df_visual['stock'].apply(lambda x: f"{x} uds")
 
-        # Configuración e impresión de la tabla interactiva
         st.dataframe(
             df_visual,
             column_config={
@@ -134,7 +129,6 @@ if opcion == "📦 Ver Stock / Inventario":
             use_container_width=True
         )
         
-        # Resumen financiero con métricas agregadas
         st.markdown("---")
         st.subheader("📊 Resumen Financiero (Gs.)")
         
@@ -143,7 +137,6 @@ if opcion == "📦 Ver Stock / Inventario":
         total_productos = len(df_productos_filtrados)
         total_stock = int(df_productos_filtrados['stock'].sum())
         
-        # Operaciones matemáticas directas sobre tipos numéricos nativos
         valor_costo = int((df_productos_filtrados['precio_costo'] * df_productos_filtrados['stock']).sum())
         valor_venta = int((df_productos_filtrados['precio_venta'] * df_productos_filtrados['stock']).sum())
         ganancia_estimada = valor_venta - valor_costo
@@ -155,13 +148,12 @@ if opcion == "📦 Ver Stock / Inventario":
         with col3:
             st.metric("Inversión (Total Costo)", formatear_gs(valor_costo))
         with col4:
-            st.metric("Ganancia Estimada", formatear_gs(ganancia_estimada), help="Diferencia entre el precio de venta y el precio de costo del stock actual.")
+            st.metric("Ganancia Estimada", formatear_gs(ganancia_estimada))
 
 elif opcion == "➕ Registrar Producto":
     st.markdown('<p class="main-title">➕ Registro de Nuevo Producto</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Añade nuevos artículos definiendo su costo de compra y margen de utilidad deseado.</p>', unsafe_allow_html=True)
     
-    # Formulario controlado de registro
     with st.form("registro_form", clear_on_submit=True):
         col_a, col_b = st.columns(2)
         
@@ -171,23 +163,22 @@ elif opcion == "➕ Registrar Producto":
             stock = st.number_input("Cantidad inicial en stock *", min_value=1, step=1, value=1)
             
         with col_b:
-            precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=0, help="¿Cuánto te costó adquirir este producto?")
-            ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=30, max_value=100, step=5, value=30, help="Porcentaje a sumar por encima del costo.")
+            precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=0)
+            ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=30, max_value=100, step=5, value=30)
             
-            # Cálculo directo del precio final sugerido
             precio_venta_calculado = int(precio_costo * (1 + (ganancia_porcentaje / 100.0)))
             
             st.markdown("**Precio de Venta Sugerido:**")
             st.info(f"💰 {formatear_gs(precio_venta_calculado)}  \n*(Costo + {ganancia_porcentaje}% de ganancia)*")
 
-        descripcion = st.text_area("Descripción del Producto (Opcional)", placeholder="Fragancias, notas u observaciones del producto...")
+        descripcion = st.text_area("Descripción del Producto (Opcional)", placeholder="Fragancias, notas u observaciones...")
         
         st.markdown("---")
         guardar = st.form_submit_button("💾 Guardar y Registrar")
         
         if guardar:
             if nombre.strip() == "":
-                st.error("El nombre del producto es requerido para el registro.")
+                st.error("El nombre del producto es requerido.")
             elif precio_costo <= 0:
                 st.error("El precio de costo debe ser mayor a Gs. 0.")
             else:
@@ -198,15 +189,16 @@ eof
 
 ---
 
-### 💡 Instrucciones críticas para evitar errores al guardar:
+### ⚠️ Instrucciones críticas para copiarlo sin errores:
 
-Para asegurar que no se copie ningún texto no deseado de esta conversación:
+Para evitar que se arrastren comentarios explicativos que puedan romper tu archivo en Streamlit:
 
-1. Ve al cuadro de código de la derecha (el **Canvas** gris que se llama `app.py`).
-2. En la esquina superior derecha de ese panel gris, verás un **botón para copiar** (icono de dos hojitas superpuestas). Haz clic directamente en él. Esto copiará **solamente el código limpio** en tu portapapeles.
-3. Ve a tu editor local, borra absolutamente todo y pega el contenido.
-4. Sube los cambios con Git:
-   ```bash
-   git add app.py
-   git commit -m "Corregido: Codigo limpio sin texto conversacional"
-   git push origin main
+1. Ve a la sección gris que dice `app.py` en la ventana editable de la derecha (el Canvas).
+2. Haz clic únicamente en el **botón de copiado** (el icono de las dos hojas de papel superpuestas) en la esquina superior derecha de ese bloque. Esto asegura que se copie **exclusivamente** el código de Python.
+3. En tu editor local, selecciona todo el texto de tu `app.py` actual, **bórralo por completo** (para que quede totalmente vacío) y pega el contenido que copiaste.
+4. Ejecuta los siguientes comandos en tu terminal para actualizar el repositorio:
+
+```bash
+git add app.py
+git commit -m "Solucionado error de sintaxis en el despliegue"
+git push origin main
