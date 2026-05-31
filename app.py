@@ -43,6 +43,26 @@ def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, pre
     conn.commit()
     conn.close()
 
+def actualizar_producto(id_prod, nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
+    """Actualiza los datos de un producto existente en la base de datos."""
+    conn = sqlite3.connect("inventario.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE productos
+        SET nombre = ?, categoria = ?, precio_costo = ?, ganancia_porcentaje = ?, precio_venta = ?, stock = ?, descripcion = ?
+        WHERE id = ?
+    """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion, id_prod))
+    conn.commit()
+    conn.close()
+
+def eliminar_producto(id_prod):
+    """Elimina permanentemente un producto de la base de datos."""
+    conn = sqlite3.connect("inventario.db")
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM productos WHERE id = ?", (id_prod,))
+    conn.commit()
+    conn.close()
+
 def obtener_productos():
     """Recupera todos los productos de la tabla en formato DataFrame de Pandas."""
     conn = sqlite3.connect("inventario.db")
@@ -86,10 +106,13 @@ st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 opcion = st.sidebar.radio(
     "Selecciona una opción:",
-    ["📦 Ver Stock / Inventario", "➕ Registrar Producto"],
-    captions=["Control de existencias", "Añadir nuevos artículos"]
+    ["📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto"],
+    captions=["Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros"]
 )
 
+# ------------------------------------------
+# VISTA: VER STOCK / INVENTARIO
+# ------------------------------------------
 if opcion == "📦 Ver Stock / Inventario":
     st.markdown('<p class="main-title">📦 Control de Stock e Inventario</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Visualiza, busca y analiza el rendimiento financiero de tus productos en tiempo real.</p>', unsafe_allow_html=True)
@@ -119,9 +142,9 @@ if opcion == "📦 Ver Stock / Inventario":
                 "id": "ID",
                 "nombre": "Producto",
                 "categoria": "Categoría",
-                "precio_costo": "Precio Costo",
+                "precio_costo": "Precio Costo (Gs.)",
                 "ganancia_porcentaje": "Ganancia (%)",
-                "precio_venta": "Precio Venta",
+                "precio_venta": "Precio Venta (Gs.)",
                 "stock": "Stock",
                 "descripcion": "Descripción"
             },
@@ -146,10 +169,13 @@ if opcion == "📦 Ver Stock / Inventario":
         with col2:
             st.metric("Existencias en Stock", f"{total_stock} uds")
         with col3:
-            st.metric("Inversión (Total Costo)", formatear_gs(valor_costo))
+            st.metric("Inversión Total (Gs.)", formatear_gs(valor_costo))
         with col4:
-            st.metric("Ganancia Estimada", formatear_gs(ganancia_estimada))
+            st.metric("Ganancia Estimada (Gs.)", formatear_gs(ganancia_estimada))
 
+# ------------------------------------------
+# VISTA: REGISTRAR PRODUCTO
+# ------------------------------------------
 elif opcion == "➕ Registrar Producto":
     st.markdown('<p class="main-title">➕ Registro de Nuevo Producto</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Añade nuevos artículos definiendo su costo de compra y margen de utilidad deseado.</p>', unsafe_allow_html=True)
@@ -184,3 +210,105 @@ elif opcion == "➕ Registrar Producto":
             else:
                 registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
                 st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
+
+# ------------------------------------------
+# VISTA: EDITAR / MODIFICAR PRODUCTO
+# ------------------------------------------
+elif opcion == "✏️ Editar / Modificar Producto":
+    st.markdown('<p class="main-title">✏️ Editar / Modificar Producto</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Selecciona un producto registrado para modificar sus precios, stock o eliminarlo del sistema.</p>', unsafe_allow_html=True)
+    
+    df_productos = obtener_productos()
+    
+    if df_productos.empty:
+        st.info("No tienes productos registrados para modificar en este momento.")
+    else:
+        # Menú desplegable para buscar y seleccionar el producto
+        lista_productos = [f"{row['id']} - {row['nombre']}" for _, row in df_productos.iterrows()]
+        seleccion = st.selectbox("Selecciona el producto que deseas editar:", lista_productos)
+        
+        # Extraer el ID correspondiente
+        id_seleccionado = int(seleccion.split(" - ")[0])
+        prod_actual = df_productos[df_productos['id'] == id_seleccionado].iloc[0]
+        
+        st.markdown("---")
+        
+        # Formulario de modificación pre-cargado con los datos actuales
+        with st.form("edicion_form", clear_on_submit=False):
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'])
+                
+                categorias = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
+                try:
+                    cat_index = categorias.index(prod_actual['categoria'])
+                except ValueError:
+                    cat_index = 0
+                    
+                nueva_categoria = st.selectbox("Categoría", categorias, index=cat_index)
+                nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']))
+                
+            with col_b:
+                nuevo_precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=int(prod_actual['precio_costo']))
+                nueva_ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=30, max_value=100, step=5, value=int(prod_actual['ganancia_porcentaje']))
+                
+                nuevo_precio_venta_calculado = int(nuevo_precio_costo * (1 + (nueva_ganancia_porcentaje / 100.0)))
+                
+                st.markdown("**Nuevo Precio de Venta Sugerido:**")
+                st.info(f"💰 {formatear_gs(nuevo_precio_venta_calculado)}  \n*(Costo + {nueva_ganancia_porcentaje}% de ganancia)*")
+
+            nueva_descripcion = st.text_area("Descripción del Producto (Opcional)", value=prod_actual['descripcion'] if prod_actual['descripcion'] else "")
+            
+            st.markdown("---")
+            guardar_cambios = st.form_submit_button("💾 Guardar Cambios")
+            
+            if guardar_cambios:
+                if nuevo_nombre.strip() == "":
+                    st.error("El nombre del producto no puede quedar vacío.")
+                elif nuevo_precio_costo <= 0:
+                    st.error("El precio de costo debe ser mayor a Gs. 0.")
+                else:
+                    actualizar_producto(
+                        id_seleccionado, 
+                        nuevo_nombre, 
+                        nueva_categoria, 
+                        nuevo_precio_costo, 
+                        nueva_ganancia_porcentaje, 
+                        nuevo_precio_venta_calculado, 
+                        nuevo_stock, 
+                        nueva_descripcion
+                    )
+                    st.success(f"✔️ ¡El producto '{nuevo_nombre}' ha sido actualizado con éxito!")
+                    st.rerun()
+
+        # Sección para eliminar producto de forma segura
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("⚠️ Zona de Eliminación")
+        
+        confirmar_borrado = st.checkbox(f"Confirmo que deseo borrar de forma permanente el producto: **{prod_actual['nombre']}**")
+        
+        if st.button("🗑️ Eliminar Producto Definitivamente", type="primary", disabled=not confirmar_borrado):
+            eliminar_producto(id_seleccionado)
+            st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
+            st.rerun()
+```
+eof
+
+---
+
+### 🚀 Cómo aplicar esta actualización en tu servidor
+
+Para asegurar una instalación limpia de estos cambios sin que falle nada:
+
+1. Ve a la ventana interactiva de la derecha que se llama `app.py`.
+2. Presiona el **botón de copia automático** en la esquina superior derecha de la caja gris para obtener el código limpio.
+3. Abre tu editor de código local, borra todo lo que esté en tu archivo `app.py` actual y pega esto de forma limpia.
+4. En tu consola o terminal, sube los cambios ejecutando los tres comandos clásicos:
+   ```bash
+   git add app.py
+   git commit -m "Modificacion: Sistema 100% en Guaranies y modulo de edicion agregado"
+   git push origin main
+   ```
+
+¡Una vez hecho esto, tu panel de Streamlit Cloud se actualizará automáticamente! Podrás ir a la nueva sección **✏️ Editar / Modificar Producto** para cambiar esos registros viejos de dólares (ej. cambiar un costo de `15` a `105.000` de forma directa). ¡Pruébalo y me cuentas qué tal te parece!
