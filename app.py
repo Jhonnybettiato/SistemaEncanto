@@ -2,6 +2,7 @@ import sqlite3
 import pandas as pd
 import streamlit as st
 from datetime import datetime, date
+import io
 
 # Intentar importar la librería de Google Firestore para base de datos permanente
 try:
@@ -638,6 +639,7 @@ opcion = st.sidebar.radio(
     "Selecciona una opción:",
     [
         "🛒 Ventas y Cierre de Caja", 
+        "📈 Flujo de Caja Mensual",
         "💳 Deudas de Clientes",
         "👥 Gestor de Clientes", 
         "📦 Ver Stock / Inventario", 
@@ -648,6 +650,7 @@ opcion = st.sidebar.radio(
     ],
     captions=[
         "Registrar salidas, gastos y reporte del día", 
+        "Reporte completo mensual de ingresos y egresos",
         "Control de fiados y cobro de cuentas",
         "Administrar la lista de clientes", 
         "Control de existencias", 
@@ -929,6 +932,174 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     hide_index=True,
                     use_container_width=True
                 )
+
+# ------------------------------------------
+# VISTA: FLUJO DE CAJA MENSUAL
+# ------------------------------------------
+elif opcion == "📈 Flujo de Caja Mensual":
+    st.markdown('<p class="main-title">📈 Flujo de Caja Mensual</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Relatorio consolidado de todos los ingresos y egresos registrados durante el mes.</p>', unsafe_allow_html=True)
+    
+    col_f1, col_f2 = st.columns(2)
+    
+    meses_dict = {
+        1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+        5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+        9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+    }
+    
+    hoy = date.today()
+    
+    with col_f1:
+        mes_sel_nombre = st.selectbox("Selecciona el Mes:", list(meses_dict.values()), index=hoy.month - 1, key="flujo_mes")
+        mes_sel_num = [k for k, v in meses_dict.items() if v == mes_sel_nombre][0]
+    with col_f2:
+        anio_sel = st.number_input("Año:", min_value=2020, max_value=2035, value=hoy.year, step=1, key="flujo_anio")
+
+    prefix_mes = f"{anio_sel}-{mes_sel_num:02d}"
+
+    # --- CARGA Y FILTRADO DE DATOS DEL MES ---
+    # 1. Ventas
+    df_ventas = obtener_ventas()
+    if not df_ventas.empty:
+        df_ventas['mes_str'] = df_ventas['fecha_hora'].apply(lambda x: str(x)[:7] if pd.notna(x) else "")
+        df_v_mes = df_ventas[(df_ventas['mes_str'] == prefix_mes) & (df_ventas['tipo_venta'] == "Contado")]
+    else:
+        df_v_mes = pd.DataFrame()
+
+    # 2. Cobros de deudas
+    df_pagos = obtener_historial_pagos()
+    if not df_pagos.empty:
+        df_pagos['mes_str'] = df_pagos['fecha_hora'].apply(lambda x: str(x)[:7] if pd.notna(x) else "")
+        df_p_mes = df_pagos[df_pagos['mes_str'] == prefix_mes]
+    else:
+        df_p_mes = pd.DataFrame()
+
+    # 3. Salidas de caja
+    df_salidas = obtener_salidas_caja()
+    if not df_salidas.empty:
+        df_salidas['mes_str'] = df_salidas['fecha_hora'].apply(lambda x: str(x)[:7] if pd.notna(x) else "")
+        df_s_mes = df_salidas[df_salidas['mes_str'] == prefix_mes]
+    else:
+        df_s_mes = pd.DataFrame()
+
+    # Totales acumulados del mes
+    tot_v_contado = int(df_v_mes['total'].sum()) if not df_v_mes.empty else 0
+    tot_p_cobros = int(df_p_mes['monto'].sum()) if not df_p_mes.empty else 0
+    tot_ingresos = tot_v_contado + tot_p_cobros
+
+    tot_egresos = int(df_s_mes['monto'].sum()) if not df_s_mes.empty else 0
+    flujo_neto = tot_ingresos - tot_egresos
+    tot_unidades_mes = int(df_v_mes['cantidad'].sum()) if not df_v_mes.empty else 0
+
+    st.markdown("---")
+    
+    # METRICAS DEL MES
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric("Total Ingresos Mes", formatear_gs(tot_ingresos))
+    with m2:
+        st.metric("Total Egresos Mes", formatear_gs(tot_egresos))
+    with m3:
+        st.metric("Flujo Neto del Mes", formatear_gs(flujo_neto))
+    with m4:
+        st.metric("Unidades Vendidas", f"{tot_unidades_mes} uds")
+
+    st.markdown("---")
+
+    # DICTAMEN MENSUAL
+    if flujo_neto > 0:
+        st.success(f"🎉 **¡EXCELENTE BALANCE MENSUAL!** En {mes_sel_nombre} de {anio_sel} generaste un flujo positivo de **{formatear_gs(flujo_neto)}**")
+    elif flujo_neto < 0:
+        st.error(f"⚠️ **BALANCE MENSUAL NEGATIVO:** En {mes_sel_nombre} de {anio_sel} las salidas superaron a los ingresos por **{formatear_gs(flujo_neto)}**")
+    else:
+        st.info(f"ℹ️ Sin movimientos o balance en cero para {mes_sel_nombre} de {anio_sel}.")
+
+    st.markdown("---")
+
+    # TABLAS DE RELATORIO
+    t_ing, t_egr, t_export = st.tabs(["📥 Relatorio de Ingresos", "📤 Relatorio de Egresos", "📥 Exportar Informe"])
+
+    with t_ing:
+        st.subheader(f"📥 Todos los Ingresos de {mes_sel_nombre} {anio_sel}")
+        if df_v_mes.empty and df_p_mes.empty:
+            st.info("No hay ingresos registrados en el mes seleccionado.")
+        else:
+            if not df_v_mes.empty:
+                st.markdown("#### 🛒 Ventas al Contado")
+                df_v_show = df_v_mes.copy()
+                df_v_show['total'] = df_v_show['total'].apply(formatear_gs)
+                st.dataframe(
+                    df_v_show[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago', 'cliente_nombre']],
+                    column_config={
+                        "fecha_hora": "Fecha / Hora",
+                        "producto_nombre": "Producto",
+                        "cantidad": "Cant.",
+                        "total": "Total",
+                        "metodo_pago": "Medio Pago",
+                        "cliente_nombre": "Cliente"
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+            
+            if not df_p_mes.empty:
+                st.markdown("#### 💳 Cobros de Deudas / Cuentas")
+                df_p_show = df_p_mes.copy()
+                df_p_show['monto'] = df_p_show['monto'].apply(formatear_gs)
+                st.dataframe(
+                    df_p_show[['fecha_hora', 'cliente_nombre', 'monto', 'metodo_pago']],
+                    column_config={
+                        "fecha_hora": "Fecha / Hora",
+                        "cliente_nombre": "Cliente",
+                        "monto": "Monto Cobrado",
+                        "metodo_pago": "Medio Pago"
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+
+    with t_egr:
+        st.subheader(f"📤 Todos los Egresos / Salidas de {mes_sel_nombre} {anio_sel}")
+        if df_s_mes.empty:
+            st.info("No se registraron salidas de caja en este mes.")
+        else:
+            df_s_show = df_s_mes.copy()
+            df_s_show['monto'] = df_s_show['monto'].apply(formatear_gs)
+            st.dataframe(
+                df_s_show[['fecha_hora', 'motivo', 'monto', 'metodo_pago']],
+                column_config={
+                    "fecha_hora": "Fecha / Hora",
+                    "motivo": "Concepto / Motivo",
+                    "monto": "Monto Salida",
+                    "metodo_pago": "Origen / Medio"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
+    with t_export:
+        st.subheader("📥 Exportar Relatorio del Mes a Excel")
+        st.write("Descarga una copia completa del flujo de caja mensual con todos los detalles ordenados.")
+        
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            if not df_v_mes.empty:
+                df_v_mes[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago', 'cliente_nombre']].to_excel(writer, sheet_name='Ventas Contado', index=False)
+            if not df_p_mes.empty:
+                df_p_mes[['fecha_hora', 'cliente_nombre', 'monto', 'metodo_pago']].to_excel(writer, sheet_name='Cobros Cuentas', index=False)
+            if not df_s_mes.empty:
+                df_s_mes[['fecha_hora', 'motivo', 'monto', 'metodo_pago']].to_excel(writer, sheet_name='Salidas Caja', index=False)
+                
+        data_excel = output.getvalue()
+        
+        st.download_button(
+            label=f"📊 Descargar Relatorio Excel ({mes_sel_nombre}_{anio_sel}.xlsx)",
+            data=data_excel,
+            file_name=f"Flujo_Caja_{mes_sel_nombre}_{anio_sel}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary"
+        )
 
 # ------------------------------------------
 # VISTA: DEUDAS Y HISTORIAL DE PAGOS DE CLIENTES
