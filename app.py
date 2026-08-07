@@ -713,7 +713,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 )
 
 # ------------------------------------------
-# VISTA: DEUDAS DE CLIENTES (NUEVA SECCIÓN)
+# VISTA: DEUDAS DE CLIENTES
 # ------------------------------------------
 elif opcion == "💳 Deudas de Clientes":
     st.markdown('<p class="main-title">💳 Gestión de Deudas y Fiados</p>', unsafe_allow_html=True)
@@ -724,14 +724,12 @@ elif opcion == "💳 Deudas de Clientes":
     if df_ventas.empty:
         st.info("No hay registros de ventas.")
     else:
-        # Filtrar solo ventas pendientes
         df_deudas = df_ventas[df_ventas['estado_pago'] == "Pendiente"]
         
         if df_deudas.empty:
             st.balloons()
             st.success("🎉 ¡Excelente! No hay clientes con deudas pendientes actualmente.")
         else:
-            # Agrupar saldo total por cliente
             resumen_deudas = df_deudas.groupby("cliente_nombre")["total"].sum().reset_index()
             resumen_deudas.columns = ["Cliente", "Saldo Pendiente (Gs.)"]
             
@@ -765,22 +763,22 @@ elif opcion == "💳 Deudas de Clientes":
             df_detalle_visual['total'] = df_detalle_visual['total'].apply(formatear_gs)
             
             st.dataframe(
-                df_detalle_visual[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total']],
+                df_detalle_visual[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago']],
                 column_config={
                     "fecha_hora": "Fecha/Hora",
                     "producto_nombre": "Producto",
                     "cantidad": "Cantidad",
                     "precio_unitario": "Precio Unit.",
-                    "total": "Subtotal"
+                    "total": "Total",
+                    "metodo_pago": "Método Pago"
                 },
                 hide_index=True,
                 use_container_width=True
             )
             
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button(f"✅ Registrar Pago Completo ({formatear_gs(deuda_total_cliente)})", type="primary"):
+            if st.button(f"✅ Marcar deudas de {cliente_con_deuda_sel} como PAGADAS", type="primary", use_container_width=True):
                 marcar_deuda_pagada(cliente_con_deuda_sel)
-                st.success(f"🎉 ¡La cuenta de **{cliente_con_deuda_sel}** ha sido saldada por completo!")
+                st.success(f"¡Se han cancelado todas las deudas de {cliente_con_deuda_sel}!")
                 st.rerun()
 
 # ------------------------------------------
@@ -788,57 +786,22 @@ elif opcion == "💳 Deudas de Clientes":
 # ------------------------------------------
 elif opcion == "👥 Gestor de Clientes":
     st.markdown('<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Registra, edita y administra la información de tus clientes.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra, edita o elimina la información de tus clientes.</p>', unsafe_allow_html=True)
     
-    tab_reg_cli, tab_ver_cli, tab_edit_cli = st.tabs(["➕ Registrar Cliente", "📋 Lista de Clientes", "✏️ Editar Cliente"])
+    tab_list_cli, tab_reg_cli, tab_edit_cli = st.tabs(["📋 Lista de Clientes", "➕ Registrar Cliente", "✏️ Editar / Eliminar"])
     
-    # 1. REGISTRAR CLIENTE
-    with tab_reg_cli:
-        col_c1, col_c2 = st.columns(2)
-        
-        with col_c1:
-            cli_nombre = st.text_input("Nombre *", placeholder="Ej: María", key="cli_nom")
-            cli_apellido = st.text_input("Apellido *", placeholder="Ej: González", key="cli_ape")
-            cli_ci = st.text_input("Nº de CI / Cédula *", placeholder="Ej: 4567890", key="cli_ci")
-            
-        with col_c2:
-            cli_telefono = st.text_input("Número de Teléfono / WhatsApp", placeholder="Ej: 0981 123456", key="cli_tel")
-            cli_ciudad = st.text_input("Ciudad", placeholder="Ej: Ciudad del Este, Asunción...", key="cli_ciu")
-            
-        st.markdown("---")
-        if st.button("💾 Guardar Cliente", type="primary", key="btn_save_cli"):
-            if cli_nombre.strip() == "" or cli_apellido.strip() == "" or cli_ci.strip() == "":
-                st.error("Por favor completa los campos obligatorios (*): Nombre, Apellido y CI.")
-            else:
-                registrar_cliente(cli_nombre, cli_apellido, cli_ci, cli_telefono, cli_ciudad)
-                st.success(f"✔️ ¡Cliente **{cli_nombre} {cli_apellido}** registrado con éxito!")
-                st.rerun()
-
-    # 2. LISTA DE CLIENTES
-    with tab_ver_cli:
+    with tab_list_cli:
         df_cli = obtener_clientes()
-        
         if df_cli.empty:
             st.info("No hay clientes registrados aún.")
         else:
-            busq_cli = st.text_input("🔍 Buscar cliente por Nombre, CI o Ciudad:", placeholder="Escribe para buscar...")
-            
-            if busq_cli.strip():
-                df_cli_filtrado = df_cli[
-                    df_cli['nombre'].astype(str).str.contains(busq_cli, case=False, na=False) |
-                    df_cli['apellido'].astype(str).str.contains(busq_cli, case=False, na=False) |
-                    df_cli['ci'].astype(str).str.contains(busq_cli, case=False, na=False) |
-                    df_cli['ciudad'].astype(str).str.contains(busq_cli, case=False, na=False)
-                ]
-            else:
-                df_cli_filtrado = df_cli
-                
             st.dataframe(
-                df_cli_filtrado[['nombre', 'apellido', 'ci', 'telefono', 'ciudad']],
+                df_cli[['id', 'nombre', 'apellido', 'ci', 'telefono', 'ciudad']],
                 column_config={
+                    "id": "ID",
                     "nombre": "Nombre",
                     "apellido": "Apellido",
-                    "ci": "CI / Cédula",
+                    "ci": "CI / RUC",
                     "telefono": "Teléfono",
                     "ciudad": "Ciudad"
                 },
@@ -846,325 +809,254 @@ elif opcion == "👥 Gestor de Clientes":
                 use_container_width=True
             )
             
-            st.markdown("---")
-            st.subheader("🗑️ Eliminar Cliente")
-            
-            lista_del_cli = [f"{r['id']} - {r['nombre']} {r['apellido']} (CI: {r['ci']})" for _, r in df_cli.iterrows()]
-            cli_a_eliminar_str = st.selectbox("Selecciona un cliente para borrar:", lista_del_cli, key="sel_del_cli")
-            
-            if st.button("🗑️ Eliminar Cliente Definitivamente", key="btn_del_cli"):
-                id_cli_del = str(cli_a_eliminar_str.split(" - ")[0])
-                eliminar_cliente(id_cli_del)
-                st.success("✔️ Cliente eliminado correctamente.")
-                st.rerun()
+    with tab_reg_cli:
+        with st.form("form_reg_cliente", clear_on_submit=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                nom_cli = st.text_input("Nombre *")
+                ci_cli = st.text_input("CI / Doc. *")
+                ciudad_cli = st.text_input("Ciudad")
+            with c2:
+                ape_cli = st.text_input("Apellido *")
+                tel_cli = st.text_input("Teléfono")
+                
+            btn_guardar_cli = st.form_submit_button("💾 Guardar Cliente", type="primary")
+            if btn_guardar_cli:
+                if nom_cli.strip() and ape_cli.strip() and ci_cli.strip():
+                    registrar_cliente(nom_cli, ape_cli, ci_cli, tel_cli or "", ciudad_cli or "")
+                    st.success("¡Cliente registrado exitosamente!")
+                    st.rerun()
+                else:
+                    st.error("Por favor completa los campos obligatorios (*): Nombre, Apellido y CI.")
 
-    # 3. EDITAR CLIENTE
     with tab_edit_cli:
         df_cli = obtener_clientes()
-        
         if df_cli.empty:
-            st.info("No hay clientes registrados aún para modificar.")
+            st.info("No hay clientes disponibles para editar.")
         else:
-            lista_edit_cli = [f"{r['id']} - {r['nombre']} {r['apellido']} (CI: {r['ci']})" for _, r in df_cli.iterrows()]
-            cli_a_editar_str = st.selectbox("Selecciona un cliente para editar sus datos:", lista_edit_cli, key="sel_edit_cli")
-            
-            id_cli_edit = str(cli_a_editar_str.split(" - ")[0])
-            cli_actual = df_cli[df_cli['id'].astype(str) == id_cli_edit].iloc[0]
-            
-            st.markdown("---")
-            col_ce1, col_ce2 = st.columns(2)
-            
-            with col_ce1:
-                edit_cli_nombre = st.text_input("Nombre *", value=str(cli_actual['nombre']), key="edit_cli_nom")
-                edit_cli_apellido = st.text_input("Apellido *", value=str(cli_actual['apellido']), key="edit_cli_ape")
-                edit_cli_ci = st.text_input("Nº de CI / Cédula *", value=str(cli_actual['ci']), key="edit_cli_ci")
+            lista_cli_str = [f"{row['id']} - {row['nombre']} {row['apellido']} (CI: {row['ci']})" for _, row in df_cli.iterrows()]
+            cli_sel_str = st.selectbox("Selecciona un cliente:", lista_cli_str, key="sel_cli_edit")
+            if cli_sel_str:
+                id_c = str(cli_sel_str.split(" - ")[0])
+                datos_c = df_cli[df_cli['id'].astype(str) == id_c].iloc[0]
                 
-            with col_ce2:
-                edit_cli_telefono = st.text_input("Número de Teléfono / WhatsApp", value=str(cli_actual['telefono']) if pd.notna(cli_actual['telefono']) else "", key="edit_cli_tel")
-                edit_cli_ciudad = st.text_input("Ciudad", value=str(cli_actual['ciudad']) if pd.notna(cli_actual['ciudad']) else "", key="edit_cli_ciu")
-                
-            st.markdown("---")
-            if st.button("💾 Guardar Cambios del Cliente", type="primary", key="btn_update_cli"):
-                if edit_cli_nombre.strip() == "" or edit_cli_apellido.strip() == "" or edit_cli_ci.strip() == "":
-                    st.error("Por favor completa los campos obligatorios (*): Nombre, Apellido y CI.")
-                else:
-                    actualizar_cliente(id_cli_edit, edit_cli_nombre, edit_cli_apellido, edit_cli_ci, edit_cli_telefono, edit_cli_ciudad)
-                    st.success(f"✔️ ¡Datos del cliente **{edit_cli_nombre} {edit_cli_apellido}** actualizados con éxito!")
-                    st.rerun()
+                with st.form("form_edit_cliente"):
+                    ec1, ec2 = st.columns(2)
+                    with ec1:
+                        e_nom = st.text_input("Nombre", value=str(datos_c['nombre']))
+                        e_ci = st.text_input("CI / Doc.", value=str(datos_c['ci']))
+                        e_ciudad = st.text_input("Ciudad", value=str(datos_c.get('ciudad', '')))
+                    with ec2:
+                        e_ape = st.text_input("Apellido", value=str(datos_c['apellido']))
+                        e_tel = st.text_input("Teléfono", value=str(datos_c.get('telefono', '')))
+                    
+                    c_b1, c_b2 = st.columns(2)
+                    with c_b1:
+                        btn_act_c = st.form_submit_button("✏️ Actualizar Cliente", type="primary", use_container_width=True)
+                    with c_b2:
+                        btn_del_c = st.form_submit_button("❌ Eliminar Cliente", use_container_width=True)
+                        
+                    if btn_act_c:
+                        actualizar_cliente(id_c, e_nom, e_ape, e_ci, e_tel, e_ciudad)
+                        st.success("¡Cliente actualizado correctamente!")
+                        st.rerun()
+                    if btn_del_c:
+                        eliminar_cliente(id_c)
+                        st.warning("Cliente eliminado correctamente.")
+                        st.rerun()
 
 # ------------------------------------------
 # VISTA: VER STOCK / INVENTARIO
 # ------------------------------------------
 elif opcion == "📦 Ver Stock / Inventario":
-    st.markdown('<p class="main-title">📦 Control de Stock e Inventario</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Visualiza, busca y analiza el rendimiento financiero de tus productos en tiempo real.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-title">📦 Ver Stock / Inventario</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Consulta el catálogo de productos y existencias en tiempo real.</p>', unsafe_allow_html=True)
     
-    df_productos = obtener_productos()
-    
-    if df_productos.empty:
-        st.info("Aún no tienes productos registrados en el inventario.")
+    df_p = obtener_productos()
+    if df_p.empty:
+        st.info("No hay productos registrados en el inventario.")
     else:
-        busqueda = st.text_input("🔍 Buscar producto por nombre", "", placeholder="Escribe el nombre del producto...")
+        col_f1, col_f2 = st.columns(2)
+        with col_f1:
+            cat_filtro = st.selectbox("Filtrar por Categoría:", ["Todas"] + obtener_categorias(), key="filtro_cat")
+        with col_f2:
+            marca_filtro = st.selectbox("Filtrar por Marca:", ["Todas"] + obtener_marcas(), key="filtro_marca")
+            
+        df_filtrado = df_p.copy()
+        if cat_filtro != "Todas":
+            df_filtrado = df_filtrado[df_filtrado['categoria'] == cat_filtro]
+        if marca_filtro != "Todas":
+            df_filtrado = df_filtrado[df_filtrado['marca'] == marca_filtro]
+            
+        df_vis = df_filtrado.copy()
+        df_vis['precio_costo'] = df_vis['precio_costo'].apply(formatear_gs)
+        df_vis['precio_venta'] = df_vis['precio_venta'].apply(formatear_gs)
         
-        if busqueda:
-            df_productos_filtrados = df_productos[df_productos['nombre'].str.contains(busqueda, case=False)]
-        else:
-            df_productos_filtrados = df_productos
-
-        df_visual = df_productos_filtrados.copy()
-        df_visual['precio_costo'] = df_visual['precio_costo'].apply(formatear_gs)
-        df_visual['ganancia_porcentaje'] = df_visual['ganancia_porcentaje'].apply(lambda x: f"{x}%")
-        df_visual['precio_venta'] = df_visual['precio_venta'].apply(formatear_gs)
-        df_visual['stock'] = df_visual['stock'].apply(lambda x: f"{x} uds")
-
         st.dataframe(
-            df_visual,
+            df_vis[['id', 'nombre', 'categoria', 'marca', 'precio_costo', 'ganancia_porcentaje', 'precio_venta', 'stock', 'descripcion']],
             column_config={
                 "id": "ID",
                 "nombre": "Producto",
                 "categoria": "Categoría",
                 "marca": "Marca",
-                "precio_costo": "Precio Costo (Gs.)",
+                "precio_costo": "P. Costo",
                 "ganancia_porcentaje": "Ganancia (%)",
-                "precio_venta": "Precio Venta (Gs.)",
+                "precio_venta": "P. Venta",
                 "stock": "Stock",
                 "descripcion": "Descripción"
             },
             hide_index=True,
             use_container_width=True
         )
-        
-        st.markdown("---")
-        st.subheader("📊 Resumen Financiero del Inventario (Gs.)")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
-        total_productos = len(df_productos_filtrados)
-        total_stock = int(df_productos_filtrados['stock'].sum())
-        
-        valor_costo = int((df_productos_filtrados['precio_costo'] * df_productos_filtrados['stock']).sum())
-        valor_venta = int((df_productos_filtrados['precio_venta'] * df_productos_filtrados['stock']).sum())
-        ganancia_estimada = valor_venta - valor_costo
-        
-        with col1:
-            st.metric("Total de Productos", f"{total_productos} tipos")
-        with col2:
-            st.metric("Existencias en Stock", f"{total_stock} uds")
-        with col3:
-            st.metric("Inversión Total (Gs.)", formatear_gs(valor_costo))
-        with col4:
-            st.metric("Ganancia Estimada (Gs.)", formatear_gs(ganancia_estimada))
 
 # ------------------------------------------
 # VISTA: REGISTRAR PRODUCTO
 # ------------------------------------------
 elif opcion == "➕ Registrar Producto":
-    st.markdown('<p class="main-title">➕ Registro de Nuevo Producto</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Añade nuevos artículos definiendo su costo de compra y margen de utilidad deseado.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-title">➕ Registrar Nuevo Producto</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Añade nuevos artículos a tu catálogo.</p>', unsafe_allow_html=True)
     
-    lista_categorias = obtener_categorias()
-    lista_marcas = obtener_marcas()
+    cats = obtener_categorias()
+    marcas = obtener_marcas()
     
-    col_a, col_b = st.columns(2)
-    
-    with col_a:
-        nombre = st.text_input("Nombre del Producto *", placeholder="Ej. Encanto Imperial 100ml", key="reg_nombre")
-        categoria = st.selectbox("Categoría", lista_categorias, key="reg_categoria")
-        marca = st.selectbox("Marca", lista_marcas, key="reg_marca")
-        stock = st.number_input("Cantidad inicial en stock *", min_value=1, step=1, value=1, key="reg_stock")
+    with st.form("form_reg_prod", clear_on_submit=True):
+        p_nom = st.text_input("Nombre del Producto *")
         
-    with col_b:
-        precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=0, key="reg_costo")
-        ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=20, max_value=100, step=5, value=20, key="reg_ganancia")
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            p_cat = st.selectbox("Categoría", cats)
+            p_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500)
+            p_stock = st.number_input("Stock Inicial *", min_value=0, value=1, step=1)
+        with col_p2:
+            p_marca = st.selectbox("Marca", marcas)
+            p_ganancia = st.number_input("Margen de Ganancia (%) *", min_value=0, value=30, step=5)
+            precio_calc = int(p_costo * (1 + (p_ganancia / 100)))
+            st.info(f"Precio Venta Calculado: **{formatear_gs(precio_calc)}**")
+            
+        p_desc = st.text_area("Descripción (Opcional)")
         
-        precio_venta_calculado = int(precio_costo * (1 + (ganancia_porcentaje / 100.0)))
+        btn_reg_prod = st.form_submit_button("💾 Guardar Producto", type="primary")
         
-        st.markdown("**Precio de Venta Sugerido:**")
-        st.info(f"💰 {formatear_gs(precio_venta_calculado)}  \n*(Costo + {ganancia_porcentaje}% de ganancia)*")
-
-    descripcion = st.text_area("Descripción del Producto (Opcional)", placeholder="Fragancias, notas u observaciones...", key="reg_desc")
-    
-    st.markdown("---")
-    guardar = st.button("💾 Guardar y Registrar", key="reg_guardar")
-    
-    if guardar:
-        if nombre.strip() == "":
-            st.error("El nombre del producto es requerido.")
-        elif precio_costo <= 0:
-            st.error("El precio de costo debe ser mayor a Gs. 0.")
-        else:
-            registrar_producto(nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
-            st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
-            st.rerun()
+        if btn_reg_prod:
+            if p_nom.strip() and p_costo >= 0:
+                precio_final = int(p_costo * (1 + (p_ganancia / 100)))
+                registrar_producto(p_nom.strip(), p_cat, p_marca, p_costo, p_ganancia, precio_final, p_stock, p_desc.strip())
+                st.success(f"¡Producto '{p_nom}' registrado con éxito!")
+                st.rerun()
+            else:
+                st.error("Por favor completa los campos obligatorios.")
 
 # ------------------------------------------
 # VISTA: EDITAR / MODIFICAR PRODUCTO
 # ------------------------------------------
 elif opcion == "✏️ Editar / Modificar Producto":
     st.markdown('<p class="main-title">✏️ Editar / Modificar Producto</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Selecciona un producto registrado para modificar sus precios, stock o eliminarlo del sistema.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Actualiza la información o elimina productos existentes.</p>', unsafe_allow_html=True)
     
-    df_productos = obtener_productos()
-    lista_categorias = obtener_categorias()
-    lista_marcas = obtener_marcas()
-    
-    if df_productos.empty:
-        st.info("No tienes productos registrados para modificar en este momento.")
+    df_p = obtener_productos()
+    if df_p.empty:
+        st.info("No hay productos registrados para modificar.")
     else:
-        lista_productos = [f"{row['id']} - {row['nombre']}" for _, row in df_productos.iterrows()]
-        seleccion = st.selectbox("Selecciona el producto que deseas editar:", lista_productos)
+        lista_prods_str = [f"{row['id']} - {row['nombre']} ({row['marca']})" for _, row in df_p.iterrows()]
+        prod_edit_sel = st.selectbox("Selecciona un producto:", lista_prods_str, key="sel_prod_edit")
         
-        id_seleccionado = str(seleccion.split(" - ")[0])
-        df_filtrado = df_productos[df_productos['id'].astype(str) == id_seleccionado]
-        
-        if df_filtrado.empty:
-            st.warning("⚠️ No se encontró el producto seleccionado.")
-        else:
-            prod_actual = df_filtrado.iloc[0]
+        if prod_edit_sel:
+            id_p_edit = str(prod_edit_sel.split(" - ")[0])
+            datos_p = df_p[df_p['id'].astype(str) == id_p_edit].iloc[0]
             
-            st.markdown("---")
+            cats = obtener_categorias()
+            marcas = obtener_marcas()
             
-            col_a, col_b = st.columns(2)
+            idx_cat = cats.index(datos_p['categoria']) if datos_p['categoria'] in cats else 0
+            idx_marca = marcas.index(datos_p['marca']) if datos_p['marca'] in marcas else 0
             
-            with col_a:
-                nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'], key="edit_nombre")
+            with st.form("form_edit_prod"):
+                e_p_nom = st.text_input("Nombre", value=str(datos_p['nombre']))
                 
-                try:
-                    cat_index = lista_categorias.index(prod_actual['categoria'])
-                except (ValueError, KeyError):
-                    cat_index = 0
+                ep1, ep2 = st.columns(2)
+                with ep1:
+                    e_p_cat = st.selectbox("Categoría", cats, index=idx_cat)
+                    e_p_costo = st.number_input("Precio Costo (Gs.)", min_value=0, value=int(datos_p['precio_costo']), step=500)
+                    e_p_stock = st.number_input("Stock", min_value=0, value=int(datos_p['stock']), step=1)
+                with ep2:
+                    e_p_marca = st.selectbox("Marca", marcas, index=idx_marca)
+                    e_p_ganancia = st.number_input("Ganancia (%)", min_value=0, value=int(datos_p['ganancia_porcentaje']), step=5)
+                    e_precio_calc = int(e_p_costo * (1 + (e_p_ganancia / 100)))
+                    st.info(f"Precio Venta Calculado: **{formatear_gs(e_precio_calc)}**")
                     
-                nueva_categoria = st.selectbox("Categoría", lista_categorias, index=cat_index, key="edit_categoria")
+                e_p_desc = st.text_area("Descripción", value=str(datos_p.get('descripcion', '')))
                 
-                try:
-                    marca_actual_val = prod_actual['marca'] if pd.notna(prod_actual['marca']) else ""
-                    marca_index = lista_marcas.index(marca_actual_val)
-                except (ValueError, KeyError):
-                    marca_index = 0
-
-                nueva_marca = st.selectbox("Marca", lista_marcas, index=marca_index, key="edit_marca")
-                nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']), key="edit_stock")
-                
-            with col_b:
-                nuevo_precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=int(prod_actual['precio_costo']), key="edit_costo")
-                nueva_ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=20, max_value=100, step=5, value=int(prod_actual['ganancia_porcentaje']), key="edit_ganancia")
-                
-                nuevo_precio_venta_calculado = int(nuevo_precio_costo * (1 + (nueva_ganancia_porcentaje / 100.0)))
-                
-                st.markdown("**Nuevo Precio de Venta Sugerido:**")
-                st.info(f"💰 {formatear_gs(nuevo_precio_venta_calculado)}  \n*(Costo + {nueva_ganancia_porcentaje}% de ganancia)*")
-
-            nueva_descripcion = st.text_area("Descripción del Producto (Opcional)", value=prod_actual['descripcion'] if pd.notna(prod_actual['descripcion']) else "", key="edit_desc")
-            
-            st.markdown("---")
-            guardar_cambios = st.button("💾 Guardar Cambios", key="edit_guardar")
-            
-            if guardar_cambios:
-                if nuevo_nombre.strip() == "":
-                    st.error("El nombre del producto no puede quedar vacío.")
-                elif nuevo_precio_costo <= 0:
-                    st.error("El precio de costo debe ser mayor a Gs. 0.")
-                else:
-                    actualizar_producto(
-                        id_seleccionado, 
-                        nuevo_nombre, 
-                        nueva_categoria, 
-                        nueva_marca,
-                        nuevo_precio_costo, 
-                        nueva_ganancia_porcentaje, 
-                        nuevo_precio_venta_calculado, 
-                        nuevo_stock, 
-                        nueva_descripcion
-                    )
-                    st.success(f"✔️ ¡El producto '{nuevo_nombre}' ha sido actualizado con éxito!")
+                eb1, eb2 = st.columns(2)
+                with eb1:
+                    btn_act_p = st.form_submit_button("✏️ Actualizar Producto", type="primary", use_container_width=True)
+                with eb2:
+                    btn_del_p = st.form_submit_button("❌ Eliminar Producto", use_container_width=True)
+                    
+                if btn_act_p:
+                    e_precio_final = int(e_p_costo * (1 + (e_p_ganancia / 100)))
+                    actualizar_producto(id_p_edit, e_p_nom, e_p_cat, e_p_marca, e_p_costo, e_p_ganancia, e_precio_final, e_p_stock, e_p_desc)
+                    st.success("¡Producto actualizado exitosamente!")
                     st.rerun()
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.subheader("⚠️ Zona de Eliminación")
-            
-            confirmar_borrado = st.checkbox(f"Confirmo que deseo borrar de forma permanente el producto: **{prod_actual['nombre']}**", key="confirm_del")
-            
-            if st.button("🗑️ Eliminar Producto Definitivamente", type="primary", disabled=not confirmar_borrado, key="btn_del"):
-                eliminar_producto(id_seleccionado)
-                st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
-                st.rerun()
+                    
+                if btn_del_p:
+                    eliminar_producto(id_p_edit)
+                    st.warning("Producto eliminado del inventario.")
+                    st.rerun()
 
 # ------------------------------------------
 # VISTA: GESTOR DE CATEGORÍAS
 # ------------------------------------------
 elif opcion == "🏷️ Gestor de Categorías":
     st.markdown('<p class="main-title">🏷️ Gestor de Categorías</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Crea nuevas categorías o elimina aquellas que ya no necesites para organizar tu tienda.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Añade o elimina categorías para tus productos.</p>', unsafe_allow_html=True)
     
     col_cat1, col_cat2 = st.columns(2)
     
     with col_cat1:
-        st.subheader("➕ Añadir Nueva Categoría")
-        nueva_cat_input = st.text_input("Nombre de la Categoría", placeholder="Ej. Maquillaje, Accesorios...", key="input_nueva_cat")
-        
-        if st.button("💾 Registrar Categoría", key="btn_add_cat"):
-            if nueva_cat_input.strip() == "":
-                st.error("Ingresa un nombre válido para la categoría.")
-            else:
-                registrar_categoria(nueva_cat_input)
-                st.success(f"✔️ Categoría '{nueva_cat_input.strip()}' guardada con éxito.")
+        st.subheader("➕ Añadir Categoría")
+        nueva_cat = st.text_input("Nombre de la Categoría:", key="input_nueva_cat")
+        if st.button("Guardar Categoría", type="primary", key="btn_add_cat"):
+            if nueva_cat.strip():
+                registrar_categoria(nueva_cat)
+                st.success(f"Categoría '{nueva_cat.strip()}' agregada.")
                 st.rerun()
+            else:
+                st.error("Ingresa un nombre válido.")
                 
     with col_cat2:
-        st.subheader("📋 Categorías Actuales")
-        categorias_actuales = obtener_categorias()
-        
-        if categorias_actuales:
-            for cat in categorias_actuales:
-                st.markdown(f"- **{cat}**")
-            
-            st.markdown("---")
-            st.subheader("🗑️ Eliminar Categoría")
-            cat_a_eliminar = st.selectbox("Selecciona la categoría a eliminar", categorias_actuales, key="select_del_cat")
-            
-            if st.button("🗑️ Eliminar Categoría", type="secondary", key="btn_del_cat"):
-                eliminar_categoria(cat_a_eliminar)
-                st.success(f"✔️ Categoría '{cat_a_eliminar}' eliminada.")
-                st.rerun()
-        else:
-            st.info("No hay categorías registradas.")
+        st.subheader("🗑️ Eliminar Categoría")
+        cats_existentes = obtener_categorias()
+        cat_del_sel = st.selectbox("Selecciona categoría a eliminar:", cats_existentes, key="sel_del_cat")
+        if st.button("Eliminar Categoría", key="btn_del_cat"):
+            eliminar_categoria(cat_del_sel)
+            st.warning(f"Categoría '{cat_del_sel}' eliminada.")
+            st.rerun()
 
 # ------------------------------------------
 # VISTA: GESTOR DE MARCAS
 # ------------------------------------------
 elif opcion == "🏢 Gestor de Marcas":
     st.markdown('<p class="main-title">🏢 Gestor de Marcas</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Registra o elimina las marcas de los productos que comercializas.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Administra la lista de marcas de tu tienda.</p>', unsafe_allow_html=True)
     
     col_m1, col_m2 = st.columns(2)
     
     with col_m1:
-        st.subheader("➕ Añadir Nueva Marca")
-        nueva_marca_input = st.text_input("Nombre de la Marca", placeholder="Ej. Chanel, Victoria's Secret...", key="input_nueva_marca")
-        
-        if st.button("💾 Registrar Marca", key="btn_add_marca"):
-            if nueva_marca_input.strip() == "":
-                st.error("Ingresa un nombre válido para la marca.")
-            else:
-                registrar_marca(nueva_marca_input)
-                st.success(f"✔️ Marca '{nueva_marca_input.strip()}' guardada con éxito.")
+        st.subheader("➕ Añadir Marca")
+        nueva_marca = st.text_input("Nombre de la Marca:", key="input_nueva_marca")
+        if st.button("Guardar Marca", type="primary", key="btn_add_marca"):
+            if nueva_marca.strip():
+                registrar_marca(nueva_marca)
+                st.success(f"Marca '{nueva_marca.strip()}' agregada.")
                 st.rerun()
+            else:
+                st.error("Ingresa un nombre válido.")
                 
     with col_m2:
-        st.subheader("📋 Marcas Actuales")
-        marcas_actuales = obtener_marcas()
-        
-        if marcas_actuales:
-            for m in marcas_actuales:
-                st.markdown(f"- **{m}**")
-            
-            st.markdown("---")
-            st.subheader("🗑️ Eliminar Marca")
-            marca_a_eliminar = st.selectbox("Selecciona la marca a eliminar", marcas_actuales, key="select_del_marca")
-            
-            if st.button("🗑️ Eliminar Marca", type="secondary", key="btn_del_marca"):
-                eliminar_marca(marca_a_eliminar)
-                st.success(f"✔️ Marca '{marca_a_eliminar}' eliminada.")
-                st.rerun()
-        else:
-            st.info("No hay marcas registradas.")
+        st.subheader("🗑️ Eliminar Marca")
+        marcas_existentes = obtener_marcas()
+        marca_del_sel = st.selectbox("Selecciona marca a eliminar:", marcas_existentes, key="sel_del_marca")
+        if st.button("Eliminar Marca", key="btn_del_marca"):
+            eliminar_marca(marca_del_sel)
+            st.warning(f"Marca '{marca_del_sel}' eliminada.")
+            st.rerun()
