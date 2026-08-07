@@ -649,6 +649,7 @@ st.markdown("""
     .main-title, h1, h2, h3 { 
         color: #6B46C1 !important; 
         font-weight: 800 !important;
+        font-size: 42px !important;  /* <--- AQUÍ AUMENTAS EL TAMAÑO */
     }
     
     /* Subtítulos */
