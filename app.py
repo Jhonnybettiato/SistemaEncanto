@@ -110,7 +110,7 @@ def init_db():
         )
     """)
     
-    # Crear tabla de historial de pagos
+    # Crear tabla de historial de pagos de clientes
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS pagos_clientes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -132,7 +132,7 @@ def init_db():
         )
     """)
 
-    # NUEVA TABLA: Cierres de caja para arrastre de saldo
+    # Tabla: Cierres de caja para arrastre de saldo
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS cierres_caja (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,6 +141,43 @@ def init_db():
             ingresos INTEGER NOT NULL,
             egresos INTEGER NOT NULL,
             saldo_final INTEGER NOT NULL
+        )
+    """)
+
+    # NUEVA TABLA: Proveedores
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS proveedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            ruc_ci TEXT,
+            telefono TEXT,
+            ciudad TEXT
+        )
+    """)
+
+    # NUEVA TABLA: Compras a Proveedores
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS compras_proveedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_hora TEXT NOT NULL,
+            proveedor_nombre TEXT NOT NULL,
+            concepto TEXT NOT NULL,
+            monto_total INTEGER NOT NULL,
+            tipo_compra TEXT NOT NULL,
+            metodo_pago TEXT NOT NULL,
+            estado_pago TEXT DEFAULT 'Pagado'
+        )
+    """)
+
+    # NUEVA TABLA: Pagos a Proveedores
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pagos_proveedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_hora TEXT NOT NULL,
+            compra_id INTEGER NOT NULL,
+            proveedor_nombre TEXT NOT NULL,
+            monto INTEGER NOT NULL,
+            metodo_pago TEXT NOT NULL
         )
     """)
 
@@ -216,7 +253,7 @@ def registrar_cierre_diario(fecha_str, saldo_inicial, ingresos, egresos, saldo_f
         conn.commit()
         conn.close()
 
-# --- FUNCIONES DE CATEGORÍAS ---
+# --- FUNCIONES DE CATEGORÍAS Y MARCAS ---
 def obtener_categorias():
     db_cloud = obtener_conexion_db()
     cat_default = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
@@ -261,7 +298,6 @@ def eliminar_categoria(nombre_cat):
         conn.commit()
         conn.close()
 
-# --- FUNCIONES DE MARCAS ---
 def obtener_marcas():
     db_cloud = obtener_conexion_db()
     marcas_default = ["Natura", "O Boticário", "Eudora", "Sin Marca / Genérico"]
@@ -459,7 +495,7 @@ def obtener_productos():
             df["marca"] = "Sin Marca"
         return df
 
-# --- FUNCIONES DE VENTAS Y DEUDAS ---
+# --- FUNCIONES DE VENTAS Y DEUDAS CLIENTES ---
 def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, total, tipo_venta, metodo_pago, cliente_nombre="Cliente Ocasional"):
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -529,7 +565,6 @@ def obtener_ventas():
             df["cliente_nombre"] = "Cliente Ocasional"
         return df
 
-# --- FUNCIONES HISTORIAL DE PAGOS ---
 def registrar_pago_historial(cliente_nombre, monto, metodo_pago):
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -564,6 +599,134 @@ def obtener_historial_pagos():
         df = pd.read_sql_query("SELECT * FROM pagos_clientes ORDER BY id DESC", conn)
         conn.close()
         return df
+
+# --- FUNCIONES DE PROVEEDORES Y COMPRAS ---
+def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("proveedores").add({
+            "nombre": nombre.strip(),
+            "ruc_ci": ruc_ci.strip(),
+            "telefono": telefono.strip(),
+            "ciudad": ciudad.strip()
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO proveedores (nombre, ruc_ci, telefono, ciudad)
+            VALUES (?, ?, ?, ?)
+        """, (nombre.strip(), ruc_ci.strip(), telefono.strip(), ciudad.strip()))
+        conn.commit()
+        conn.close()
+
+def obtener_proveedores():
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("proveedores").stream()
+        lista = []
+        for doc in docs:
+            d = doc.to_dict()
+            d["id"] = doc.id
+            lista.append(d)
+        if not lista:
+            return pd.DataFrame(columns=["id", "nombre", "ruc_ci", "telefono", "ciudad"])
+        return pd.DataFrame(lista)
+    else:
+        conn = sqlite3.connect("inventario.db")
+        df = pd.read_sql_query("SELECT * FROM proveedores", conn)
+        conn.close()
+        return df
+
+def registrar_compra_proveedor(proveedor_nombre, concepto, monto_total, tipo_compra, metodo_pago):
+    db_cloud = obtener_conexion_db()
+    fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    estado_pago = "Pendiente" if tipo_compra == "Crédito" else "Pagado"
+
+    if db_cloud is not None:
+        db_cloud.collection("compras_proveedores").add({
+            "fecha_hora": fecha_hora,
+            "proveedor_nombre": proveedor_nombre,
+            "concepto": concepto,
+            "monto_total": int(monto_total),
+            "tipo_compra": tipo_compra,
+            "metodo_pago": metodo_pago,
+            "estado_pago": estado_pago
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO compras_proveedores (fecha_hora, proveedor_nombre, concepto, monto_total, tipo_compra, metodo_pago, estado_pago)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (fecha_hora, proveedor_nombre, concepto, int(monto_total), tipo_compra, metodo_pago, estado_pago))
+        conn.commit()
+        conn.close()
+
+def obtener_compras_proveedores():
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("compras_proveedores").stream()
+        lista = []
+        for doc in docs:
+            d = doc.to_dict()
+            d["id"] = doc.id
+            lista.append(d)
+        if not lista:
+            return pd.DataFrame(columns=["id", "fecha_hora", "proveedor_nombre", "concepto", "monto_total", "tipo_compra", "metodo_pago", "estado_pago"])
+        return pd.DataFrame(lista)
+    else:
+        conn = sqlite3.connect("inventario.db")
+        df = pd.read_sql_query("SELECT * FROM compras_proveedores", conn)
+        conn.close()
+        return df
+
+def registrar_pago_proveedor(compra_id, proveedor_nombre, monto, metodo_pago):
+    db_cloud = obtener_conexion_db()
+    fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    if db_cloud is not None:
+        db_cloud.collection("pagos_proveedores").add({
+            "fecha_hora": fecha_hora,
+            "compra_id": int(compra_id),
+            "proveedor_nombre": proveedor_nombre,
+            "monto": int(monto),
+            "metodo_pago": metodo_pago
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO pagos_proveedores (fecha_hora, compra_id, proveedor_nombre, monto, metodo_pago)
+            VALUES (?, ?, ?, ?, ?)
+        """, (fecha_hora, int(compra_id), proveedor_nombre, int(monto), metodo_pago))
+        conn.commit()
+        conn.close()
+
+def obtener_pagos_proveedores():
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("pagos_proveedores").stream()
+        lista = [doc.to_dict() for doc in docs]
+        if not lista:
+            return pd.DataFrame(columns=["fecha_hora", "compra_id", "proveedor_nombre", "monto", "metodo_pago"])
+        return pd.DataFrame(lista)
+    else:
+        conn = sqlite3.connect("inventario.db")
+        df = pd.read_sql_query("SELECT * FROM pagos_proveedores ORDER BY id DESC", conn)
+        conn.close()
+        return df
+
+def actualizar_estado_compra(compra_id, estado_pago):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("compras_proveedores").document(str(compra_id)).update({"estado_pago": estado_pago})
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("UPDATE compras_proveedores SET estado_pago = ? WHERE id = ?", (estado_pago, int(compra_id)))
+        conn.commit()
+        conn.close()
 
 # --- FUNCIONES SALIDAS / GASTOS DE CAJA ---
 def registrar_salida_caja(motivo, monto, metodo_pago):
@@ -643,6 +806,7 @@ opcion = st.sidebar.radio(
     "Selecciona una opción:",
     [
         "🛒 Ventas y Cierre de Caja", 
+        "🚚 Compras a Proveedores",
         "📈 Flujo de Caja Mensual",
         "💳 Deudas de Clientes",
         "👥 Gestor de Clientes", 
@@ -654,6 +818,7 @@ opcion = st.sidebar.radio(
     ],
     captions=[
         "Registrar salidas, gastos y reporte del día", 
+        "Registro de facturas, deudas y pagos a proveedores",
         "Reporte completo mensual de ingresos y egresos",
         "Control de fiados y cobro de cuentas",
         "Administrar la lista de clientes", 
@@ -664,6 +829,164 @@ opcion = st.sidebar.radio(
         "Administrar marcas"
     ]
 )
+
+# ------------------------------------------
+# VISTA: COMPRAS A PROVEEDORES (NUEVO)
+# ------------------------------------------
+if opcion == "🚚 Compras a Proveedores":
+    st.markdown('<p class="main-title">🚚 Compras a Proveedores y Deudas</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra facturas de compra, controla deudas pendientes con proveedores y abonos parciales o totales.</p>', unsafe_allow_html=True)
+
+    tab_compra, tab_deudas, tab_prov = st.tabs(["🛍️ Registrar Compra", "💳 Cuentas por Pagar (Deudas)", "🏢 Directoria de Proveedores"])
+
+    # TAB 1: REGISTRAR COMPRA
+    with tab_compra:
+        df_prov = obtener_proveedores()
+        
+        if df_prov.empty:
+            st.info("Primero debes registrar al menos un proveedor en la pestaña '🏢 Directoria de Proveedores'.")
+        else:
+            lista_prov = [f"{r['id']} - {r['nombre']}" for _, r in df_prov.iterrows()]
+            
+            with st.form("form_registro_compra"):
+                st.subheader("Datos de la Compra / Factura")
+                prov_sel = st.selectbox("Seleccionar Proveedor:", lista_prov)
+                concepto = st.text_input("Concepto / Descripción:", placeholder="Ej: Compra de lote de perfumes Natura o Factura N° 001-002")
+                monto_total = st.number_input("Monto Total de la Compra (Gs.):", min_value=1, step=10000, value=100000)
+                
+                col_c1, col_c2 = st.columns(2)
+                with col_c1:
+                    tipo_compra = st.radio("Condición de Compra:", ["Contado", "Crédito"], horizontal=True)
+                with col_c2:
+                    metodo_pago = st.selectbox("Forma de Pago Registrada:", ["Efectivo", "Transferencia / PIX", "A Cuenta / Deuda Pendiente"])
+
+                submitted_compra = st.form_submit_button("💾 Registrar Compra", type="primary")
+
+                if submitted_compra:
+                    if not concepto.strip():
+                        st.error("Por favor ingresa un concepto para la compra.")
+                    else:
+                        nombre_prov = prov_sel.split(" - ")[1]
+                        registrar_compra_proveedor(nombre_prov, concepto, monto_total, tipo_compra, metodo_pago)
+                        st.success(f"✅ Compra registrada correctamente. Condición: {tipo_compra}.")
+                        st.rerun()
+
+    # TAB 2: CUENTAS POR PAGAR Y PAGOS PARCIALES/TOTALES
+    with tab_deudas:
+        st.subheader("💳 Cuentas por Pagar a Proveedores")
+        
+        df_compras = obtener_compras_proveedores()
+        df_pagos = obtener_pagos_proveedores()
+
+        if df_compras.empty:
+            st.info("No hay registros de compras.")
+        else:
+            compras_credito = df_compras[df_compras['tipo_compra'] == 'Crédito']
+            
+            if compras_credito.empty:
+                st.success("🎉 ¡No tienes deudas pendientes con proveedores!")
+            else:
+                # Calcular saldo por cada compra a crédito
+                lista_deudas = []
+                for _, row in compras_credito.iterrows():
+                    c_id = int(row['id'])
+                    monto_factura = int(row['monto_total'])
+                    
+                    pagos_asoc = df_pagos[df_pagos['compra_id'] == c_id] if not df_pagos.empty else pd.DataFrame()
+                    total_pagado = pagos_asoc['monto'].sum() if not pagos_asoc.empty else 0
+                    
+                    saldo_pendiente = monto_factura - total_pagado
+                    
+                    if saldo_pendiente > 0:
+                        lista_deudas.append({
+                            "ID Compra": c_id,
+                            "Fecha": row['fecha_hora'],
+                            "Proveedor": row['proveedor_nombre'],
+                            "Concepto": row['concepto'],
+                            "Monto Total": monto_factura,
+                            "Total Pagado": total_pagado,
+                            "Saldo Pendiente": saldo_pendiente,
+                            "Estado": row['estado_pago']
+                        })
+
+                df_deudas = pd.DataFrame(lista_deudas)
+                
+                if df_deudas.empty:
+                    st.success("🎉 ¡Todas las compras a crédito han sido completamente saldadas!")
+                else:
+                    st.write("📋 **Lista de Facturas Pendientes de Pago:**")
+                    
+                    df_display = df_deudas.copy()
+                    df_display['Monto Total'] = df_display['Monto Total'].apply(formatear_gs)
+                    df_display['Total Pagado'] = df_display['Total Pagado'].apply(formatear_gs)
+                    df_display['Saldo Pendiente'] = df_display['Saldo Pendiente'].apply(formatear_gs)
+                    
+                    st.dataframe(df_display, use_container_width=True)
+
+                    st.markdown("---")
+                    st.subheader("💵 Registrar Pago / Abono (Parcial o Total)")
+
+                    opciones_deuda = [f"ID: {r['ID Compra']} | Prov: {r['Proveedor']} | Conc: {r['Concepto']} | Saldo: {formatear_gs(r['Saldo Pendiente'])}" for _, r in df_deudas.iterrows()]
+                    
+                    deuda_sel_str = st.selectbox("Selecciona la Factura a Pagado:", opciones_deuda)
+                    
+                    if deuda_sel_str:
+                        id_compra_sel = int(deuda_sel_str.split(" | ")[0].replace("ID: ", ""))
+                        info_deuda = df_deudas[df_deudas['ID Compra'] == id_compra_sel].iloc[0]
+
+                        col_p1, col_p2, col_p3 = st.columns(3)
+                        with col_p1:
+                            monto_abono = st.number_input(
+                                "Monto a Abonar (Gs.):", 
+                                min_value=1, 
+                                max_value=int(info_deuda['Saldo Pendiente']), 
+                                value=int(info_deuda['Saldo Pendiente']), 
+                                step=5000
+                            )
+                        with col_p2:
+                            metodo_pago_abono = st.selectbox("Método de Pago del Abono:", ["Efectivo", "Transferencia / PIX"])
+                        with col_p3:
+                            st.markdown("<br>", unsafe_allow_html=True)
+                            if st.button("💳 Registrar Pago", type="primary", use_container_width=True):
+                                registrar_pago_proveedor(id_compra_sel, info_deuda['Proveedor'], monto_abono, metodo_pago_abono)
+                                
+                                # Verificar si se saldó completamente la deuda
+                                nuevo_saldo = info_deuda['Saldo Pendiente'] - monto_abono
+                                if nuevo_saldo <= 0:
+                                    actualizar_estado_compra(id_compra_sel, "Pagado")
+                                    st.success(f"🎉 ¡Factura ID {id_compra_sel} saldada en su totalidad!")
+                                else:
+                                    st.info(f"✅ Abono registrado. Queda un saldo restante de {formatear_gs(nuevo_saldo)}.")
+                                st.rerun()
+
+    # TAB 3: GESTOR DE PROVEEDORES
+    with tab_prov:
+        st.subheader("🏢 Agregar Nuevo Proveedor")
+        with st.form("form_prov"):
+            c1, c2 = st.columns(2)
+            with c1:
+                nom_p = st.text_input("Nombre de la Empresa / Proveedor:")
+                ruc_p = st.text_input("RUC o C.I.:")
+            with c2:
+                tel_p = st.text_input("Teléfono:")
+                ciu_p = st.text_input("Ciudad:")
+
+            btn_prov = st.form_submit_button("💾 Guardar Proveedor", type="primary")
+            if btn_prov:
+                if not nom_p.strip():
+                    st.error("El nombre del proveedor es obligatorio.")
+                else:
+                    registrar_proveedor(nom_p, ruc_p, tel_p, ciu_p)
+                    st.success("✅ Proveedor guardado con éxito.")
+                    st.rerun()
+
+        st.markdown("---")
+        st.subheader("📋 Lista de Proveedores Registrados")
+        df_prov_list = obtener_proveedores()
+        if not df_prov_list.empty:
+            st.dataframe(df_prov_list, use_container_width=True)
+        else:
+            st.info("No hay proveedores registrados aún.")
 
 # ------------------------------------------
 # VISTA: VENTAS Y CIERRE DE CAJA
@@ -839,7 +1162,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         ingresos_efectivo = 0
         if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
             ventas_hoy = df_ventas[df_ventas['fecha_hora'].str.startswith(fecha_str)]
-            # Solo consideramos ingresos en efectivo (Contado + Efectivo)
             ventas_efectivo = ventas_hoy[(ventas_hoy['tipo_venta'] == 'Contado') & (ventas_hoy['metodo_pago'] == 'Efectivo')]
             ingresos_efectivo += ventas_efectivo['total'].sum()
 
