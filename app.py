@@ -423,22 +423,18 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             if df_con_stock.empty:
                 st.warning("⚠️ Todos los productos actualmente se encuentran sin stock disponible.")
             else:
-                # 🔍 Campo de búsqueda para filtrar la lista de productos
-                busqueda_venta = st.text_input("🔍 Escribe para buscar el producto (Nombre o Marca):", placeholder="Ej: Hidratante, Boticário, Perfume...", key="search_venta_input")
+                lista_productos = [f"{row['id']} - {row['nombre']} ({row['marca']}) - Stock: {row['stock']} uds" for _, row in df_con_stock.iterrows()]
                 
-                # Filtrar el DataFrame según lo ingresado en el buscador
-                if busqueda_venta.strip():
-                    df_con_stock = df_con_stock[
-                        df_con_stock['nombre'].astype(str).str.contains(busqueda_venta, case=False, na=False) |
-                        df_con_stock['marca'].astype(str).str.contains(busqueda_venta, case=False, na=False)
-                    ]
+                # 🔍 Buscador interactivo en tiempo real
+                prod_seleccionado_str = st.selectbox(
+                    "🔍 Escribe el nombre o marca para buscar y seleccionar el producto:",
+                    options=lista_productos,
+                    index=None,
+                    placeholder="Haz clic aquí y empieza a escribir...",
+                    key="select_venta_prod"
+                )
                 
-                if df_con_stock.empty:
-                    st.warning("⚠️ No se encontraron productos con stock que coincidan con la búsqueda.")
-                else:
-                    lista_productos = [f"{row['id']} - {row['nombre']} ({row['marca']}) - Stock: {row['stock']} uds" for _, row in df_con_stock.iterrows()]
-                    prod_seleccionado_str = st.selectbox("Selecciona el Producto a Vender:", lista_productos, key="select_venta_prod")
-                    
+                if prod_seleccionado_str is not None:
                     id_prod_sel = str(prod_seleccionado_str.split(" - ")[0])
                     prod_sel = df_con_stock[df_con_stock['id'].astype(str) == id_prod_sel].iloc[0]
                     
@@ -466,6 +462,8 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         )
                         st.success(f"✔️ ¡Venta realizada con éxito! Se vendieron {cantidad_venta} unidades de '{prod_sel['nombre']}'.")
                         st.rerun()
+                else:
+                    st.info("💡 Haz clic en la casilla desplegable de arriba y escribe cualquier letra para filtrar la lista instantáneamente.")
 
     # TAB 2: CIERRE DE CAJA
     with tab_cierre:
