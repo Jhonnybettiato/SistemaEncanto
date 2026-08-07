@@ -640,8 +640,30 @@ st.set_page_config(page_title="Sistema Encanto - Stock & Ventas", layout="wide",
 
 st.markdown("""
     <style>
-    .main-title { font-size: 38px; font-weight: bold; color: #1E293B; margin-bottom: 5px; }
-    .sub-title { font-size: 16px; color: #64748B; margin-bottom: 25px; }
+    /* Título principal brillante en Lila */
+    .main-title { 
+        font-size: 36px !important; 
+        font-weight: 800 !important; 
+        color: #B19FFB !important; 
+        margin-bottom: 10px !important; 
+    }
+    
+    /* Subtítulos en gris claro brillante */
+    .sub-title { 
+        font-size: 16px !important; 
+        color: #E2E8F0 !important; 
+        margin-bottom: 25px !important; 
+    }
+
+    /* Asegurar que todos los títulos H1, H2, H3 sean Lila */
+    h1, h2, h3 {
+        color: #B19FFB !important;
+    }
+
+    /* Texto general y etiquetas de formulario en blanco radiante */
+    label, p, span, div[data-widget-label="true"] {
+        color: #FFFFFF !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
