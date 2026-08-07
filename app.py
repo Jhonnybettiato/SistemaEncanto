@@ -640,28 +640,50 @@ st.set_page_config(page_title="Sistema Encanto - Stock & Ventas", layout="wide",
 
 st.markdown("""
     <style>
-    /* Título principal brillante en Lila */
-    .main-title { 
-        font-size: 36px !important; 
-        font-weight: 800 !important; 
-        color: #B19FFB !important; 
-        margin-bottom: 10px !important; 
+    /* Fondo general claro */
+    .stApp {
+        background-color: #F8F9FA !important;
+    }
+
+    /* Títulos principales en Lila Fuerte e Intenso */
+    .main-title, h1, h2, h3 { 
+        color: #6B46C1 !important; 
+        font-weight: 800 !important;
     }
     
-    /* Subtítulos en gris claro brillante */
+    /* Subtítulos */
     .sub-title { 
-        font-size: 16px !important; 
-        color: #E2E8F0 !important; 
-        margin-bottom: 25px !important; 
+        color: #4A5568 !important; 
     }
 
-    /* Asegurar que todos los títulos H1, H2, H3 sean Lila */
-    h1, h2, h3 {
-        color: #B19FFB !important;
+    /* TODOS los textos, etiquetas y opciones en Gris Oscuro / Negro bien visible */
+    p, span, label, div, stMarkdown, .stSelectbox label, .stRadio label {
+        color: #1A202C !important;
     }
 
-    /* Texto general y etiquetas de formulario en blanco radiante */
-    label, p, span, div[data-widget-label="true"] {
+    /* Texto de las pestañas (Tabs) */
+    button[data-baseweb="tab"] p {
+        color: #2D3748 !important;
+        font-weight: 600 !important;
+    }
+
+    /* Pestaña seleccionada en Verde Agua Oscuro/Lila */
+    button[aria-selected="true"] p {
+        color: #00A892 !important;
+        font-weight: bold !important;
+    }
+
+    /* Botones principales en Verde Agua vistoso con texto oscuro */
+    div.stButton > button[kind="primary"] {
+        background-color: #00C2A8 !important;
+        color: #0F172A !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        border: none !important;
+    }
+
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #00A892 !important;
         color: #FFFFFF !important;
     }
     </style>
