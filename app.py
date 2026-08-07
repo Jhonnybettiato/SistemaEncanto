@@ -713,141 +713,179 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 )
 
 # ------------------------------------------
-# VISTA: DEUDAS DE CLIENTES (ACTUALIZADA)
+# VISTA: DEUDAS Y HISTORIAL DE PAGOS DE CLIENTES
 # ------------------------------------------
 elif opcion == "💳 Deudas de Clientes":
-    st.markdown('<p class="main-title">💳 Gestión de Deudas y Fiados</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Revisa las cuentas pendientes de tus clientes y registra sus pagos.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-title">💳 Deudas e Historial de Pagos</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Gestión de cuentas pendientes, cobro de fiados e historial de entregas de dinero.</p>', unsafe_allow_html=True)
     
-    df_ventas = obtener_ventas()
+    tab_deudas, tab_historial_pagos = st.tabs(["💰 Cobrar Deudas Activas", "📜 Historial de Pagos Recibidos"])
     
-    if df_ventas.empty:
-        st.info("No hay registros de ventas.")
-    else:
-        df_deudas = df_ventas[df_ventas['estado_pago'] == "Pendiente"]
+    # ---------------- TAB 1: COBRAR DEUDAS ----------------
+    with tab_deudas:
+        df_ventas = obtener_ventas()
         
-        if df_deudas.empty:
-            st.balloons()
-            st.success("🎉 ¡Excelente! No hay clientes con deudas pendientes actualmente.")
+        if df_ventas.empty:
+            st.info("No hay registros de ventas en el sistema.")
         else:
-            resumen_deudas = df_deudas.groupby("cliente_nombre")["total"].sum().reset_index()
-            resumen_deudas.columns = ["Cliente", "Saldo Pendiente (Gs.)"]
+            df_deudas = df_ventas[df_ventas['estado_pago'] == "Pendiente"]
             
-            total_deuda_global = resumen_deudas["Saldo Pendiente (Gs.)"].sum()
-            
-            c_m1, c_m2 = st.columns(2)
-            with c_m1:
-                st.metric("Deuda Total a Cobrar en la Tienda", formatear_gs(total_deuda_global))
-            with c_m2:
-                st.metric("Clientes con Deuda Activa", f"{len(resumen_deudas)} clientes")
+            if df_deudas.empty:
+                st.balloons()
+                st.success("🎉 ¡Excelente! No hay clientes con deudas pendientes actualmente.")
+            else:
+                resumen_deudas = df_deudas.groupby("cliente_nombre")["total"].sum().reset_index()
+                resumen_deudas.columns = ["Cliente", "Saldo Pendiente (Gs.)"]
                 
-            st.markdown("---")
-            st.subheader("📋 Resumen por Cliente")
+                total_deuda_global = resumen_deudas["Saldo Pendiente (Gs.)"].sum()
+                
+                c_m1, c_m2 = st.columns(2)
+                with c_m1:
+                    st.metric("Deuda Total a Cobrar en la Tienda", formatear_gs(total_deuda_global))
+                with c_m2:
+                    st.metric("Clientes con Deuda Activa", f"{len(resumen_deudas)} clientes")
+                    
+                st.markdown("---")
+                st.subheader("📋 Resumen de Clientes Deudores")
+                
+                resumen_visual = resumen_deudas.copy()
+                resumen_visual["Saldo Pendiente (Gs.)"] = resumen_visual["Saldo Pendiente (Gs.)"].apply(formatear_gs)
+                st.table(resumen_visual)
+                
+                st.markdown("---")
+                st.subheader("🔍 Seleccionar Cliente y Registrar Cobro")
+                
+                cliente_con_deuda_sel = st.selectbox("Selecciona un cliente:", resumen_deudas["Cliente"].unique(), key="sel_cliente_deuda")
+                
+                df_detalle_cliente = df_deudas[df_deudas['cliente_nombre'] == cliente_con_deuda_sel].copy()
+                deuda_total_cliente = int(df_detalle_cliente['total'].sum())
+                
+                st.warning(f"⚠️ **{cliente_con_deuda_sel}** tiene una deuda total de **{formatear_gs(deuda_total_cliente)}**")
+                
+                df_detalle_visual = df_detalle_cliente.copy()
+                df_detalle_visual['precio_unitario'] = df_detalle_visual['precio_unitario'].apply(formatear_gs)
+                df_detalle_visual['total'] = df_detalle_visual['total'].apply(formatear_gs)
+                
+                st.dataframe(
+                    df_detalle_visual[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago']],
+                    column_config={
+                        "fecha_hora": "Fecha/Hora Venta",
+                        "producto_nombre": "Producto",
+                        "cantidad": "Cantidad",
+                        "precio_unitario": "Precio Unit.",
+                        "total": "Total",
+                        "metodo_pago": "Origen"
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+                
+                st.markdown("### 💵 Registrar Pago / Entrega de Dinero")
+                
+                with st.form("form_cobro_deuda", clear_on_submit=True):
+                    col_pago1, col_pago2 = st.columns(2)
+                    
+                    with col_pago1:
+                        monto_abonado = st.number_input(
+                            "Monto Abonado (Gs.):", 
+                            min_value=1, 
+                            max_value=deuda_total_cliente, 
+                            value=deuda_total_cliente, 
+                            step=5000
+                        )
+                    with col_pago2:
+                        metodo_cobro = st.selectbox(
+                            "Forma de Pago:", 
+                            ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"],
+                            key="metodo_cobro_deuda"
+                        )
+                    
+                    btn_cobrar = st.form_submit_button("✅ Registrar Pago y Guardar Historial", type="primary", use_container_width=True)
+                    
+                    if btn_cobrar:
+                        db_cloud = obtener_conexion_db()
+                        
+                        # 1. Guardar en el Historial de Pagos
+                        registrar_pago_historial(cliente_con_deuda_sel, monto_abonado, metodo_cobro)
+                        
+                        # 2. Actualizar las deudas
+                        if monto_abonado >= deuda_total_cliente:
+                            marcar_deuda_pagada(cliente_con_deuda_sel)
+                            st.success(f"🎉 ¡Deuda total cancelada de {cliente_con_deuda_sel} vía {metodo_cobro}!")
+                        else:
+                            monto_restante_descuento = monto_abonado
+                            
+                            if db_cloud is not None:
+                                docs = db_cloud.collection("ventas").where("cliente_nombre", "==", cliente_con_deuda_sel).where("estado_pago", "==", "Pendiente").stream()
+                                for doc in docs:
+                                    d = doc.to_dict()
+                                    total_vta = d.get("total", 0)
+                                    if monto_restante_descuento >= total_vta:
+                                        db_cloud.collection("ventas").document(doc.id).update({"estado_pago": "Pagado"})
+                                        monto_restante_descuento -= total_vta
+                                    else:
+                                        nuevo_total = total_vta - monto_restante_descuento
+                                        db_cloud.collection("ventas").document(doc.id).update({"total": nuevo_total})
+                                        break
+                            else:
+                                conn = sqlite3.connect("inventario.db")
+                                cursor = conn.cursor()
+                                cursor.execute("""
+                                    SELECT id, total FROM ventas 
+                                    WHERE cliente_nombre = ? AND estado_pago = 'Pendiente' 
+                                    ORDER BY id ASC
+                                """, (cliente_con_deuda_sel,))
+                                filas_deuda = cursor.fetchall()
+                                
+                                for id_vta, total_vta in filas_deuda:
+                                    if monto_restante_descuento >= total_vta:
+                                        cursor.execute("UPDATE ventas SET estado_pago = 'Pagado' WHERE id = ?", (id_vta,))
+                                        monto_restante_descuento -= total_vta
+                                    else:
+                                        cursor.execute("UPDATE ventas SET total = total - ? WHERE id = ?", (monto_restante_descuento, id_vta))
+                                        break
+                                
+                                conn.commit()
+                                conn.close()
+                                
+                            saldo_restante = deuda_total_cliente - monto_abonado
+                            st.success(f"✅ Pago parcial registrado: {formatear_gs(monto_abonado)} ({metodo_cobro}). Saldo restante: {formatear_gs(saldo_restante)}")
+                        
+                        st.rerun()
+
+    # ---------------- TAB 2: HISTORIAL DE PAGOS ----------------
+    with tab_historial_pagos:
+        st.subheader("📜 Historial de Cobros y Entregas Registradas")
+        
+        df_historial = obtener_historial_pagos()
+        
+        if df_historial.empty:
+            st.info("Aún no hay abonos o pagos de deudas registrados.")
+        else:
+            # Filtro por cliente
+            clientes_historial = ["Todos los Clientes"] + sorted(list(df_historial["cliente_nombre"].unique()))
+            cliente_filtro = st.selectbox("Filtrar historial por Cliente:", clientes_historial, key="filtro_hist_cli")
             
-            resumen_visual = resumen_deudas.copy()
-            resumen_visual["Saldo Pendiente (Gs.)"] = resumen_visual["Saldo Pendiente (Gs.)"].apply(formatear_gs)
-            st.table(resumen_visual)
+            df_hist_mostrar = df_historial.copy()
+            if cliente_filtro != "Todos los Clientes":
+                df_hist_mostrar = df_hist_mostrar[df_hist_mostrar["cliente_nombre"] == cliente_filtro]
             
-            st.markdown("---")
-            st.subheader("🔍 Consultar y Registrar Pago de Deuda")
+            total_recaudado = df_hist_mostrar["monto"].sum()
+            st.metric("Total Abonado/Cobrado", formatear_gs(total_recaudado))
             
-            cliente_con_deuda_sel = st.selectbox("Selecciona un cliente para registrar cobro:", resumen_deudas["Cliente"].unique(), key="sel_cliente_deuda")
-            
-            df_detalle_cliente = df_deudas[df_deudas['cliente_nombre'] == cliente_con_deuda_sel].copy()
-            deuda_total_cliente = int(df_detalle_cliente['total'].sum())
-            
-            st.warning(f"⚠️ **{cliente_con_deuda_sel}** tiene una deuda total de **{formatear_gs(deuda_total_cliente)}**")
-            
-            df_detalle_visual = df_detalle_cliente.copy()
-            df_detalle_visual['precio_unitario'] = df_detalle_visual['precio_unitario'].apply(formatear_gs)
-            df_detalle_visual['total'] = df_detalle_visual['total'].apply(formatear_gs)
+            df_hist_mostrar["monto"] = df_hist_mostrar["monto"].apply(formatear_gs)
             
             st.dataframe(
-                df_detalle_visual[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago']],
+                df_hist_mostrar[['fecha_hora', 'cliente_nombre', 'monto', 'metodo_pago']],
                 column_config={
-                    "fecha_hora": "Fecha/Hora",
-                    "producto_nombre": "Producto",
-                    "cantidad": "Cantidad",
-                    "precio_unitario": "Precio Unit.",
-                    "total": "Total",
-                    "metodo_pago": "Origen Venta"
+                    "fecha_hora": "Fecha y Hora del Pago",
+                    "cliente_nombre": "Cliente",
+                    "monto": "Monto Recibido",
+                    "metodo_pago": "Forma de Pago"
                 },
                 hide_index=True,
                 use_container_width=True
             )
-            
-            # --- SECCIÓN DE REGISTRO DE PAGO ---
-            st.markdown("### 💵 Registrar Nuevo Pago / Cobro")
-            
-            with st.form("form_cobro_deuda", clear_on_submit=True):
-                col_pago1, col_pago2 = st.columns(2)
-                
-                with col_pago1:
-                    monto_abonado = st.number_input(
-                        "Monto a pagar (Gs.):", 
-                        min_value=1, 
-                        max_value=deuda_total_cliente, 
-                        value=deuda_total_cliente, 
-                        step=5000
-                    )
-                with col_pago2:
-                    metodo_cobro = st.selectbox(
-                        "Forma de Pago:", 
-                        ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"],
-                        key="metodo_cobro_deuda"
-                    )
-                
-                btn_cobrar = st.form_submit_button("✅ Registrar Pago y Actualizar Cuenta", type="primary", use_container_width=True)
-                
-                if btn_cobrar:
-                    db_cloud = obtener_conexion_db()
-                    fecha_cobro = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    if monto_abonado >= deuda_total_cliente:
-                        # Pago total de la deuda
-                        marcar_deuda_pagada(cliente_con_deuda_sel)
-                        st.success(f"🎉 ¡Deuda total de {formatear_gs(deuda_total_cliente)} cancelada por {cliente_con_deuda_sel} vía {metodo_cobro}!")
-                    else:
-                        # Pago parcial: actualizar ventas pendientes y descontar
-                        monto_restante_descuento = monto_abonado
-                        
-                        if db_cloud is not None:
-                            docs = db_cloud.collection("ventas").where("cliente_nombre", "==", cliente_con_deuda_sel).where("estado_pago", "==", "Pendiente").stream()
-                            for doc in docs:
-                                d = doc.to_dict()
-                                total_vta = d.get("total", 0)
-                                if monto_restante_descuento >= total_vta:
-                                    db_cloud.collection("ventas").document(doc.id).update({"estado_pago": "Pagado"})
-                                    monto_restante_descuento -= total_vta
-                                else:
-                                    nuevo_total = total_vta - monto_restante_descuento
-                                    db_cloud.collection("ventas").document(doc.id).update({"total": nuevo_total})
-                                    break
-                        else:
-                            conn = sqlite3.connect("inventario.db")
-                            cursor = conn.cursor()
-                            cursor.execute("""
-                                SELECT id, total FROM ventas 
-                                WHERE cliente_nombre = ? AND estado_pago = 'Pendiente' 
-                                ORDER BY id ASC
-                            """, (cliente_con_deuda_sel,))
-                            filas_deuda = cursor.fetchall()
-                            
-                            for id_vta, total_vta in filas_deuda:
-                                if monto_restante_descuento >= total_vta:
-                                    cursor.execute("UPDATE ventas SET estado_pago = 'Pagado' WHERE id = ?", (id_vta,))
-                                    monto_restante_descuento -= total_vta
-                                else:
-                                    cursor.execute("UPDATE ventas SET total = total - ? WHERE id = ?", (monto_restante_descuento, id_vta))
-                                    break
-                            
-                            conn.commit()
-                            conn.close()
-                            
-                        saldo_restante = deuda_total_cliente - monto_abonado
-                        st.success(f"✅ Se registró un pago parcial de {formatear_gs(monto_abonado)} ({metodo_cobro}). Saldo pendiente: {formatear_gs(saldo_restante)}")
-                    
-                    st.rerun()
 
 # ------------------------------------------
 # VISTA: GESTOR DE CLIENTES
