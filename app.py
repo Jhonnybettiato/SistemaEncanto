@@ -29,7 +29,6 @@ def init_db():
     """Inicializa la base de datos local SQLite si no se usa almacenamiento en la nube."""
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        # En la nube de Google Firestore, las colecciones se crean solas al insertar datos
         return
         
     conn = sqlite3.connect("inventario.db")
@@ -39,15 +38,19 @@ def init_db():
     cursor.execute("PRAGMA table_info(productos)")
     columnas = [col[1] for col in cursor.fetchall()]
     
-    if columnas and "precio" in columnas:
-        cursor.execute("DROP TABLE productos")
-        conn.commit()
+    if columnas and "marca" not in columnas:
+        # Si la tabla vieja no tiene la columna marca, agregarla
+        try:
+            cursor.execute("ALTER TABLE productos ADD COLUMN marca TEXT")
+        except sqlite3.OperationalError:
+            pass
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             categoria TEXT,
+            marca TEXT,
             precio_costo INTEGER NOT NULL,
             ganancia_porcentaje INTEGER NOT NULL,
             precio_venta INTEGER NOT NULL,
@@ -64,11 +67,25 @@ def init_db():
         )
     """)
 
+    # Crear tabla de marcas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS marcas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE NOT NULL
+        )
+    """)
+
     # Insertar categorías por defecto si la tabla está vacía
     cursor.execute("SELECT COUNT(*) FROM categorias")
     if cursor.fetchone()[0] == 0:
         cat_iniciales = [("Perfumes",), ("Cosméticos",), ("Cuidado Personal",), ("Otros",)]
         cursor.executemany("INSERT INTO categorias (nombre) VALUES (?)", cat_iniciales)
+
+    # Insertar marcas por defecto si está vacía
+    cursor.execute("SELECT COUNT(*) FROM marcas")
+    if cursor.fetchone()[0] == 0:
+        marcas_iniciales = [("Natura",), ("O Boticário",), ("Eudora",), ("Sin Marca / Genérico",)]
+        cursor.executemany("INSERT INTO marcas (nombre) VALUES (?)", marcas_iniciales)
 
     conn.commit()
     conn.close()
@@ -101,7 +118,6 @@ def registrar_categoria(nombre_cat):
     nombre_cat = nombre_cat.strip()
     
     if db_cloud is not None:
-        # Verificar duplicados en Firestore
         existentes = obtener_categorias()
         if nombre_cat not in existentes:
             db_cloud.collection("categorias").add({"nombre": nombre_cat})
@@ -112,7 +128,7 @@ def registrar_categoria(nombre_cat):
             cursor.execute("INSERT INTO categorias (nombre) VALUES (?)", (nombre_cat,))
             conn.commit()
         except sqlite3.IntegrityError:
-            pass  # Ya existe la categoría
+            pass
         conn.close()
 
 def eliminar_categoria(nombre_cat):
@@ -130,8 +146,64 @@ def eliminar_categoria(nombre_cat):
         conn.commit()
         conn.close()
 
+# --- FUNCIONES DE MARCAS ---
+def obtener_marcas():
+    """Obtiene la lista de marcas registradas."""
+    db_cloud = obtener_conexion_db()
+    marcas_default = ["Natura", "O Boticário", "Eudora", "Sin Marca / Genérico"]
+    
+    if db_cloud is not None:
+        docs = db_cloud.collection("marcas").stream()
+        lista = [doc.to_dict().get("nombre") for doc in docs if doc.to_dict().get("nombre")]
+        if not lista:
+            return marcas_default
+        return sorted(list(set(lista)))
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT nombre FROM marcas ORDER BY nombre ASC")
+        filas = cursor.fetchall()
+        conn.close()
+        if not filas:
+            return marcas_default
+        return [f[0] for f in filas]
+
+def registrar_marca(nombre_marca):
+    """Guarda una nueva marca en la nube o localmente."""
+    db_cloud = obtener_conexion_db()
+    nombre_marca = nombre_marca.strip()
+    
+    if db_cloud is not None:
+        existentes = obtener_marcas()
+        if nombre_marca not in existentes:
+            db_cloud.collection("marcas").add({"nombre": nombre_marca})
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO marcas (nombre) VALUES (?)", (nombre_marca,))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            pass
+        conn.close()
+
+def eliminar_marca(nombre_marca):
+    """Elimina una marca seleccionada."""
+    db_cloud = obtener_conexion_db()
+    
+    if db_cloud is not None:
+        docs = db_cloud.collection("marcas").where("nombre", "==", nombre_marca).stream()
+        for doc in docs:
+            db_cloud.collection("marcas").document(doc.id).delete()
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM marcas WHERE nombre = ?", (nombre_marca,))
+        conn.commit()
+        conn.close()
+
 # --- FUNCIONES DE PRODUCTOS ---
-def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
+def registrar_producto(nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
     """Guarda un producto en la base de datos activa (Nube o SQLite)."""
     db_cloud = obtener_conexion_db()
     
@@ -139,6 +211,7 @@ def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, pre
         db_cloud.collection("productos").add({
             "nombre": nombre,
             "categoria": categoria,
+            "marca": marca,
             "precio_costo": int(precio_costo),
             "ganancia_porcentaje": int(ganancia_porcentaje),
             "precio_venta": int(precio_venta),
@@ -149,13 +222,13 @@ def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, pre
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO productos (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion))
+            INSERT INTO productos (nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion))
         conn.commit()
         conn.close()
 
-def actualizar_producto(id_prod, nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
+def actualizar_producto(id_prod, nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
     """Modifica los datos de un producto en la nube o local."""
     db_cloud = obtener_conexion_db()
     
@@ -163,6 +236,7 @@ def actualizar_producto(id_prod, nombre, categoria, precio_costo, ganancia_porce
         db_cloud.collection("productos").document(str(id_prod)).update({
             "nombre": nombre,
             "categoria": categoria,
+            "marca": marca,
             "precio_costo": int(precio_costo),
             "ganancia_porcentaje": int(ganancia_porcentaje),
             "precio_venta": int(precio_venta),
@@ -174,9 +248,9 @@ def actualizar_producto(id_prod, nombre, categoria, precio_costo, ganancia_porce
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE productos
-            SET nombre = ?, categoria = ?, precio_costo = ?, ganancia_porcentaje = ?, precio_venta = ?, stock = ?, descripcion = ?
+            SET nombre = ?, categoria = ?, marca = ?, precio_costo = ?, ganancia_porcentaje = ?, precio_venta = ?, stock = ?, descripcion = ?
             WHERE id = ?
-        """, (nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion, int(id_prod)))
+        """, (nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion, int(id_prod)))
         conn.commit()
         conn.close()
 
@@ -205,12 +279,17 @@ def obtener_productos():
             datos["id"] = doc.id
             lista.append(datos)
         if not lista:
-            return pd.DataFrame(columns=["id", "nombre", "categoria", "precio_costo", "ganancia_porcentaje", "precio_venta", "stock", "descripcion"])
-        return pd.DataFrame(lista)
+            return pd.DataFrame(columns=["id", "nombre", "categoria", "marca", "precio_costo", "ganancia_porcentaje", "precio_venta", "stock", "descripcion"])
+        df = pd.DataFrame(lista)
+        if "marca" not in df.columns:
+            df["marca"] = "Sin Marca"
+        return df
     else:
         conn = sqlite3.connect("inventario.db")
         df = pd.read_sql_query("SELECT * FROM productos", conn)
         conn.close()
+        if "marca" not in df.columns:
+            df["marca"] = "Sin Marca"
         return df
 
 # Inicializar almacenamiento
@@ -265,8 +344,8 @@ else:
 
 opcion = st.sidebar.radio(
     "Selecciona una opción:",
-    ["📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto", "🏷️ Gestor de Categorías"],
-    captions=["Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros", "Crear y organizar categorías"]
+    ["📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto", "🏷️ Gestor de Categorías", "🏢 Gestor de Marcas"],
+    captions=["Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros", "Crear y organizar categorías", "Administrar marcas de productos"]
 )
 
 # ------------------------------------------
@@ -300,6 +379,7 @@ if opcion == "📦 Ver Stock / Inventario":
                 "id": "ID",
                 "nombre": "Producto",
                 "categoria": "Categoría",
+                "marca": "Marca",
                 "precio_costo": "Precio Costo (Gs.)",
                 "ganancia_porcentaje": "Ganancia (%)",
                 "precio_venta": "Precio Venta (Gs.)",
@@ -339,12 +419,14 @@ elif opcion == "➕ Registrar Producto":
     st.markdown('<p class="sub-title">Añade nuevos artículos definiendo su costo de compra y margen de utilidad deseado.</p>', unsafe_allow_html=True)
     
     lista_categorias = obtener_categorias()
+    lista_marcas = obtener_marcas()
     
     col_a, col_b = st.columns(2)
     
     with col_a:
         nombre = st.text_input("Nombre del Producto *", placeholder="Ej. Encanto Imperial 100ml", key="reg_nombre")
         categoria = st.selectbox("Categoría", lista_categorias, key="reg_categoria")
+        marca = st.selectbox("Marca", lista_marcas, key="reg_marca")
         stock = st.number_input("Cantidad inicial en stock *", min_value=1, step=1, value=1, key="reg_stock")
         
     with col_b:
@@ -367,7 +449,7 @@ elif opcion == "➕ Registrar Producto":
         elif precio_costo <= 0:
             st.error("El precio de costo debe ser mayor a Gs. 0.")
         else:
-            registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
+            registrar_producto(nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta_calculado, stock, descripcion)
             st.success(f"✔️ ¡El producto '{nombre}' ha sido registrado con éxito a un precio de venta de {formatear_gs(precio_venta_calculado)}!")
             st.rerun()
 
@@ -380,6 +462,7 @@ elif opcion == "✏️ Editar / Modificar Producto":
     
     df_productos = obtener_productos()
     lista_categorias = obtener_categorias()
+    lista_marcas = obtener_marcas()
     
     if df_productos.empty:
         st.info("No tienes productos registrados para modificar en este momento.")
@@ -404,6 +487,15 @@ elif opcion == "✏️ Editar / Modificar Producto":
                 cat_index = 0
                 
             nueva_categoria = st.selectbox("Categoría", lista_categorias, index=cat_index, key="edit_categoria")
+            
+            # Buscar índice de marca actual
+            try:
+                marca_actual_val = prod_actual['marca'] if pd.notna(prod_actual['marca']) else ""
+                marca_index = lista_marcas.index(marca_actual_val)
+            except ValueError:
+                marca_index = 0
+
+            nueva_marca = st.selectbox("Marca", lista_marcas, index=marca_index, key="edit_marca")
             nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']), key="edit_stock")
             
         with col_b:
@@ -430,6 +522,7 @@ elif opcion == "✏️ Editar / Modificar Producto":
                     id_seleccionado, 
                     nuevo_nombre, 
                     nueva_categoria, 
+                    nueva_marca,
                     nuevo_precio_costo, 
                     nueva_ganancia_porcentaje, 
                     nuevo_precio_venta_calculado, 
@@ -475,7 +568,6 @@ elif opcion == "🏷️ Gestor de Categorías":
         categorias_actuales = obtener_categorias()
         
         if categorias_actuales:
-            # Mostrar lista de categorías
             for cat in categorias_actuales:
                 st.markdown(f"- **{cat}**")
             
@@ -489,3 +581,43 @@ elif opcion == "🏷️ Gestor de Categorías":
                 st.rerun()
         else:
             st.info("No hay categorías registradas.")
+
+# ------------------------------------------
+# VISTA: GESTOR DE MARCAS
+# ------------------------------------------
+elif opcion == "🏢 Gestor de Marcas":
+    st.markdown('<p class="main-title">🏢 Gestor de Marcas</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra o elimina las marcas de los productos que comercializas.</p>', unsafe_allow_html=True)
+    
+    col_m1, col_m2 = st.columns(2)
+    
+    with col_m1:
+        st.subheader("➕ Añadir Nueva Marca")
+        nueva_marca_input = st.text_input("Nombre de la Marca", placeholder="Ej. Chanel, Victoria's Secret...", key="input_nueva_marca")
+        
+        if st.button("💾 Registrar Marca", key="btn_add_marca"):
+            if nueva_marca_input.strip() == "":
+                st.error("Ingresa un nombre válido para la marca.")
+            else:
+                registrar_marca(nueva_marca_input)
+                st.success(f"✔️ Marca '{nueva_marca_input.strip()}' guardada con éxito.")
+                st.rerun()
+                
+    with col_m2:
+        st.subheader("📋 Marcas Actuales")
+        marcas_actuales = obtener_marcas()
+        
+        if marcas_actuales:
+            for m in marcas_actuales:
+                st.markdown(f"- **{m}**")
+            
+            st.markdown("---")
+            st.subheader("🗑️ Eliminar Marca")
+            marca_a_eliminar = st.selectbox("Selecciona la marca a eliminar", marcas_actuales, key="select_del_marca")
+            
+            if st.button("🗑️ Eliminar Marca", type="secondary", key="btn_del_marca"):
+                eliminar_marca(marca_a_eliminar)
+                st.success(f"✔️ Marca '{marca_a_eliminar}' eliminada.")
+                st.rerun()
+        else:
+            st.info("No hay marcas registradas.")
