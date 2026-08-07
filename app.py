@@ -86,9 +86,6 @@ def init_db():
     """)
 
     # Crear tabla de ventas
-    cursor.execute("PRAGMA table_info(ventas)")
-    columnas_ventas = [col[1] for col in cursor.fetchall()]
-    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,13 +95,23 @@ def init_db():
             cantidad INTEGER NOT NULL,
             precio_unitario INTEGER NOT NULL,
             total INTEGER NOT NULL,
+            tipo_venta TEXT DEFAULT 'Contado',
             metodo_pago TEXT NOT NULL,
-            cliente_nombre TEXT
+            cliente_nombre TEXT,
+            estado_pago TEXT DEFAULT 'Pagado'
         )
     """)
-    if columnas_ventas and "cliente_nombre" not in columnas_ventas:
+    
+    cursor.execute("PRAGMA table_info(ventas)")
+    cols_ventas = [col[1] for col in cursor.fetchall()]
+    if "tipo_venta" not in cols_ventas:
         try:
-            cursor.execute("ALTER TABLE ventas ADD COLUMN cliente_nombre TEXT")
+            cursor.execute("ALTER TABLE ventas ADD COLUMN tipo_venta TEXT DEFAULT 'Contado'")
+        except sqlite3.OperationalError:
+            pass
+    if "estado_pago" not in cols_ventas:
+        try:
+            cursor.execute("ALTER TABLE ventas ADD COLUMN estado_pago TEXT DEFAULT 'Pagado'")
         except sqlite3.OperationalError:
             pass
 
@@ -365,10 +372,11 @@ def obtener_productos():
             df["marca"] = "Sin Marca"
         return df
 
-# --- FUNCIONES DE VENTAS ---
-def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago, cliente_nombre="Cliente Ocasional"):
+# --- FUNCIONES DE VENTAS Y DEUDAS ---
+def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, total, tipo_venta, metodo_pago, cliente_nombre="Cliente Ocasional"):
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    estado_pago = "Pendiente" if tipo_venta == "Crédito" else "Pagado"
     
     if db_cloud is not None:
         db_cloud.collection("ventas").add({
@@ -378,8 +386,10 @@ def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, tot
             "cantidad": int(cantidad),
             "precio_unitario": int(precio_unitario),
             "total": int(total),
+            "tipo_venta": tipo_venta,
             "metodo_pago": metodo_pago,
-            "cliente_nombre": cliente_nombre
+            "cliente_nombre": cliente_nombre,
+            "estado_pago": estado_pago
         })
         doc_ref = db_cloud.collection("productos").document(str(producto_id))
         doc = doc_ref.get()
@@ -390,9 +400,9 @@ def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, tot
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO ventas (fecha_hora, producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago, cliente_nombre)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (fecha_hora, str(producto_id), producto_nombre, int(cantidad), int(precio_unitario), int(total), metodo_pago, cliente_nombre))
+            INSERT INTO ventas (fecha_hora, producto_id, producto_nombre, cantidad, precio_unitario, total, tipo_venta, metodo_pago, cliente_nombre, estado_pago)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (fecha_hora, str(producto_id), producto_nombre, int(cantidad), int(precio_unitario), int(total), tipo_venta, metodo_pago, cliente_nombre, estado_pago))
         
         cursor.execute("""
             UPDATE productos SET stock = stock - ? WHERE id = ?
@@ -405,10 +415,18 @@ def obtener_ventas():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
         docs = db_cloud.collection("ventas").stream()
-        lista = [doc.to_dict() for doc in docs]
+        lista = []
+        for doc in docs:
+            d = doc.to_dict()
+            d["id"] = doc.id
+            lista.append(d)
         if not lista:
-            return pd.DataFrame(columns=["fecha_hora", "producto_id", "producto_nombre", "cantidad", "precio_unitario", "total", "metodo_pago", "cliente_nombre"])
+            return pd.DataFrame(columns=["id", "fecha_hora", "producto_id", "producto_nombre", "cantidad", "precio_unitario", "total", "tipo_venta", "metodo_pago", "cliente_nombre", "estado_pago"])
         df = pd.DataFrame(lista)
+        if "tipo_venta" not in df.columns:
+            df["tipo_venta"] = "Contado"
+        if "estado_pago" not in df.columns:
+            df["estado_pago"] = "Pagado"
         if "cliente_nombre" not in df.columns:
             df["cliente_nombre"] = "Cliente Ocasional"
         return df
@@ -416,9 +434,29 @@ def obtener_ventas():
         conn = sqlite3.connect("inventario.db")
         df = pd.read_sql_query("SELECT * FROM ventas", conn)
         conn.close()
+        if "tipo_venta" not in df.columns:
+            df["tipo_venta"] = "Contado"
+        if "estado_pago" not in df.columns:
+            df["estado_pago"] = "Pagado"
         if "cliente_nombre" not in df.columns:
             df["cliente_nombre"] = "Cliente Ocasional"
         return df
+
+def marcar_deuda_pagada(cliente_nombre):
+    """Marca como Pagado todas las deudas pendientes de un cliente."""
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("ventas").where("cliente_nombre", "==", cliente_nombre).where("estado_pago", "==", "Pendiente").stream()
+        for doc in docs:
+            db_cloud.collection("ventas").document(doc.id).update({"estado_pago": "Pagado"})
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE ventas SET estado_pago = 'Pagado' WHERE cliente_nombre = ? AND estado_pago = 'Pendiente'
+        """, (cliente_nombre,))
+        conn.commit()
+        conn.close()
 
 # Inicializar almacenamiento
 init_db()
@@ -457,18 +495,12 @@ if obtener_conexion_db() is not None:
     st.sidebar.success("☁️ Conectado a Almacenamiento Permanente")
 else:
     st.sidebar.warning("💾 Almacenamiento Temporal (SQLite)")
-    with st.sidebar.expander("🚀 Guardar datos para siempre"):
-        st.markdown("""
-        Los datos se borrarán si actualizas la app. Para activarlo de forma permanente:
-        1. Crea un proyecto gratis en **Google Firebase**.
-        2. Crea una base de datos **Cloud Firestore**.
-        3. Copia la clave JSON en los **Secrets** de Streamlit como `gcp_service_account`.
-        """)
 
 opcion = st.sidebar.radio(
     "Selecciona una opción:",
     [
         "🛒 Ventas y Cierre de Caja", 
+        "💳 Deudas de Clientes",
         "👥 Gestor de Clientes", 
         "📦 Ver Stock / Inventario", 
         "➕ Registrar Producto", 
@@ -478,6 +510,7 @@ opcion = st.sidebar.radio(
     ],
     captions=[
         "Registrar salidas y reporte del día", 
+        "Control de fiados y cobro de cuentas",
         "Administrar la lista de clientes", 
         "Control de existencias", 
         "Añadir nuevos artículos", 
@@ -492,7 +525,7 @@ opcion = st.sidebar.radio(
 # ------------------------------------------
 if opcion == "🛒 Ventas y Cierre de Caja":
     st.markdown('<p class="main-title">🛒 Ventas y Cierre de Caja</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Registra las ventas diarias y consulta el resumen de ingresos al final de la jornada.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra ventas a Contado o Crédito y consulta el resumen del día.</p>', unsafe_allow_html=True)
     
     tab_venta, tab_cierre = st.tabs(["🛍️ Nueva Venta", "📊 Cierre de Caja del Día"])
     
@@ -597,7 +630,8 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                                 lista_opciones_clientes.append(f"{r_cli['nombre']} {r_cli['apellido']} (CI: {r_cli['ci']})")
                         
                         cliente_seleccionado = st.selectbox("👤 Asignar Cliente:", lista_opciones_clientes, key="venta_cliente_sel")
-                        metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"], key="met_pago")
+                        tipo_venta = st.radio("📋 Condición de Venta:", ["Contado", "Crédito"], horizontal=True, key="tipo_venta_radio")
+                        metodo_pago = st.selectbox("Método de Pago / Registro", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito", "A Cuenta / Fiado"], key="met_pago")
                         
                         if st.button("🗑️ Vaciar Carrito", key="btn_vaciar"):
                             st.session_state.carrito = []
@@ -607,7 +641,13 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         st.markdown("### Total Final a Cobrar:")
                         st.success(f"💰 **{formatear_gs(total_general)}**")
                         
-                        if st.button("💳 Finalizar Venta Completa", type="primary", use_container_width=True, key="btn_finalizar_venta"):
+                        if tipo_venta == "Crédito" and cliente_seleccionado == "Cliente Ocasional / Anónimo":
+                            st.warning("⚠️ Para ventas a crédito debes seleccionar un cliente registrado.")
+                            btn_bloqueado = True
+                        else:
+                            btn_bloqueado = False
+
+                        if st.button("💳 Finalizar Venta Completa", type="primary", disabled=btn_bloqueado, use_container_width=True, key="btn_finalizar_venta"):
                             for item in st.session_state.carrito:
                                 registrar_venta(
                                     item['id'],
@@ -615,11 +655,12 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                                     item['cantidad'],
                                     item['precio_venta'],
                                     item['subtotal'],
+                                    tipo_venta,
                                     metodo_pago,
                                     cliente_seleccionado
                                 )
                             st.session_state.carrito = []
-                            st.success("✔️ ¡Venta realizada con éxito! Se registraron todos los productos y se actualizó el stock.")
+                            st.success(f"✔️ ¡Venta registrada ({tipo_venta}) con éxito!")
                             st.rerun()
 
     # TAB 2: CIERRE DE CAJA
@@ -643,18 +684,11 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 
                 m1, m2, m3 = st.columns(3)
                 with m1:
-                    st.metric("Total Recaudado (Gs.)", formatear_gs(total_ingresos))
+                    st.metric("Total General Generado", formatear_gs(total_ingresos))
                 with m2:
                     st.metric("Número de Transacciones", f"{num_ventas} ventas")
                 with m3:
                     st.metric("Total Productos Vendidos", f"{unidades_vendidas} uds")
-                
-                st.markdown("---")
-                st.write("### Desglose por Método de Pago")
-                resumen_pago = df_ventas_dia.groupby("metodo_pago")["total"].sum().reset_index()
-                resumen_pago.columns = ["Método de Pago", "Total (Gs.)"]
-                resumen_pago["Total (Gs.)"] = resumen_pago["Total (Gs.)"].apply(formatear_gs)
-                st.table(resumen_pago)
                 
                 st.markdown("---")
                 st.write("### Detalle de Ventas del Día")
@@ -663,7 +697,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 df_cierre_visual['total'] = df_cierre_visual['total'].apply(formatear_gs)
                 
                 st.dataframe(
-                    df_cierre_visual[['fecha_hora', 'cliente_nombre', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago']],
+                    df_cierre_visual[['fecha_hora', 'cliente_nombre', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'tipo_venta', 'estado_pago']],
                     column_config={
                         "fecha_hora": "Hora",
                         "cliente_nombre": "Cliente",
@@ -671,11 +705,83 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         "cantidad": "Cantidad",
                         "precio_unitario": "Precio Unit.",
                         "total": "Total",
-                        "metodo_pago": "Método de Pago"
+                        "tipo_venta": "Condición",
+                        "estado_pago": "Estado"
                     },
                     hide_index=True,
                     use_container_width=True
                 )
+
+# ------------------------------------------
+# VISTA: DEUDAS DE CLIENTES (NUEVA SECCIÓN)
+# ------------------------------------------
+elif opcion == "💳 Deudas de Clientes":
+    st.markdown('<p class="main-title">💳 Gestión de Deudas y Fiados</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Revisa las cuentas pendientes de tus clientes y registra sus pagos.</p>', unsafe_allow_html=True)
+    
+    df_ventas = obtener_ventas()
+    
+    if df_ventas.empty:
+        st.info("No hay registros de ventas.")
+    else:
+        # Filtrar solo ventas pendientes
+        df_deudas = df_ventas[df_ventas['estado_pago'] == "Pendiente"]
+        
+        if df_deudas.empty:
+            st.balloons()
+            st.success("🎉 ¡Excelente! No hay clientes con deudas pendientes actualmente.")
+        else:
+            # Agrupar saldo total por cliente
+            resumen_deudas = df_deudas.groupby("cliente_nombre")["total"].sum().reset_index()
+            resumen_deudas.columns = ["Cliente", "Saldo Pendiente (Gs.)"]
+            
+            total_deuda_global = resumen_deudas["Saldo Pendiente (Gs.)"].sum()
+            
+            c_m1, c_m2 = st.columns(2)
+            with c_m1:
+                st.metric("Deuda Total a Cobrar en la Tienda", formatear_gs(total_deuda_global))
+            with c_m2:
+                st.metric("Clientes con Deuda Activa", f"{len(resumen_deudas)} clientes")
+                
+            st.markdown("---")
+            st.subheader("📋 Resumen por Cliente")
+            
+            resumen_visual = resumen_deudas.copy()
+            resumen_visual["Saldo Pendiente (Gs.)"] = resumen_visual["Saldo Pendiente (Gs.)"].apply(formatear_gs)
+            st.table(resumen_visual)
+            
+            st.markdown("---")
+            st.subheader("🔍 Consultar y Saldar Deuda de un Cliente")
+            
+            cliente_con_deuda_sel = st.selectbox("Selecciona un cliente para ver su detalle de compras:", resumen_deudas["Cliente"].unique())
+            
+            df_detalle_cliente = df_deudas[df_deudas['cliente_nombre'] == cliente_con_deuda_sel].copy()
+            deuda_total_cliente = df_detalle_cliente['total'].sum()
+            
+            st.warning(f"⚠️ **{cliente_con_deuda_sel}** debe un total de **{formatear_gs(deuda_total_cliente)}**")
+            
+            df_detalle_visual = df_detalle_cliente.copy()
+            df_detalle_visual['precio_unitario'] = df_detalle_visual['precio_unitario'].apply(formatear_gs)
+            df_detalle_visual['total'] = df_detalle_visual['total'].apply(formatear_gs)
+            
+            st.dataframe(
+                df_detalle_visual[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total']],
+                column_config={
+                    "fecha_hora": "Fecha/Hora",
+                    "producto_nombre": "Producto",
+                    "cantidad": "Cantidad",
+                    "precio_unitario": "Precio Unit.",
+                    "total": "Subtotal"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button(f"✅ Registrar Pago Completo ({formatear_gs(deuda_total_cliente)})", type="primary"):
+                marcar_deuda_pagada(cliente_con_deuda_sel)
+                st.success(f"🎉 ¡La cuenta de **{cliente_con_deuda_sel}** ha sido saldada por completo!")
+                st.rerun()
 
 # ------------------------------------------
 # VISTA: GESTOR DE CLIENTES
