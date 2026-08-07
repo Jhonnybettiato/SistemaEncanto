@@ -410,60 +410,128 @@ if opcion == "🛒 Ventas y Cierre de Caja":
     
     tab_venta, tab_cierre = st.tabs(["🛍️ Nueva Venta", "📊 Cierre de Caja del Día"])
     
-    # TAB 1: NUEVA VENTA
+    # TAB 1: NUEVA VENTA (CARRITO MULTI-PRODUCTO)
     with tab_venta:
+        # Inicializar la variable del carrito en la sesión si no existe
+        if "carrito" not in st.session_state:
+            st.session_state.carrito = []
+
         df_productos = obtener_productos()
         
         if df_productos.empty:
             st.info("No tienes productos registrados en el inventario para vender.")
         else:
-            # Filtrar solo productos con stock > 0
             df_con_stock = df_productos[df_productos['stock'] > 0]
             
             if df_con_stock.empty:
                 st.warning("⚠️ Todos los productos actualmente se encuentran sin stock disponible.")
             else:
+                st.subheader("1️⃣ Agregar productos al carrito")
+                
                 lista_productos = [f"{row['id']} - {row['nombre']} ({row['marca']}) - Stock: {row['stock']} uds" for _, row in df_con_stock.iterrows()]
                 
-                # 🔍 Buscador interactivo en tiempo real
-                prod_seleccionado_str = st.selectbox(
-                    "🔍 Escribe el nombre o marca para buscar y seleccionar el producto:",
-                    options=lista_productos,
-                    index=None,
-                    placeholder="Haz clic aquí y empieza a escribir...",
-                    key="select_venta_prod"
-                )
+                col_add1, col_add2, col_add3 = st.columns([3, 1, 1])
+                
+                with col_add1:
+                    prod_seleccionado_str = st.selectbox(
+                        "🔍 Busca o selecciona un producto:",
+                        options=lista_productos,
+                        index=None,
+                        placeholder="Haz clic y empieza a escribir...",
+                        key="select_venta_prod"
+                    )
                 
                 if prod_seleccionado_str is not None:
                     id_prod_sel = str(prod_seleccionado_str.split(" - ")[0])
                     prod_sel = df_con_stock[df_con_stock['id'].astype(str) == id_prod_sel].iloc[0]
                     
-                    col_v1, col_v2 = st.columns(2)
-                    
-                    with col_v1:
-                        st.write(f"**Precio Unitario de Venta:** {formatear_gs(prod_sel['precio_venta'])}")
-                        cantidad_venta = st.number_input("Cantidad a vender", min_value=1, max_value=int(prod_sel['stock']), value=1, step=1, key="cant_venta")
-                        metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"], key="met_pago")
-                    
-                    with col_v2:
-                        total_venta = int(prod_sel['precio_venta']) * int(cantidad_venta)
-                        st.markdown("### Total a Cobrar:")
-                        st.success(f"💰 **{formatear_gs(total_venta)}**")
-                    
-                    st.markdown("---")
-                    if st.button("💳 Confirmar y Registrar Venta", type="primary", key="btn_confirmar_venta"):
-                        registrar_venta(
-                            id_prod_sel,
-                            prod_sel['nombre'],
-                            cantidad_venta,
-                            prod_sel['precio_venta'],
-                            total_venta,
-                            metodo_pago
-                        )
-                        st.success(f"✔️ ¡Venta realizada con éxito! Se vendieron {cantidad_venta} unidades de '{prod_sel['nombre']}'.")
-                        st.rerun()
+                    # Descontar del stock disponible lo que ya esté metido en el carrito actual
+                    cant_en_carrito = sum([item['cantidad'] for item in st.session_state.carrito if str(item['id']) == id_prod_sel])
+                    stock_disponible_real = int(prod_sel['stock']) - cant_en_carrito
+
+                    with col_add2:
+                        if stock_disponible_real > 0:
+                            cantidad_agregar = st.number_input("Cantidad", min_value=1, max_value=stock_disponible_real, value=1, step=1, key="cant_agregar")
+                        else:
+                            st.warning("Agotado en carrito")
+                            cantidad_agregar = 0
+
+                    with col_add3:
+                        st.markdown("<br>", unsafe_allow_html=True)
+                        btn_deshabilitado = stock_disponible_real <= 0
+                        if st.button("➕ Agregar", type="primary", disabled=btn_deshabilitado, use_container_width=True, key="btn_agregar_carrito"):
+                            # Si el producto ya está en el carrito, sumamos la cantidad
+                            encontrado = False
+                            for item in st.session_state.carrito:
+                                if str(item['id']) == id_prod_sel:
+                                    item['cantidad'] += cantidad_agregar
+                                    item['subtotal'] = item['cantidad'] * item['precio_venta']
+                                    encontrado = True
+                                    break
+                            
+                            # Si no está, lo agregamos como un nuevo ítem
+                            if not encontrado:
+                                st.session_state.carrito.append({
+                                    "id": id_prod_sel,
+                                    "nombre": prod_sel['nombre'],
+                                    "precio_venta": int(prod_sel['precio_venta']),
+                                    "cantidad": cantidad_agregar,
+                                    "subtotal": cantidad_agregar * int(prod_sel['precio_venta'])
+                                })
+                            st.rerun()
+
+                st.markdown("---")
+                st.subheader("2️⃣ Carrito de Compras Actual")
+
+                if not st.session_state.carrito:
+                    st.info("🛒 El carrito está vacío. Busca un producto arriba y haz clic en '➕ Agregar'.")
                 else:
-                    st.info("💡 Haz clic en la casilla desplegable de arriba y escribe cualquier letra para filtrar la lista instantáneamente.")
+                    # Mostrar la lista del carrito ítem por ítem
+                    for idx, item in enumerate(st.session_state.carrito):
+                        c1, c2, c3, c4, c5 = st.columns([3, 1, 2, 2, 1])
+                        with c1:
+                            st.markdown(f"**{item['nombre']}**")
+                        with c2:
+                            st.write(f"Cant: **{item['cantidad']}**")
+                        with c3:
+                            st.write(f"P.U.: {formatear_gs(item['precio_venta'])}")
+                        with c4:
+                            st.write(f"Subtotal: **{formatear_gs(item['subtotal'])}**")
+                        with c5:
+                            if st.button("❌", key=f"del_cart_{idx}", help="Quitar ítem"):
+                                st.session_state.carrito.pop(idx)
+                                st.rerun()
+
+                    total_general = sum(item['subtotal'] for item in st.session_state.carrito)
+
+                    st.markdown("---")
+                    col_fin1, col_fin2 = st.columns(2)
+
+                    with col_fin1:
+                        metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"], key="met_pago")
+                        if st.button("🗑️ Vaciar Carrito", key="btn_vaciar"):
+                            st.session_state.carrito = []
+                            st.rerun()
+
+                    with col_fin2:
+                        st.markdown("### Total Final a Cobrar:")
+                        st.success(f"💰 **{formatear_gs(total_general)}**")
+                        
+                        if st.button("💳 Finalizar Venta Completa", type="primary", use_container_width=True, key="btn_finalizar_venta"):
+                            # Registrar cada ítem en la base de datos y descontar stock
+                            for item in st.session_state.carrito:
+                                registrar_venta(
+                                    item['id'],
+                                    item['nombre'],
+                                    item['cantidad'],
+                                    item['precio_venta'],
+                                    item['subtotal'],
+                                    metodo_pago
+                                )
+                            # Limpiar carrito tras completar la venta
+                            st.session_state.carrito = []
+                            st.success("✔️ ¡Venta realizada con éxito! Se registraron todos los productos y se actualizó el stock.")
+                            st.rerun()
 
     # TAB 2: CIERRE DE CAJA
     with tab_cierre:
