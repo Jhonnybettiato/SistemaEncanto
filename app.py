@@ -648,7 +648,7 @@ st.markdown("""
     /* Títulos principales en Lila Fuerte e Intenso */
     .main-title, h1, h2, h3 { 
         color: #6B46C1 !important; 
-        font-weight: 2000 !important;
+        font-weight: 800 !important;
     }
     
     /* Subtítulos */
