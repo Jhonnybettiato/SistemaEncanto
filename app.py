@@ -40,10 +40,11 @@ def init_db():
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
     
-    # Productos
+    # Productos con Código de Barras
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS productos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            codigo_barras TEXT,
             nombre TEXT NOT NULL,
             categoria TEXT,
             marca TEXT,
@@ -158,11 +159,11 @@ def init_db():
     # Datos iniciales
     cursor.execute("SELECT COUNT(*) FROM categorias")
     if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO categorias (nombre) VALUES (?)", [("Perfumes",), ("Cosméticos",), ("Cuidado Personal",), ("Otros",)])
+        cursor.executemany("INSERT INTO categorias (nombre) VALUES (?)", [("Perfumes",), ("Cosméticos",), ("Cuidado Personal",), ("Crochet",), ("Otros",)])
 
     cursor.execute("SELECT COUNT(*) FROM marcas")
     if cursor.fetchone()[0] == 0:
-        cursor.executemany("INSERT INTO marcas (nombre) VALUES (?)", [("Natura",), ("O Boticário",), ("Eudora",), ("Sin Marca / Genérico",)])
+        cursor.executemany("INSERT INTO marcas (nombre) VALUES (?)", [("Natura",), ("O Boticário",), ("Eudora",), ("Artesanal / Sin Marca",)])
 
     conn.commit()
     conn.close()
@@ -207,7 +208,7 @@ def registrar_cierre_diario(fecha_str, saldo_inicial, ingresos, egresos, saldo_f
 
 def obtener_categorias():
     db_cloud = obtener_conexion_db()
-    cat_default = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
+    cat_default = ["Perfumes", "Cosméticos", "Cuidado Personal", "Crochet", "Otros"]
     if db_cloud is not None:
         docs = db_cloud.collection("categorias").stream()
         lista = [doc.to_dict().get("nombre") for doc in docs if doc.to_dict().get("nombre")]
@@ -251,7 +252,7 @@ def eliminar_categoria(nombre_cat):
 
 def obtener_marcas():
     db_cloud = obtener_conexion_db()
-    marcas_default = ["Natura", "O Boticário", "Eudora", "Sin Marca / Genérico"]
+    marcas_default = ["Natura", "O Boticário", "Eudora", "Artesanal / Sin Marca"]
     if db_cloud is not None:
         docs = db_cloud.collection("marcas").stream()
         lista = [doc.to_dict().get("nombre") for doc in docs if doc.to_dict().get("nombre")]
@@ -304,17 +305,6 @@ def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
         conn.commit()
         conn.close()
 
-def actualizar_cliente(id_cli, nombre, apellido, ci, telefono, ciudad):
-    db_cloud = obtener_conexion_db()
-    if db_cloud is not None:
-        db_cloud.collection("clientes").document(str(id_cli)).update({"nombre": nombre.strip(), "apellido": apellido.strip(), "ci": ci.strip(), "telefono": telefono.strip(), "ciudad": ciudad.strip()})
-    else:
-        conn = sqlite3.connect("inventario.db")
-        cursor = conn.cursor()
-        cursor.execute("UPDATE clientes SET nombre = ?, apellido = ?, ci = ?, telefono = ?, ciudad = ? WHERE id = ?", (nombre.strip(), apellido.strip(), ci.strip(), telefono.strip(), ciudad.strip(), int(id_cli)))
-        conn.commit()
-        conn.close()
-
 def obtener_clientes():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -331,51 +321,42 @@ def obtener_clientes():
         conn.close()
         return df
 
-def eliminar_cliente(id_cli):
+def registrar_producto(codigo_barras, nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
     db_cloud = obtener_conexion_db()
-    if db_cloud is not None:
-        db_cloud.collection("clientes").document(str(id_cli)).delete()
-    else:
-        conn = sqlite3.connect("inventario.db")
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM clientes WHERE id = ?", (int(id_cli),))
-        conn.commit()
-        conn.close()
-
-def registrar_producto(nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
-    db_cloud = obtener_conexion_db()
+    cod_clean = str(codigo_barras).strip()
     if db_cloud is not None:
         db_cloud.collection("productos").add({
-            "nombre": nombre, "categoria": categoria, "marca": marca, "precio_costo": int(precio_costo),
-            "ganancia_porcentaje": int(ganancia_porcentaje), "precio_venta": int(precio_venta),
-            "stock": int(stock), "descripcion": descripcion
+            "codigo_barras": cod_clean, "nombre": nombre, "categoria": categoria, "marca": marca, 
+            "precio_costo": int(precio_costo), "ganancia_porcentaje": int(ganancia_porcentaje), 
+            "precio_venta": int(precio_venta), "stock": int(stock), "descripcion": descripcion
         })
     else:
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO productos (nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion))
+            INSERT INTO productos (codigo_barras, nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (cod_clean, nombre, categoria, marca, int(precio_costo), int(ganancia_porcentaje), int(precio_venta), int(stock), descripcion))
         conn.commit()
         conn.close()
 
-def actualizar_producto(id_prod, nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
+def actualizar_producto(id_prod, codigo_barras, nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
     db_cloud = obtener_conexion_db()
+    cod_clean = str(codigo_barras).strip()
     if db_cloud is not None:
         db_cloud.collection("productos").document(str(id_prod)).update({
-            "nombre": nombre, "categoria": categoria, "marca": marca, "precio_costo": int(precio_costo),
-            "ganancia_porcentaje": int(ganancia_porcentaje), "precio_venta": int(precio_venta),
-            "stock": int(stock), "descripcion": descripcion
+            "codigo_barras": cod_clean, "nombre": nombre, "categoria": categoria, "marca": marca, 
+            "precio_costo": int(precio_costo), "ganancia_porcentaje": int(ganancia_porcentaje), 
+            "precio_venta": int(precio_venta), "stock": int(stock), "descripcion": descripcion
         })
     else:
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE productos
-            SET nombre = ?, categoria = ?, marca = ?, precio_costo = ?, ganancia_porcentaje = ?, precio_venta = ?, stock = ?, descripcion = ?
+            SET codigo_barras = ?, nombre = ?, categoria = ?, marca = ?, precio_costo = ?, ganancia_porcentaje = ?, precio_venta = ?, stock = ?, descripcion = ?
             WHERE id = ?
-        """, (nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion, int(id_prod)))
+        """, (cod_clean, nombre, categoria, marca, int(precio_costo), int(ganancia_porcentaje), int(precio_venta), int(stock), descripcion, int(id_prod)))
         conn.commit()
         conn.close()
 
@@ -400,16 +381,18 @@ def obtener_productos():
             datos["id"] = doc.id
             lista.append(datos)
         if not lista:
-            return pd.DataFrame(columns=["id", "nombre", "categoria", "marca", "precio_costo", "ganancia_porcentaje", "precio_venta", "stock", "descripcion"])
+            return pd.DataFrame(columns=["id", "codigo_barras", "nombre", "categoria", "marca", "precio_costo", "ganancia_porcentaje", "precio_venta", "stock", "descripcion"])
         df = pd.DataFrame(lista)
-        if "marca" not in df.columns: df["marca"] = "Sin Marca"
-        return df
     else:
         conn = sqlite3.connect("inventario.db")
         df = pd.read_sql_query("SELECT * FROM productos", conn)
         conn.close()
-        if "marca" not in df.columns: df["marca"] = "Sin Marca"
-        return df
+        
+    if "codigo_barras" not in df.columns: 
+        df["codigo_barras"] = ""
+    if "marca" not in df.columns: 
+        df["marca"] = "Sin Marca"
+    return df
 
 def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, total, tipo_venta, metodo_pago, cliente_nombre="Cliente Ocasional"):
     db_cloud = obtener_conexion_db()
@@ -486,17 +469,6 @@ def obtener_historial_pagos():
         df = pd.read_sql_query("SELECT * FROM pagos_clientes ORDER BY id DESC", conn)
         conn.close()
         return df
-
-def actualizar_estado_venta(venta_id, estado_pago):
-    db_cloud = obtener_conexion_db()
-    if db_cloud is not None:
-        db_cloud.collection("ventas").document(str(venta_id)).update({"estado_pago": estado_pago})
-    else:
-        conn = sqlite3.connect("inventario.db")
-        cursor = conn.cursor()
-        cursor.execute("UPDATE ventas SET estado_pago = ? WHERE id = ?", (estado_pago, int(venta_id)))
-        conn.commit()
-        conn.close()
 
 def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
     db_cloud = obtener_conexion_db()
@@ -595,6 +567,7 @@ def actualizar_estado_compra(compra_id, estado_pago):
         conn.commit()
         conn.close()
 
+# --- FUNCIONES DE SALIDAS DE CAJA (NUEVAS) ---
 def registrar_salida_caja(motivo, monto, metodo_pago):
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -611,13 +584,49 @@ def obtener_salidas_caja():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
         docs = db_cloud.collection("salidas_caja").stream()
-        lista = [doc.to_dict() for doc in docs]
-        return pd.DataFrame(lista) if lista else pd.DataFrame(columns=["fecha_hora", "motivo", "monto", "metodo_pago"])
+        lista = []
+        for doc in docs:
+            d = doc.to_dict()
+            d["id"] = doc.id
+            lista.append(d)
+        if not lista:
+            return pd.DataFrame(columns=["id", "fecha_hora", "motivo", "monto", "metodo_pago"])
+        df = pd.DataFrame(lista)
+        df = df.sort_values(by="fecha_hora", ascending=False)
+        return df
     else:
         conn = sqlite3.connect("inventario.db")
         df = pd.read_sql_query("SELECT * FROM salidas_caja ORDER BY id DESC", conn)
         conn.close()
         return df
+
+def actualizar_salida_caja(id_salida, motivo, monto, metodo_pago):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("salidas_caja").document(str(id_salida)).update({
+            "motivo": motivo, "monto": int(monto), "metodo_pago": metodo_pago
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE salidas_caja
+            SET motivo = ?, monto = ?, metodo_pago = ?
+            WHERE id = ?
+        """, (motivo, int(monto), metodo_pago, int(id_salida)))
+        conn.commit()
+        conn.close()
+
+def eliminar_salida_caja(id_salida):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("salidas_caja").document(str(id_salida)).delete()
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM salidas_caja WHERE id = ?", (int(id_salida),))
+        conn.commit()
+        conn.close()
 
 init_db()
 
@@ -662,11 +671,16 @@ opcion = st.sidebar.radio(
 )
 
 # ------------------------------------------
-# 1. VENTAS Y CIERRE DE CAJA
+# 1. VENTAS Y CIERRE DE CAJA (Con Edición de Salidas)
 # ------------------------------------------
 if opcion == "🛒 Ventas y Cierre de Caja":
     st.markdown('<p class="main-title">🛒 Ventas y Cierre de Caja</p>', unsafe_allow_html=True)
-    tab_venta, tab_salida, tab_cierre = st.tabs(["🛍️ Nueva Venta", "💸 Registrar Salida de Caja", "📊 Cierre de Caja"])
+    tab_venta, tab_salida, tab_edit_salida, tab_cierre = st.tabs([
+        "🛍️ Nueva Venta", 
+        "💸 Registrar Salida", 
+        "✏️ Modificar / Eliminar Salida", 
+        "📊 Cierre de Caja"
+    ])
     
     with tab_venta:
         if "carrito" not in st.session_state: 
@@ -683,11 +697,15 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 st.warning("⚠️ Todos los productos están sin stock.")
             else:
                 st.subheader("1️⃣ Agregar productos al carrito")
-                lista_prods = [f"{r['id']} - {r['nombre']} ({r['marca']}) - Stock: {r['stock']}" for _, r in df_con_stock.iterrows()]
+                lista_prods = []
+                for _, r in df_con_stock.iterrows():
+                    cod_str = str(r.get('codigo_barras', '')).strip()
+                    prefix_cod = f"[{cod_str}] " if cod_str and cod_str != "nan" else ""
+                    lista_prods.append(f"{r['id']} - {prefix_cod}{r['nombre']} ({r['marca']}) - Stock: {r['stock']}")
+
                 col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
-                
                 with col_a1:
-                    p_sel = st.selectbox("Buscar Producto:", lista_prods, index=None, key="select_venta")
+                    p_sel = st.selectbox("🔍 Buscar por Nombre o Escanear Código de Barras:", lista_prods, index=None, key="select_venta")
                 if p_sel:
                     id_p = str(p_sel.split(" - ")[0])
                     p_row = df_con_stock[df_con_stock['id'].astype(str) == id_p].iloc[0]
@@ -725,7 +743,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     st.markdown("---")
                     st.subheader("3️⃣ Descuento y Finalización")
                     
-                    # --- Opción de Descuento ---
                     col_d1, col_d2 = st.columns(2)
                     with col_d1:
                         tipo_desc = st.radio("Tipo de Descuento:", ["Sin Descuento", "Monto en Gs.", "Porcentaje (%)"], horizontal=True)
@@ -740,7 +757,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 
                     tot_final = max(0, tot_gen - monto_descuento)
 
-                    # Resumen visual del cobro
                     st.markdown("<br>", unsafe_allow_html=True)
                     m1, m2, m3 = st.columns(3)
                     m1.metric("Subtotal", formatear_gs(tot_gen))
@@ -754,7 +770,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     met_p = st.selectbox("Método Pago:", ["Efectivo", "Transferencia / PIX", "Tarjeta"])
                     
                     if st.button("💳 Finalizar Venta", type="primary"):
-                        # Aplicar descuento proporcional por item para mantener exactitud en los reportes
                         factor_desc = tot_final / tot_gen if tot_gen > 0 else 1.0
                         
                         for i in st.session_state.carrito:
@@ -777,15 +792,57 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         st.rerun()
 
     with tab_salida:
-        st.subheader("💸 Salida de Caja")
+        st.subheader("💸 Registrar Nueva Salida de Caja")
         with st.form("form_salida"):
-            mot = st.text_input("Motivo:")
-            monto = st.number_input("Monto:", min_value=1, value=10000)
-            met = st.selectbox("Forma Pago:", ["Efectivo", "Transferencia / PIX"])
-            if st.form_submit_button("Registrar Salida") and mot:
+            mot = st.text_input("Motivo de Salida:")
+            monto = st.number_input("Monto en Gs.:", min_value=1, value=10000)
+            met = st.selectbox("Forma de Pago:", ["Efectivo", "Transferencia / PIX"])
+            if st.form_submit_button("Guardar Salida", type="primary") and mot:
                 registrar_salida_caja(mot, monto, met)
-                st.success("Salida registrada.")
+                st.success("✅ Salida de caja registrada con éxito.")
                 st.rerun()
+
+    with tab_edit_salida:
+        st.subheader("✏️ Modificar o Eliminar Salida Registrada")
+        df_salidas = obtener_salidas_caja()
+        
+        if df_salidas.empty:
+            st.info("No hay salidas de caja registradas para modificar.")
+        else:
+            opciones_salida = [
+                f"{r['id']} - {r['fecha_hora']} | {r['motivo']} | {formatear_gs(r['monto'])}" 
+                for _, r in df_salidas.iterrows()
+            ]
+            
+            salida_sel = st.selectbox("Selecciona la Salida a Editar:", opciones_salida)
+            
+            if salida_sel:
+                id_sal_sel = str(salida_sel.split(" - ")[0])
+                salida_row = df_salidas[df_salidas['id'].astype(str) == id_sal_sel].iloc[0]
+                
+                with st.form("form_editar_salida"):
+                    nuevo_mot = st.text_input("Motivo:", value=salida_row['motivo'])
+                    nuevo_monto = st.number_input("Monto (Gs.):", min_value=1, value=int(salida_row['monto']))
+                    
+                    metodos = ["Efectivo", "Transferencia / PIX"]
+                    idx_met = metodos.index(salida_row['metodo_pago']) if salida_row['metodo_pago'] in metodos else 0
+                    nuevo_met = st.selectbox("Forma de Pago:", metodos, index=idx_met)
+                    
+                    col_b1, col_b2 = st.columns(2)
+                    with col_b1:
+                        btn_guardar_salida = st.form_submit_button("💾 Guardar Cambios", type="primary")
+                    with col_b2:
+                        btn_eliminar_salida = st.form_submit_button("🗑️ Eliminar Salida")
+
+                    if btn_guardar_salida:
+                        actualizar_salida_caja(id_sal_sel, nuevo_mot, nuevo_monto, nuevo_met)
+                        st.success("✅ Salida corregida correctamente.")
+                        st.rerun()
+                        
+                    if btn_eliminar_salida:
+                        eliminar_salida_caja(id_sal_sel)
+                        st.warning("⚠️ Salida eliminada correctamente.")
+                        st.rerun()
 
     with tab_cierre:
         st.subheader("📊 Balance Diario")
@@ -884,7 +941,7 @@ elif opcion == "🚚 Compras a Proveedores":
 # ------------------------------------------
 elif opcion == "📈 Flujo de Caja Mensual":
     st.markdown('<p class="main-title">📈 Flujo de Caja Mensual</p>', unsafe_allow_html=True)
-    mes_sel = st.month_picker("Seleccionar Mes:", date.today()) if hasattr(st, "month_picker") else st.date_input("Selecciona un día del mes:", date.today())
+    mes_sel = st.date_input("Selecciona un día del mes a consultar:", date.today())
     prefix_mes = mes_sel.strftime("%Y-%m")
     
     df_v = obtener_ventas()
@@ -962,13 +1019,15 @@ elif opcion == "📦 Ver Stock / Inventario":
         st.info("No hay productos registrados.")
 
 # ------------------------------------------
-# 7. REGISTRAR PRODUCTO
+# 7. REGISTRAR PRODUCTO (Con Código de Barras)
 # ------------------------------------------
 elif opcion == "➕ Registrar Producto":
     st.markdown('<p class="main-title">➕ Registrar Nuevo Producto</p>', unsafe_allow_html=True)
     cats = obtener_categorias()
     marcas = obtener_marcas()
+    
     with st.form("form_p_new"):
+        cod_barras = st.text_input("📦 Código de Barras (Escanear o escribir manualmente):")
         nom = st.text_input("Nombre Producto:")
         cat = st.selectbox("Categoría:", cats)
         mar = st.selectbox("Marca:", marcas)
@@ -978,9 +1037,10 @@ elif opcion == "➕ Registrar Producto":
         st.info(f"Precio Venta Calculado: {formatear_gs(p_venta)}")
         stk = st.number_input("Stock Inicial:", min_value=0, value=1)
         desc = st.text_area("Descripción:")
+        
         if st.form_submit_button("Guardar Producto") and nom:
-            registrar_producto(nom, cat, mar, costo, gan, p_venta, stk, desc)
-            st.success("Producto guardado con éxito!")
+            registrar_producto(cod_barras, nom, cat, mar, costo, gan, p_venta, stk, desc)
+            st.success("¡Producto guardado con éxito!")
             st.rerun()
 
 # ------------------------------------------
@@ -996,6 +1056,7 @@ elif opcion == "✏️ Editar / Modificar Producto":
         p_row = df_p[df_p['id'].astype(str) == str(id_p)].iloc[0]
         
         with st.form("form_e_prod"):
+            cod_barras = st.text_input("📦 Código de Barras:", value=str(p_row.get('codigo_barras', '')))
             nom = st.text_input("Nombre:", value=p_row['nombre'])
             cat = st.selectbox("Categoría:", obtener_categorias(), index=0)
             mar = st.selectbox("Marca:", obtener_marcas(), index=0)
@@ -1008,7 +1069,7 @@ elif opcion == "✏️ Editar / Modificar Producto":
             
             c1, c2 = st.columns(2)
             if c1.form_submit_button("💾 Actualizar"):
-                actualizar_producto(id_p, nom, cat, mar, costo, gan, p_v, stk, desc)
+                actualizar_producto(id_p, cod_barras, nom, cat, mar, costo, gan, p_v, stk, desc)
                 st.success("Producto actualizado!")
                 st.rerun()
             if c2.form_submit_button("🗑️ Eliminar Producto"):
