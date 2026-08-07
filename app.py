@@ -34,6 +34,8 @@ def init_db():
         
     conn = sqlite3.connect("inventario.db")
     cursor = conn.cursor()
+    
+    # Crear tabla de productos
     cursor.execute("PRAGMA table_info(productos)")
     columnas = [col[1] for col in cursor.fetchall()]
     
@@ -53,15 +55,87 @@ def init_db():
             descripcion TEXT
         )
     """)
+
+    # Crear tabla de categorías
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categorias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE NOT NULL
+        )
+    """)
+
+    # Insertar categorías por defecto si la tabla está vacía
+    cursor.execute("SELECT COUNT(*) FROM categorias")
+    if cursor.fetchone()[0] == 0:
+        cat_iniciales = [("Perfumes",), ("Cosméticos",), ("Cuidado Personal",), ("Otros",)]
+        cursor.executemany("INSERT INTO categorias (nombre) VALUES (?)", cat_iniciales)
+
     conn.commit()
     conn.close()
 
+# --- FUNCIONES DE CATEGORÍAS ---
+def obtener_categorias():
+    """Obtiene la lista de categorías registradas."""
+    db_cloud = obtener_conexion_db()
+    cat_default = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
+    
+    if db_cloud is not None:
+        docs = db_cloud.collection("categorias").stream()
+        lista = [doc.to_dict().get("nombre") for doc in docs if doc.to_dict().get("nombre")]
+        if not lista:
+            return cat_default
+        return sorted(list(set(lista)))
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT nombre FROM categorias ORDER BY nombre ASC")
+        filas = cursor.fetchall()
+        conn.close()
+        if not filas:
+            return cat_default
+        return [f[0] for f in filas]
+
+def registrar_categoria(nombre_cat):
+    """Guarda una nueva categoría en la nube o localmente."""
+    db_cloud = obtener_conexion_db()
+    nombre_cat = nombre_cat.strip()
+    
+    if db_cloud is not None:
+        # Verificar duplicados en Firestore
+        existentes = obtener_categorias()
+        if nombre_cat not in existentes:
+            db_cloud.collection("categorias").add({"nombre": nombre_cat})
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        try:
+            cursor.execute("INSERT INTO categorias (nombre) VALUES (?)", (nombre_cat,))
+            conn.commit()
+        except sqlite3.IntegrityError:
+            pass  # Ya existe la categoría
+        conn.close()
+
+def eliminar_categoria(nombre_cat):
+    """Elimina una categoría seleccionada."""
+    db_cloud = obtener_conexion_db()
+    
+    if db_cloud is not None:
+        docs = db_cloud.collection("categorias").where("nombre", "==", nombre_cat).stream()
+        for doc in docs:
+            db_cloud.collection("categorias").document(doc.id).delete()
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM categorias WHERE nombre = ?", (nombre_cat,))
+        conn.commit()
+        conn.close()
+
+# --- FUNCIONES DE PRODUCTOS ---
 def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
     """Guarda un producto en la base de datos activa (Nube o SQLite)."""
     db_cloud = obtener_conexion_db()
     
     if db_cloud is not None:
-        # Guardar permanentemente en la nube
         db_cloud.collection("productos").add({
             "nombre": nombre,
             "categoria": categoria,
@@ -72,7 +146,6 @@ def registrar_producto(nombre, categoria, precio_costo, ganancia_porcentaje, pre
             "descripcion": descripcion
         })
     else:
-        # Guardar de forma temporal en SQLite local
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("""
@@ -125,18 +198,16 @@ def obtener_productos():
     db_cloud = obtener_conexion_db()
     
     if db_cloud is not None:
-        # Recuperar desde la nube de forma segura
         docs = db_cloud.collection("productos").stream()
         lista = []
         for doc in docs:
             datos = doc.to_dict()
-            datos["id"] = doc.id  # ID alfanumérico de Firebase
+            datos["id"] = doc.id
             lista.append(datos)
         if not lista:
             return pd.DataFrame(columns=["id", "nombre", "categoria", "precio_costo", "ganancia_porcentaje", "precio_venta", "stock", "descripcion"])
         return pd.DataFrame(lista)
     else:
-        # Recuperar de forma local
         conn = sqlite3.connect("inventario.db")
         df = pd.read_sql_query("SELECT * FROM productos", conn)
         conn.close()
@@ -177,7 +248,6 @@ st.markdown("""
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 
-# Verificar estado de conexión para mostrar al usuario
 nube_activa = obtener_conexion_db() is not None
 
 if nube_activa:
@@ -195,8 +265,8 @@ else:
 
 opcion = st.sidebar.radio(
     "Selecciona una opción:",
-    ["📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto"],
-    captions=["Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros"]
+    ["📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto", "🏷️ Gestor de Categorías"],
+    captions=["Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros", "Crear y organizar categorías"]
 )
 
 # ------------------------------------------
@@ -211,7 +281,6 @@ if opcion == "📦 Ver Stock / Inventario":
     if df_productos.empty:
         st.info("Aún no tienes productos registrados en el inventario. Ve a la pestaña 'Registrar Producto' en el menú de la izquierda.")
     else:
-        # Buscador rápido
         busqueda = st.text_input("🔍 Buscar producto por nombre", "", placeholder="Escribe el nombre del producto...")
         
         if busqueda:
@@ -269,11 +338,13 @@ elif opcion == "➕ Registrar Producto":
     st.markdown('<p class="main-title">➕ Registro de Nuevo Producto</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Añade nuevos artículos definiendo su costo de compra y margen de utilidad deseado.</p>', unsafe_allow_html=True)
     
+    lista_categorias = obtener_categorias()
+    
     col_a, col_b = st.columns(2)
     
     with col_a:
         nombre = st.text_input("Nombre del Producto *", placeholder="Ej. Encanto Imperial 100ml", key="reg_nombre")
-        categoria = st.selectbox("Categoría", ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"], key="reg_categoria")
+        categoria = st.selectbox("Categoría", lista_categorias, key="reg_categoria")
         stock = st.number_input("Cantidad inicial en stock *", min_value=1, step=1, value=1, key="reg_stock")
         
     with col_b:
@@ -308,33 +379,31 @@ elif opcion == "✏️ Editar / Modificar Producto":
     st.markdown('<p class="sub-title">Selecciona un producto registrado para modificar sus precios, stock o eliminarlo del sistema.</p>', unsafe_allow_html=True)
     
     df_productos = obtener_productos()
+    lista_categorias = obtener_categorias()
     
     if df_productos.empty:
         st.info("No tienes productos registrados para modificar en este momento.")
     else:
-        # Menú desplegable para buscar y seleccionar el producto
         lista_productos = [f"{row['id']} - {row['nombre']}" for _, row in df_productos.iterrows()]
         seleccion = st.selectbox("Selecciona el producto que deseas editar:", lista_productos)
         
-        # Extraer el ID correspondiente
         id_seleccionado = seleccion.split(" - ")[0]
         prod_actual = df_productos[df_productos['id'] == id_seleccionado].iloc[0]
         
         st.markdown("---")
         
-        # Formulario de modificación interactivo en tiempo real
         col_a, col_b = st.columns(2)
         
         with col_a:
             nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'], key="edit_nombre")
             
-            categorias = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
+            # Buscar índice de categoría actual
             try:
-                cat_index = categorias.index(prod_actual['categoria'])
+                cat_index = lista_categorias.index(prod_actual['categoria'])
             except ValueError:
                 cat_index = 0
                 
-            nueva_categoria = st.selectbox("Categoría", categorias, index=cat_index, key="edit_categoria")
+            nueva_categoria = st.selectbox("Categoría", lista_categorias, index=cat_index, key="edit_categoria")
             nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']), key="edit_stock")
             
         with col_b:
@@ -370,7 +439,6 @@ elif opcion == "✏️ Editar / Modificar Producto":
                 st.success(f"✔️ ¡El producto '{nuevo_nombre}' ha sido actualizado con éxito!")
                 st.rerun()
 
-        # Sección para eliminar producto de forma segura
         st.markdown("<br>", unsafe_allow_html=True)
         st.subheader("⚠️ Zona de Eliminación")
         
@@ -380,3 +448,44 @@ elif opcion == "✏️ Editar / Modificar Producto":
             eliminar_producto(id_seleccionado)
             st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
             st.rerun()
+
+# ------------------------------------------
+# VISTA: GESTOR DE CATEGORÍAS
+# ------------------------------------------
+elif opcion == "🏷️ Gestor de Categorías":
+    st.markdown('<p class="main-title">🏷️ Gestor de Categorías</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Crea nuevas categorías o elimina aquellas que ya no necesites para organizar tu tienda.</p>', unsafe_allow_html=True)
+    
+    col_cat1, col_cat2 = st.columns(2)
+    
+    with col_cat1:
+        st.subheader("➕ Añadir Nueva Categoría")
+        nueva_cat_input = st.text_input("Nombre de la Categoría", placeholder="Ej. Maquillaje, Accesorios...", key="input_nueva_cat")
+        
+        if st.button("💾 Registrar Categoría", key="btn_add_cat"):
+            if nueva_cat_input.strip() == "":
+                st.error("Ingresa un nombre válido para la categoría.")
+            else:
+                registrar_categoria(nueva_cat_input)
+                st.success(f"✔️ Categoría '{nueva_cat_input.strip()}' guardada con éxito.")
+                st.rerun()
+                
+    with col_cat2:
+        st.subheader("📋 Categorías Actuales")
+        categorias_actuales = obtener_categorias()
+        
+        if categorias_actuales:
+            # Mostrar lista de categorías
+            for cat in categorias_actuales:
+                st.markdown(f"- **{cat}**")
+            
+            st.markdown("---")
+            st.subheader("🗑️ Eliminar Categoría")
+            cat_a_eliminar = st.selectbox("Selecciona la categoría a eliminar", categorias_actuales, key="select_del_cat")
+            
+            if st.button("🗑️ Eliminar Categoría", type="secondary", key="btn_del_cat"):
+                eliminar_categoria(cat_a_eliminar)
+                st.success(f"✔️ Categoría '{cat_a_eliminar}' eliminada.")
+                st.rerun()
+        else:
+            st.info("No hay categorías registradas.")
