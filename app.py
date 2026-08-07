@@ -233,6 +233,27 @@ def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
         conn.commit()
         conn.close()
 
+def actualizar_cliente(id_cli, nombre, apellido, ci, telefono, ciudad):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("clientes").document(str(id_cli)).update({
+            "nombre": nombre.strip(),
+            "apellido": apellido.strip(),
+            "ci": ci.strip(),
+            "telefono": telefono.strip(),
+            "ciudad": ciudad.strip()
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE clientes
+            SET nombre = ?, apellido = ?, ci = ?, telefono = ?, ciudad = ?
+            WHERE id = ?
+        """, (nombre.strip(), apellido.strip(), ci.strip(), telefono.strip(), ciudad.strip(), int(id_cli)))
+        conn.commit()
+        conn.close()
+
 def obtener_clientes():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -661,10 +682,11 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 # ------------------------------------------
 elif opcion == "👥 Gestor de Clientes":
     st.markdown('<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Registra y administra la información de tus clientes.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra, edita y administra la información de tus clientes.</p>', unsafe_allow_html=True)
     
-    tab_reg_cli, tab_ver_cli = st.tabs(["➕ Registrar Cliente", "📋 Lista de Clientes"])
+    tab_reg_cli, tab_ver_cli, tab_edit_cli = st.tabs(["➕ Registrar Cliente", "📋 Lista de Clientes", "✏️ Editar Cliente"])
     
+    # 1. REGISTRAR CLIENTE
     with tab_reg_cli:
         col_c1, col_c2 = st.columns(2)
         
@@ -686,6 +708,7 @@ elif opcion == "👥 Gestor de Clientes":
                 st.success(f"✔️ ¡Cliente **{cli_nombre} {cli_apellido}** registrado con éxito!")
                 st.rerun()
 
+    # 2. LISTA DE CLIENTES
     with tab_ver_cli:
         df_cli = obtener_clientes()
         
@@ -728,6 +751,40 @@ elif opcion == "👥 Gestor de Clientes":
                 eliminar_cliente(id_cli_del)
                 st.success("✔️ Cliente eliminado correctamente.")
                 st.rerun()
+
+    # 3. EDITAR CLIENTE
+    with tab_edit_cli:
+        df_cli = obtener_clientes()
+        
+        if df_cli.empty:
+            st.info("No hay clientes registrados aún para modificar.")
+        else:
+            lista_edit_cli = [f"{r['id']} - {r['nombre']} {r['apellido']} (CI: {r['ci']})" for _, r in df_cli.iterrows()]
+            cli_a_editar_str = st.selectbox("Selecciona un cliente para editar sus datos:", lista_edit_cli, key="sel_edit_cli")
+            
+            id_cli_edit = str(cli_a_editar_str.split(" - ")[0])
+            cli_actual = df_cli[df_cli['id'].astype(str) == id_cli_edit].iloc[0]
+            
+            st.markdown("---")
+            col_ce1, col_ce2 = st.columns(2)
+            
+            with col_ce1:
+                edit_cli_nombre = st.text_input("Nombre *", value=str(cli_actual['nombre']), key="edit_cli_nom")
+                edit_cli_apellido = st.text_input("Apellido *", value=str(cli_actual['apellido']), key="edit_cli_ape")
+                edit_cli_ci = st.text_input("Nº de CI / Cédula *", value=str(cli_actual['ci']), key="edit_cli_ci")
+                
+            with col_ce2:
+                edit_cli_telefono = st.text_input("Número de Teléfono / WhatsApp", value=str(cli_actual['telefono']) if pd.notna(cli_actual['telefono']) else "", key="edit_cli_tel")
+                edit_cli_ciudad = st.text_input("Ciudad", value=str(cli_actual['ciudad']) if pd.notna(cli_actual['ciudad']) else "", key="edit_cli_ciu")
+                
+            st.markdown("---")
+            if st.button("💾 Guardar Cambios del Cliente", type="primary", key="btn_update_cli"):
+                if edit_cli_nombre.strip() == "" or edit_cli_apellido.strip() == "" or edit_cli_ci.strip() == "":
+                    st.error("Por favor completa los campos obligatorios (*): Nombre, Apellido y CI.")
+                else:
+                    actualizar_cliente(id_cli_edit, edit_cli_nombre, edit_cli_apellido, edit_cli_ci, edit_cli_telefono, edit_cli_ciudad)
+                    st.success(f"✔️ ¡Datos del cliente **{edit_cli_nombre} {edit_cli_apellido}** actualizados con éxito!")
+                    st.rerun()
 
 # ------------------------------------------
 # VISTA: VER STOCK / INVENTARIO
