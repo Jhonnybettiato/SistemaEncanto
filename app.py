@@ -36,9 +36,8 @@ def init_db():
     
     # Crear tabla de productos
     cursor.execute("PRAGMA table_info(productos)")
-    columnas = [col[1] for col in cursor.fetchall()]
-    
-    if columnas and "marca" not in columnas:
+    columnas_prod = [col[1] for col in cursor.fetchall()]
+    if columnas_prod and "marca" not in columnas_prod:
         try:
             cursor.execute("ALTER TABLE productos ADD COLUMN marca TEXT")
         except sqlite3.OperationalError:
@@ -74,7 +73,22 @@ def init_db():
         )
     """)
 
+    # Crear tabla de clientes
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS clientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT NOT NULL,
+            apellido TEXT NOT NULL,
+            ci TEXT NOT NULL,
+            telefono TEXT,
+            ciudad TEXT
+        )
+    """)
+
     # Crear tabla de ventas
+    cursor.execute("PRAGMA table_info(ventas)")
+    columnas_ventas = [col[1] for col in cursor.fetchall()]
+    
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS ventas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,17 +98,22 @@ def init_db():
             cantidad INTEGER NOT NULL,
             precio_unitario INTEGER NOT NULL,
             total INTEGER NOT NULL,
-            metodo_pago TEXT NOT NULL
+            metodo_pago TEXT NOT NULL,
+            cliente_nombre TEXT
         )
     """)
+    if columnas_ventas and "cliente_nombre" not in columnas_ventas:
+        try:
+            cursor.execute("ALTER TABLE ventas ADD COLUMN cliente_nombre TEXT")
+        except sqlite3.OperationalError:
+            pass
 
-    # Insertar categorías por defecto si está vacía
+    # Datos iniciales si está vacía la BD
     cursor.execute("SELECT COUNT(*) FROM categorias")
     if cursor.fetchone()[0] == 0:
         cat_iniciales = [("Perfumes",), ("Cosméticos",), ("Cuidado Personal",), ("Otros",)]
         cursor.executemany("INSERT INTO categorias (nombre) VALUES (?)", cat_iniciales)
 
-    # Insertar marcas por defecto si está vacía
     cursor.execute("SELECT COUNT(*) FROM marcas")
     if cursor.fetchone()[0] == 0:
         marcas_iniciales = [("Natura",), ("O Boticário",), ("Eudora",), ("Sin Marca / Genérico",)]
@@ -107,30 +126,23 @@ def init_db():
 def obtener_categorias():
     db_cloud = obtener_conexion_db()
     cat_default = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
-    
     if db_cloud is not None:
         docs = db_cloud.collection("categorias").stream()
         lista = [doc.to_dict().get("nombre") for doc in docs if doc.to_dict().get("nombre")]
-        if not lista:
-            return cat_default
-        return sorted(list(set(lista)))
+        return sorted(list(set(lista))) if lista else cat_default
     else:
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("SELECT nombre FROM categorias ORDER BY nombre ASC")
         filas = cursor.fetchall()
         conn.close()
-        if not filas:
-            return cat_default
-        return [f[0] for f in filas]
+        return [f[0] for f in filas] if filas else cat_default
 
 def registrar_categoria(nombre_cat):
     db_cloud = obtener_conexion_db()
     nombre_cat = nombre_cat.strip()
-    
     if db_cloud is not None:
-        existentes = obtener_categorias()
-        if nombre_cat not in existentes:
+        if nombre_cat not in obtener_categorias():
             db_cloud.collection("categorias").add({"nombre": nombre_cat})
     else:
         conn = sqlite3.connect("inventario.db")
@@ -159,30 +171,23 @@ def eliminar_categoria(nombre_cat):
 def obtener_marcas():
     db_cloud = obtener_conexion_db()
     marcas_default = ["Natura", "O Boticário", "Eudora", "Sin Marca / Genérico"]
-    
     if db_cloud is not None:
         docs = db_cloud.collection("marcas").stream()
         lista = [doc.to_dict().get("nombre") for doc in docs if doc.to_dict().get("nombre")]
-        if not lista:
-            return marcas_default
-        return sorted(list(set(lista)))
+        return sorted(list(set(lista))) if lista else marcas_default
     else:
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("SELECT nombre FROM marcas ORDER BY nombre ASC")
         filas = cursor.fetchall()
         conn.close()
-        if not filas:
-            return marcas_default
-        return [f[0] for f in filas]
+        return [f[0] for f in filas] if filas else marcas_default
 
 def registrar_marca(nombre_marca):
     db_cloud = obtener_conexion_db()
     nombre_marca = nombre_marca.strip()
-    
     if db_cloud is not None:
-        existentes = obtener_marcas()
-        if nombre_marca not in existentes:
+        if nombre_marca not in obtener_marcas():
             db_cloud.collection("marcas").add({"nombre": nombre_marca})
     else:
         conn = sqlite3.connect("inventario.db")
@@ -204,6 +209,56 @@ def eliminar_marca(nombre_marca):
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("DELETE FROM marcas WHERE nombre = ?", (nombre_marca,))
+        conn.commit()
+        conn.close()
+
+# --- FUNCIONES DE CLIENTES ---
+def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("clientes").add({
+            "nombre": nombre.strip(),
+            "apellido": apellido.strip(),
+            "ci": ci.strip(),
+            "telefono": telefono.strip(),
+            "ciudad": ciudad.strip()
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO clientes (nombre, apellido, ci, telefono, ciudad)
+            VALUES (?, ?, ?, ?, ?)
+        """, (nombre.strip(), apellido.strip(), ci.strip(), telefono.strip(), ciudad.strip()))
+        conn.commit()
+        conn.close()
+
+def obtener_clientes():
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("clientes").stream()
+        lista = []
+        for doc in docs:
+            d = doc.to_dict()
+            d["id"] = doc.id
+            lista.append(d)
+        if not lista:
+            return pd.DataFrame(columns=["id", "nombre", "apellido", "ci", "telefono", "ciudad"])
+        return pd.DataFrame(lista)
+    else:
+        conn = sqlite3.connect("inventario.db")
+        df = pd.read_sql_query("SELECT * FROM clientes", conn)
+        conn.close()
+        return df
+
+def eliminar_cliente(id_cli):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("clientes").document(str(id_cli)).delete()
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM clientes WHERE id = ?", (int(id_cli),))
         conn.commit()
         conn.close()
 
@@ -290,13 +345,11 @@ def obtener_productos():
         return df
 
 # --- FUNCIONES DE VENTAS ---
-def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago):
-    """Registra la venta y descuenta el stock correspondientemente."""
+def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago, cliente_nombre="Cliente Ocasional"):
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     if db_cloud is not None:
-        # Registrar venta en Firestore
         db_cloud.collection("ventas").add({
             "fecha_hora": fecha_hora,
             "producto_id": str(producto_id),
@@ -304,9 +357,9 @@ def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, tot
             "cantidad": int(cantidad),
             "precio_unitario": int(precio_unitario),
             "total": int(total),
-            "metodo_pago": metodo_pago
+            "metodo_pago": metodo_pago,
+            "cliente_nombre": cliente_nombre
         })
-        # Descontar stock
         doc_ref = db_cloud.collection("productos").document(str(producto_id))
         doc = doc_ref.get()
         if doc.exists:
@@ -316,11 +369,10 @@ def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, tot
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO ventas (fecha_hora, producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (fecha_hora, str(producto_id), producto_nombre, int(cantidad), int(precio_unitario), int(total), metodo_pago))
+            INSERT INTO ventas (fecha_hora, producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago, cliente_nombre)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (fecha_hora, str(producto_id), producto_nombre, int(cantidad), int(precio_unitario), int(total), metodo_pago, cliente_nombre))
         
-        # Descontar stock en SQLite
         cursor.execute("""
             UPDATE productos SET stock = stock - ? WHERE id = ?
         """, (int(cantidad), int(producto_id)))
@@ -329,21 +381,22 @@ def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, tot
         conn.close()
 
 def obtener_ventas():
-    """Obtiene el historial de ventas."""
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
         docs = db_cloud.collection("ventas").stream()
-        lista = []
-        for doc in docs:
-            datos = doc.to_dict()
-            lista.append(datos)
+        lista = [doc.to_dict() for doc in docs]
         if not lista:
-            return pd.DataFrame(columns=["fecha_hora", "producto_id", "producto_nombre", "cantidad", "precio_unitario", "total", "metodo_pago"])
-        return pd.DataFrame(lista)
+            return pd.DataFrame(columns=["fecha_hora", "producto_id", "producto_nombre", "cantidad", "precio_unitario", "total", "metodo_pago", "cliente_nombre"])
+        df = pd.DataFrame(lista)
+        if "cliente_nombre" not in df.columns:
+            df["cliente_nombre"] = "Cliente Ocasional"
+        return df
     else:
         conn = sqlite3.connect("inventario.db")
         df = pd.read_sql_query("SELECT * FROM ventas", conn)
         conn.close()
+        if "cliente_nombre" not in df.columns:
+            df["cliente_nombre"] = "Cliente Ocasional"
         return df
 
 # Inicializar almacenamiento
@@ -353,8 +406,7 @@ def formatear_gs(valor):
     try:
         valor_entero = int(valor)
         cadena_formateada = "{:,}".format(valor_entero)
-        cadena_paraguay = cadena_formateada.replace(",", ".")
-        return f"Gs. {cadena_paraguay}"
+        return f"Gs. {cadena_formateada.replace(',', '.')}"
     except Exception:
         return f"Gs. {valor}"
 
@@ -380,9 +432,7 @@ st.markdown("""
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 
-nube_activa = obtener_conexion_db() is not None
-
-if nube_activa:
+if obtener_conexion_db() is not None:
     st.sidebar.success("☁️ Conectado a Almacenamiento Permanente")
 else:
     st.sidebar.warning("💾 Almacenamiento Temporal (SQLite)")
@@ -391,14 +441,29 @@ else:
         Los datos se borrarán si actualizas la app. Para activarlo de forma permanente:
         1. Crea un proyecto gratis en **Google Firebase**.
         2. Crea una base de datos **Cloud Firestore**.
-        3. Ve a Configuración del proyecto > Cuentas de servicio > Generar nueva clave privada (JSON).
-        4. Copia el contenido de ese archivo JSON y pégalo en la sección **Secrets** de Streamlit Cloud con el nombre `gcp_service_account`.
+        3. Copia la clave JSON en los **Secrets** de Streamlit como `gcp_service_account`.
         """)
 
 opcion = st.sidebar.radio(
     "Selecciona una opción:",
-    ["🛒 Ventas y Cierre de Caja", "📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto", "🏷️ Gestor de Categorías", "🏢 Gestor de Marcas"],
-    captions=["Registrar salidas y reporte del día", "Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros", "Organizar categorías", "Administrar marcas"]
+    [
+        "🛒 Ventas y Cierre de Caja", 
+        "👥 Gestor de Clientes", 
+        "📦 Ver Stock / Inventario", 
+        "➕ Registrar Producto", 
+        "✏️ Editar / Modificar Producto", 
+        "🏷️ Gestor de Categorías", 
+        "🏢 Gestor de Marcas"
+    ],
+    captions=[
+        "Registrar salidas y reporte del día", 
+        "Administrar la lista de clientes", 
+        "Control de existencias", 
+        "Añadir nuevos artículos", 
+        "Actualizar o eliminar registros", 
+        "Organizar categorías", 
+        "Administrar marcas"
+    ]
 )
 
 # ------------------------------------------
@@ -410,13 +475,13 @@ if opcion == "🛒 Ventas y Cierre de Caja":
     
     tab_venta, tab_cierre = st.tabs(["🛍️ Nueva Venta", "📊 Cierre de Caja del Día"])
     
-    # TAB 1: NUEVA VENTA (CARRITO MULTI-PRODUCTO)
+    # TAB 1: NUEVA VENTA (CARRITO)
     with tab_venta:
-        # Inicializar la variable del carrito en la sesión si no existe
         if "carrito" not in st.session_state:
             st.session_state.carrito = []
 
         df_productos = obtener_productos()
+        df_clientes = obtener_clientes()
         
         if df_productos.empty:
             st.info("No tienes productos registrados en el inventario para vender.")
@@ -445,7 +510,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     id_prod_sel = str(prod_seleccionado_str.split(" - ")[0])
                     prod_sel = df_con_stock[df_con_stock['id'].astype(str) == id_prod_sel].iloc[0]
                     
-                    # Descontar del stock disponible lo que ya esté metido en el carrito actual
                     cant_en_carrito = sum([item['cantidad'] for item in st.session_state.carrito if str(item['id']) == id_prod_sel])
                     stock_disponible_real = int(prod_sel['stock']) - cant_en_carrito
 
@@ -460,7 +524,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         st.markdown("<br>", unsafe_allow_html=True)
                         btn_deshabilitado = stock_disponible_real <= 0
                         if st.button("➕ Agregar", type="primary", disabled=btn_deshabilitado, use_container_width=True, key="btn_agregar_carrito"):
-                            # Si el producto ya está en el carrito, sumamos la cantidad
                             encontrado = False
                             for item in st.session_state.carrito:
                                 if str(item['id']) == id_prod_sel:
@@ -469,7 +532,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                                     encontrado = True
                                     break
                             
-                            # Si no está, lo agregamos como un nuevo ítem
                             if not encontrado:
                                 st.session_state.carrito.append({
                                     "id": id_prod_sel,
@@ -486,7 +548,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 if not st.session_state.carrito:
                     st.info("🛒 El carrito está vacío. Busca un producto arriba y haz clic en '➕ Agregar'.")
                 else:
-                    # Mostrar la lista del carrito ítem por ítem
                     for idx, item in enumerate(st.session_state.carrito):
                         c1, c2, c3, c4, c5 = st.columns([3, 1, 2, 2, 1])
                         with c1:
@@ -498,7 +559,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         with c4:
                             st.write(f"Subtotal: **{formatear_gs(item['subtotal'])}**")
                         with c5:
-                            if st.button("❌", key=f"del_cart_{idx}", help="Quitar ítem"):
+                            if st.button("❌", key=f"del_cart_{idx}"):
                                 st.session_state.carrito.pop(idx)
                                 st.rerun()
 
@@ -508,7 +569,15 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     col_fin1, col_fin2 = st.columns(2)
 
                     with col_fin1:
+                        # Selección de Cliente
+                        lista_opciones_clientes = ["Cliente Ocasional / Anónimo"]
+                        if not df_clientes.empty:
+                            for _, r_cli in df_clientes.iterrows():
+                                lista_opciones_clientes.append(f"{r_cli['nombre']} {r_cli['apellido']} (CI: {r_cli['ci']})")
+                        
+                        cliente_seleccionado = st.selectbox("👤 Asignar Cliente:", lista_opciones_clientes, key="venta_cliente_sel")
                         metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"], key="met_pago")
+                        
                         if st.button("🗑️ Vaciar Carrito", key="btn_vaciar"):
                             st.session_state.carrito = []
                             st.rerun()
@@ -518,7 +587,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         st.success(f"💰 **{formatear_gs(total_general)}**")
                         
                         if st.button("💳 Finalizar Venta Completa", type="primary", use_container_width=True, key="btn_finalizar_venta"):
-                            # Registrar cada ítem en la base de datos y descontar stock
                             for item in st.session_state.carrito:
                                 registrar_venta(
                                     item['id'],
@@ -526,9 +594,9 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                                     item['cantidad'],
                                     item['precio_venta'],
                                     item['subtotal'],
-                                    metodo_pago
+                                    metodo_pago,
+                                    cliente_seleccionado
                                 )
-                            # Limpiar carrito tras completar la venta
                             st.session_state.carrito = []
                             st.success("✔️ ¡Venta realizada con éxito! Se registraron todos los productos y se actualizó el stock.")
                             st.rerun()
@@ -536,14 +604,12 @@ if opcion == "🛒 Ventas y Cierre de Caja":
     # TAB 2: CIERRE DE CAJA
     with tab_cierre:
         st.subheader("📊 Cierre de Caja Diario")
-        
         fecha_cierre = st.date_input("Selecciona la fecha para consultar el cierre:", value=date.today(), key="fecha_cierre")
         df_ventas = obtener_ventas()
         
         if df_ventas.empty:
             st.info("No hay ventas registradas aún en la base de datos.")
         else:
-            # Filtrar por la fecha seleccionada
             df_ventas['fecha_solo'] = df_ventas['fecha_hora'].apply(lambda x: str(x).split(" ")[0] if pd.notna(x) else "")
             df_ventas_dia = df_ventas[df_ventas['fecha_solo'] == str(fecha_cierre)]
             
@@ -564,24 +630,22 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 
                 st.markdown("---")
                 st.write("### Desglose por Método de Pago")
-                
                 resumen_pago = df_ventas_dia.groupby("metodo_pago")["total"].sum().reset_index()
                 resumen_pago.columns = ["Método de Pago", "Total (Gs.)"]
                 resumen_pago["Total (Gs.)"] = resumen_pago["Total (Gs.)"].apply(formatear_gs)
-                
                 st.table(resumen_pago)
                 
                 st.markdown("---")
                 st.write("### Detalle de Ventas del Día")
-                
                 df_cierre_visual = df_ventas_dia.copy()
                 df_cierre_visual['precio_unitario'] = df_cierre_visual['precio_unitario'].apply(formatear_gs)
                 df_cierre_visual['total'] = df_cierre_visual['total'].apply(formatear_gs)
                 
                 st.dataframe(
-                    df_cierre_visual[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago']],
+                    df_cierre_visual[['fecha_hora', 'cliente_nombre', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago']],
                     column_config={
                         "fecha_hora": "Hora",
+                        "cliente_nombre": "Cliente",
                         "producto_nombre": "Producto",
                         "cantidad": "Cantidad",
                         "precio_unitario": "Precio Unit.",
@@ -593,6 +657,79 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 )
 
 # ------------------------------------------
+# VISTA: GESTOR DE CLIENTES
+# ------------------------------------------
+elif opcion == "👥 Gestor de Clientes":
+    st.markdown('<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra y administra la información de tus clientes.</p>', unsafe_allow_html=True)
+    
+    tab_reg_cli, tab_ver_cli = st.tabs(["➕ Registrar Cliente", "📋 Lista de Clientes"])
+    
+    with tab_reg_cli:
+        col_c1, col_c2 = st.columns(2)
+        
+        with col_c1:
+            cli_nombre = st.text_input("Nombre *", placeholder="Ej: María", key="cli_nom")
+            cli_apellido = st.text_input("Apellido *", placeholder="Ej: González", key="cli_ape")
+            cli_ci = st.text_input("Nº de CI / Cédula *", placeholder="Ej: 4567890", key="cli_ci")
+            
+        with col_c2:
+            cli_telefono = st.text_input("Número de Teléfono / WhatsApp", placeholder="Ej: 0981 123456", key="cli_tel")
+            cli_ciudad = st.text_input("Ciudad", placeholder="Ej: Ciudad del Este, Asunción...", key="cli_ciu")
+            
+        st.markdown("---")
+        if st.button("💾 Guardar Cliente", type="primary", key="btn_save_cli"):
+            if cli_nombre.strip() == "" or cli_apellido.strip() == "" or cli_ci.strip() == "":
+                st.error("Por favor completa los campos obligatorios (*): Nombre, Apellido y CI.")
+            else:
+                registrar_cliente(cli_nombre, cli_apellido, cli_ci, cli_telefono, cli_ciudad)
+                st.success(f"✔️ ¡Cliente **{cli_nombre} {cli_apellido}** registrado con éxito!")
+                st.rerun()
+
+    with tab_ver_cli:
+        df_cli = obtener_clientes()
+        
+        if df_cli.empty:
+            st.info("No hay clientes registrados aún.")
+        else:
+            busq_cli = st.text_input("🔍 Buscar cliente por Nombre, CI o Ciudad:", placeholder="Escribe para buscar...")
+            
+            if busq_cli.strip():
+                df_cli_filtrado = df_cli[
+                    df_cli['nombre'].astype(str).str.contains(busq_cli, case=False, na=False) |
+                    df_cli['apellido'].astype(str).str.contains(busq_cli, case=False, na=False) |
+                    df_cli['ci'].astype(str).str.contains(busq_cli, case=False, na=False) |
+                    df_cli['ciudad'].astype(str).str.contains(busq_cli, case=False, na=False)
+                ]
+            else:
+                df_cli_filtrado = df_cli
+                
+            st.dataframe(
+                df_cli_filtrado[['nombre', 'apellido', 'ci', 'telefono', 'ciudad']],
+                column_config={
+                    "nombre": "Nombre",
+                    "apellido": "Apellido",
+                    "ci": "CI / Cédula",
+                    "telefono": "Teléfono",
+                    "ciudad": "Ciudad"
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+            
+            st.markdown("---")
+            st.subheader("🗑️ Eliminar Cliente")
+            
+            lista_del_cli = [f"{r['id']} - {r['nombre']} {r['apellido']} (CI: {r['ci']})" for _, r in df_cli.iterrows()]
+            cli_a_eliminar_str = st.selectbox("Selecciona un cliente para borrar:", lista_del_cli, key="sel_del_cli")
+            
+            if st.button("🗑️ Eliminar Cliente Definitivamente", key="btn_del_cli"):
+                id_cli_del = str(cli_a_eliminar_str.split(" - ")[0])
+                eliminar_cliente(id_cli_del)
+                st.success("✔️ Cliente eliminado correctamente.")
+                st.rerun()
+
+# ------------------------------------------
 # VISTA: VER STOCK / INVENTARIO
 # ------------------------------------------
 elif opcion == "📦 Ver Stock / Inventario":
@@ -602,7 +739,7 @@ elif opcion == "📦 Ver Stock / Inventario":
     df_productos = obtener_productos()
     
     if df_productos.empty:
-        st.info("Aún no tienes productos registrados en el inventario. Ve a la pestaña 'Registrar Producto' en el menú de la izquierda.")
+        st.info("Aún no tienes productos registrados en el inventario.")
     else:
         busqueda = st.text_input("🔍 Buscar producto por nombre", "", placeholder="Escribe el nombre del producto...")
         
