@@ -470,154 +470,81 @@ elif opcion == "✏️ Editar / Modificar Producto":
         lista_productos = [f"{row['id']} - {row['nombre']}" for _, row in df_productos.iterrows()]
         seleccion = st.selectbox("Selecciona el producto que deseas editar:", lista_productos)
         
-        id_seleccionado = seleccion.split(" - ")[0]
-        prod_actual = df_productos[df_productos['id'] == id_seleccionado].iloc[0]
+        id_seleccionado = str(seleccion.split(" - ")[0])
         
-        st.markdown("---")
+        # FIX: Converter a coluna 'id' para string evita o erro no Pandas ao comparar com id_seleccionado
+        df_filtrado = df_productos[df_productos['id'].astype(str) == id_seleccionado]
         
-        col_a, col_b = st.columns(2)
-        
-        with col_a:
-            nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'], key="edit_nombre")
-            
-            # Buscar índice de categoría actual
-            try:
-                cat_index = lista_categorias.index(prod_actual['categoria'])
-            except ValueError:
-                cat_index = 0
-                
-            nueva_categoria = st.selectbox("Categoría", lista_categorias, index=cat_index, key="edit_categoria")
-            
-            # Buscar índice de marca actual
-            try:
-                marca_actual_val = prod_actual['marca'] if pd.notna(prod_actual['marca']) else ""
-                marca_index = lista_marcas.index(marca_actual_val)
-            except ValueError:
-                marca_index = 0
-
-            nueva_marca = st.selectbox("Marca", lista_marcas, index=marca_index, key="edit_marca")
-            nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']), key="edit_stock")
-            
-        with col_b:
-            nuevo_precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=int(prod_actual['precio_costo']), key="edit_costo")
-            nueva_ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=20, max_value=100, step=5, value=int(prod_actual['ganancia_porcentaje']), key="edit_ganancia")
-            
-            nuevo_precio_venta_calculado = int(nuevo_precio_costo * (1 + (nueva_ganancia_porcentaje / 100.0)))
-            
-            st.markdown("**Nuevo Precio de Venta Sugerido:**")
-            st.info(f"💰 {formatear_gs(nuevo_precio_venta_calculado)}  \n*(Costo + {nueva_ganancia_porcentaje}% de ganancia)*")
-
-        nueva_descripcion = st.text_area("Descripción del Producto (Opcional)", value=prod_actual['descripcion'] if prod_actual['descripcion'] else "", key="edit_desc")
-        
-        st.markdown("---")
-        guardar_cambios = st.button("💾 Guardar Cambios", key="edit_guardar")
-        
-        if guardar_cambios:
-            if nuevo_nombre.strip() == "":
-                st.error("El nombre del producto no puede quedar vacío.")
-            elif nuevo_precio_costo <= 0:
-                st.error("El precio de costo debe ser mayor a Gs. 0.")
-            else:
-                actualizar_producto(
-                    id_seleccionado, 
-                    nuevo_nombre, 
-                    nueva_categoria, 
-                    nueva_marca,
-                    nuevo_precio_costo, 
-                    nueva_ganancia_porcentaje, 
-                    nuevo_precio_venta_calculado, 
-                    nuevo_stock, 
-                    nueva_descripcion
-                )
-                st.success(f"✔️ ¡El producto '{nuevo_nombre}' ha sido actualizado con éxito!")
-                st.rerun()
-
-        st.markdown("<br>", unsafe_allow_html=True)
-        st.subheader("⚠️ Zona de Eliminación")
-        
-        confirmar_borrado = st.checkbox(f"Confirmo que deseo borrar de forma permanente el producto: **{prod_actual['nombre']}**", key="confirm_del")
-        
-        if st.button("🗑️ Eliminar Producto Definitivamente", type="primary", disabled=not confirmar_borrado, key="btn_del"):
-            eliminar_producto(id_seleccionado)
-            st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
-            st.rerun()
-
-# ------------------------------------------
-# VISTA: GESTOR DE CATEGORÍAS
-# ------------------------------------------
-elif opcion == "🏷️ Gestor de Categorías":
-    st.markdown('<p class="main-title">🏷️ Gestor de Categorías</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Crea nuevas categorías o elimina aquellas que ya no necesites para organizar tu tienda.</p>', unsafe_allow_html=True)
-    
-    col_cat1, col_cat2 = st.columns(2)
-    
-    with col_cat1:
-        st.subheader("➕ Añadir Nueva Categoría")
-        nueva_cat_input = st.text_input("Nombre de la Categoría", placeholder="Ej. Maquillaje, Accesorios...", key="input_nueva_cat")
-        
-        if st.button("💾 Registrar Categoría", key="btn_add_cat"):
-            if nueva_cat_input.strip() == "":
-                st.error("Ingresa un nombre válido para la categoría.")
-            else:
-                registrar_categoria(nueva_cat_input)
-                st.success(f"✔️ Categoría '{nueva_cat_input.strip()}' guardada con éxito.")
-                st.rerun()
-                
-    with col_cat2:
-        st.subheader("📋 Categorías Actuales")
-        categorias_actuales = obtener_categorias()
-        
-        if categorias_actuales:
-            for cat in categorias_actuales:
-                st.markdown(f"- **{cat}**")
+        if df_filtrado.empty:
+            st.warning("⚠️ No se encontró el producto seleccionado. Por favor, selecciona otro de la lista.")
+        else:
+            prod_actual = df_filtrado.iloc[0]
             
             st.markdown("---")
-            st.subheader("🗑️ Eliminar Categoría")
-            cat_a_eliminar = st.selectbox("Selecciona la categoría a eliminar", categorias_actuales, key="select_del_cat")
             
-            if st.button("🗑️ Eliminar Categoría", type="secondary", key="btn_del_cat"):
-                eliminar_categoria(cat_a_eliminar)
-                st.success(f"✔️ Categoría '{cat_a_eliminar}' eliminada.")
-                st.rerun()
-        else:
-            st.info("No hay categorías registradas.")
-
-# ------------------------------------------
-# VISTA: GESTOR DE MARCAS
-# ------------------------------------------
-elif opcion == "🏢 Gestor de Marcas":
-    st.markdown('<p class="main-title">🏢 Gestor de Marcas</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Registra o elimina las marcas de los productos que comercializas.</p>', unsafe_allow_html=True)
-    
-    col_m1, col_m2 = st.columns(2)
-    
-    with col_m1:
-        st.subheader("➕ Añadir Nueva Marca")
-        nueva_marca_input = st.text_input("Nombre de la Marca", placeholder="Ej. Chanel, Victoria's Secret...", key="input_nueva_marca")
-        
-        if st.button("💾 Registrar Marca", key="btn_add_marca"):
-            if nueva_marca_input.strip() == "":
-                st.error("Ingresa un nombre válido para la marca.")
-            else:
-                registrar_marca(nueva_marca_input)
-                st.success(f"✔️ Marca '{nueva_marca_input.strip()}' guardada con éxito.")
-                st.rerun()
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'], key="edit_nombre")
                 
-    with col_m2:
-        st.subheader("📋 Marcas Actuales")
-        marcas_actuales = obtener_marcas()
-        
-        if marcas_actuales:
-            for m in marcas_actuales:
-                st.markdown(f"- **{m}**")
+                # Buscar índice de categoría actual
+                try:
+                    cat_index = lista_categorias.index(prod_actual['categoria'])
+                except (ValueError, KeyError):
+                    cat_index = 0
+                    
+                nueva_categoria = st.selectbox("Categoría", lista_categorias, index=cat_index, key="edit_categoria")
+                
+                # Buscar índice de marca actual
+                try:
+                    marca_actual_val = prod_actual['marca'] if pd.notna(prod_actual['marca']) else ""
+                    marca_index = lista_marcas.index(marca_actual_val)
+                except (ValueError, KeyError):
+                    marca_index = 0
+
+                nueva_marca = st.selectbox("Marca", lista_marcas, index=marca_index, key="edit_marca")
+                nuevo_stock = st.number_input("Cantidad en stock *", min_value=0, step=1, value=int(prod_actual['stock']), key="edit_stock")
+                
+            with col_b:
+                nuevo_precio_costo = st.number_input("Precio de Costo (Gs.) *", min_value=0, step=500, value=int(prod_actual['precio_costo']), key="edit_costo")
+                nueva_ganancia_porcentaje = st.slider("Porcentaje de Ganancia (%)", min_value=20, max_value=100, step=5, value=int(prod_actual['ganancia_porcentaje']), key="edit_ganancia")
+                
+                nuevo_precio_venta_calculado = int(nuevo_precio_costo * (1 + (nueva_ganancia_porcentaje / 100.0)))
+                
+                st.markdown("**Nuevo Precio de Venta Sugerido:**")
+                st.info(f"💰 {formatear_gs(nuevo_precio_venta_calculado)}  \n*(Costo + {nueva_ganancia_porcentaje}% de ganancia)*")
+
+            nueva_descripcion = st.text_area("Descripción del Producto (Opcional)", value=prod_actual['descripcion'] if pd.notna(prod_actual['descripcion']) else "", key="edit_desc")
             
             st.markdown("---")
-            st.subheader("🗑️ Eliminar Marca")
-            marca_a_eliminar = st.selectbox("Selecciona la marca a eliminar", marcas_actuales, key="select_del_marca")
+            guardar_cambios = st.button("💾 Guardar Cambios", key="edit_guardar")
             
-            if st.button("🗑️ Eliminar Marca", type="secondary", key="btn_del_marca"):
-                eliminar_marca(marca_a_eliminar)
-                st.success(f"✔️ Marca '{marca_a_eliminar}' eliminada.")
+            if guardar_cambios:
+                if nuevo_nombre.strip() == "":
+                    st.error("El nombre del producto no puede quedar vacío.")
+                elif nuevo_precio_costo <= 0:
+                    st.error("El precio de costo debe ser mayor a Gs. 0.")
+                else:
+                    actualizar_producto(
+                        id_seleccionado, 
+                        nuevo_nombre, 
+                        nueva_categoria, 
+                        nueva_marca,
+                        nuevo_precio_costo, 
+                        nueva_ganancia_porcentaje, 
+                        nuevo_precio_venta_calculado, 
+                        nuevo_stock, 
+                        nueva_descripcion
+                    )
+                    st.success(f"✔️ ¡El producto '{nuevo_nombre}' ha sido actualizado con éxito!")
+                    st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("⚠️ Zona de Eliminación")
+            
+            confirmar_borrado = st.checkbox(f"Confirmo que deseo borrar de forma permanente el producto: **{prod_actual['nombre']}**", key="confirm_del")
+            
+            if st.button("🗑️ Eliminar Producto Definitivamente", type="primary", disabled=not confirmar_borrado, key="btn_del"):
+                eliminar_producto(id_seleccionado)
+                st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
                 st.rerun()
-        else:
-            st.info("No hay marcas registradas.")
