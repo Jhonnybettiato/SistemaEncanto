@@ -423,36 +423,49 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             if df_con_stock.empty:
                 st.warning("⚠️ Todos los productos actualmente se encuentran sin stock disponible.")
             else:
-                lista_productos = [f"{row['id']} - {row['nombre']} ({row['marca']}) - Stock: {row['stock']} uds" for _, row in df_con_stock.iterrows()]
-                prod_seleccionado_str = st.selectbox("Selecciona el Producto a Vender:", lista_productos, key="select_venta_prod")
+                # 🔍 Campo de búsqueda para filtrar la lista de productos
+                busqueda_venta = st.text_input("🔍 Escribe para buscar el producto (Nombre o Marca):", placeholder="Ej: Hidratante, Boticário, Perfume...", key="search_venta_input")
                 
-                id_prod_sel = str(prod_seleccionado_str.split(" - ")[0])
-                prod_sel = df_con_stock[df_con_stock['id'].astype(str) == id_prod_sel].iloc[0]
+                # Filtrar el DataFrame según lo ingresado en el buscador
+                if busqueda_venta.strip():
+                    df_con_stock = df_con_stock[
+                        df_con_stock['nombre'].astype(str).str.contains(busqueda_venta, case=False, na=False) |
+                        df_con_stock['marca'].astype(str).str.contains(busqueda_venta, case=False, na=False)
+                    ]
                 
-                col_v1, col_v2 = st.columns(2)
-                
-                with col_v1:
-                    st.write(f"**Precio Unitario de Venta:** {formatear_gs(prod_sel['precio_venta'])}")
-                    cantidad_venta = st.number_input("Cantidad a vender", min_value=1, max_value=int(prod_sel['stock']), value=1, step=1, key="cant_venta")
-                    metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"], key="met_pago")
-                
-                with col_v2:
-                    total_venta = int(prod_sel['precio_venta']) * int(cantidad_venta)
-                    st.markdown("### Total a Cobrar:")
-                    st.success(f"💰 **{formatear_gs(total_venta)}**")
-                
-                st.markdown("---")
-                if st.button("💳 Confirmar y Registrar Venta", type="primary", key="btn_confirmar_venta"):
-                    registrar_venta(
-                        id_prod_sel,
-                        prod_sel['nombre'],
-                        cantidad_venta,
-                        prod_sel['precio_venta'],
-                        total_venta,
-                        metodo_pago
-                    )
-                    st.success(f"✔️ ¡Venta realizada con éxito! Se vendieron {cantidad_venta} unidades de '{prod_sel['nombre']}'.")
-                    st.rerun()
+                if df_con_stock.empty:
+                    st.warning("⚠️ No se encontraron productos con stock que coincidan con la búsqueda.")
+                else:
+                    lista_productos = [f"{row['id']} - {row['nombre']} ({row['marca']}) - Stock: {row['stock']} uds" for _, row in df_con_stock.iterrows()]
+                    prod_seleccionado_str = st.selectbox("Selecciona el Producto a Vender:", lista_productos, key="select_venta_prod")
+                    
+                    id_prod_sel = str(prod_seleccionado_str.split(" - ")[0])
+                    prod_sel = df_con_stock[df_con_stock['id'].astype(str) == id_prod_sel].iloc[0]
+                    
+                    col_v1, col_v2 = st.columns(2)
+                    
+                    with col_v1:
+                        st.write(f"**Precio Unitario de Venta:** {formatear_gs(prod_sel['precio_venta'])}")
+                        cantidad_venta = st.number_input("Cantidad a vender", min_value=1, max_value=int(prod_sel['stock']), value=1, step=1, key="cant_venta")
+                        metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"], key="met_pago")
+                    
+                    with col_v2:
+                        total_venta = int(prod_sel['precio_venta']) * int(cantidad_venta)
+                        st.markdown("### Total a Cobrar:")
+                        st.success(f"💰 **{formatear_gs(total_venta)}**")
+                    
+                    st.markdown("---")
+                    if st.button("💳 Confirmar y Registrar Venta", type="primary", key="btn_confirmar_venta"):
+                        registrar_venta(
+                            id_prod_sel,
+                            prod_sel['nombre'],
+                            cantidad_venta,
+                            prod_sel['precio_venta'],
+                            total_venta,
+                            metodo_pago
+                        )
+                        st.success(f"✔️ ¡Venta realizada con éxito! Se vendieron {cantidad_venta} unidades de '{prod_sel['nombre']}'.")
+                        st.rerun()
 
     # TAB 2: CIERRE DE CAJA
     with tab_cierre:
