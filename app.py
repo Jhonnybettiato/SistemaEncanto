@@ -102,6 +102,17 @@ def init_db():
         )
     """)
     
+    # Crear tabla de historial de pagos
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS pagos_clientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_hora TEXT NOT NULL,
+            cliente_nombre TEXT NOT NULL,
+            monto INTEGER NOT NULL,
+            metodo_pago TEXT NOT NULL
+        )
+    """)
+
     cursor.execute("PRAGMA table_info(ventas)")
     cols_ventas = [col[1] for col in cursor.fetchall()]
     if "tipo_venta" not in cols_ventas:
@@ -458,6 +469,64 @@ def marcar_deuda_pagada(cliente_nombre):
         conn.commit()
         conn.close()
 
+# --- FUNCIONES HISTORIAL DE PAGOS ---
+def registrar_pago_historial(cliente_nombre, monto, metodo_pago):
+    """Guarda un registro histórico de cada cobro realizado a un cliente."""
+    db_cloud = obtener_conexion_db()
+    fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    if db_cloud is not None:
+        db_cloud.collection("pagos_clientes").add({
+            "fecha_hora": fecha_hora,
+            "cliente_nombre": cliente_nombre,
+            "monto": int(monto),
+            "metodo_pago": metodo_pago
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pagos_clientes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha_hora TEXT NOT NULL,
+                cliente_nombre TEXT NOT NULL,
+                monto INTEGER NOT NULL,
+                metodo_pago TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            INSERT INTO pagos_clientes (fecha_hora, cliente_nombre, monto, metodo_pago)
+            VALUES (?, ?, ?, ?)
+        """, (fecha_hora, cliente_nombre, int(monto), metodo_pago))
+        conn.commit()
+        conn.close()
+
+def obtener_historial_pagos():
+    """Recupera la lista con todos los pagos abonados por los clientes."""
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("pagos_clientes").stream()
+        lista = [doc.to_dict() for doc in docs]
+        if not lista:
+            return pd.DataFrame(columns=["fecha_hora", "cliente_nombre", "monto", "metodo_pago"])
+        return pd.DataFrame(lista)
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS pagos_clientes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha_hora TEXT NOT NULL,
+                cliente_nombre TEXT NOT NULL,
+                monto INTEGER NOT NULL,
+                metodo_pago TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+        df = pd.read_sql_query("SELECT * FROM pagos_clientes ORDER BY id DESC", conn)
+        conn.close()
+        return df
+
 # Inicializar almacenamiento
 init_db()
 
@@ -529,7 +598,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
     
     tab_venta, tab_cierre = st.tabs(["🛍️ Nueva Venta", "📊 Cierre de Caja del Día"])
     
-    # TAB 1: NUEVA VENTA (CARRITO)
     with tab_venta:
         if "carrito" not in st.session_state:
             st.session_state.carrito = []
@@ -623,7 +691,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     col_fin1, col_fin2 = st.columns(2)
 
                     with col_fin1:
-                        # Selección de Cliente
                         lista_opciones_clientes = ["Cliente Ocasional / Anónimo"]
                         if not df_clientes.empty:
                             for _, r_cli in df_clientes.iterrows():
@@ -663,7 +730,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                             st.success(f"✔️ ¡Venta registrada ({tipo_venta}) con éxito!")
                             st.rerun()
 
-    # TAB 2: CIERRE DE CAJA
     with tab_cierre:
         st.subheader("📊 Cierre de Caja Diario")
         fecha_cierre = st.date_input("Selecciona la fecha para consultar el cierre:", value=date.today(), key="fecha_cierre")
@@ -862,7 +928,6 @@ elif opcion == "💳 Deudas de Clientes":
         if df_historial.empty:
             st.info("Aún no hay abonos o pagos de deudas registrados.")
         else:
-            # Filtro por cliente
             clientes_historial = ["Todos los Clientes"] + sorted(list(df_historial["cliente_nombre"].unique()))
             cliente_filtro = st.selectbox("Filtrar historial por Cliente:", clientes_historial, key="filtro_hist_cli")
             
