@@ -113,6 +113,17 @@ def init_db():
         )
     """)
 
+    # Crear tabla de salidas/gastos de caja
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS salidas_caja (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_hora TEXT NOT NULL,
+            motivo TEXT NOT NULL,
+            monto INTEGER NOT NULL,
+            metodo_pago TEXT NOT NULL
+        )
+    """)
+
     cursor.execute("PRAGMA table_info(ventas)")
     cols_ventas = [col[1] for col in cursor.fetchall()]
     if "tipo_venta" not in cols_ventas:
@@ -527,6 +538,64 @@ def obtener_historial_pagos():
         conn.close()
         return df
 
+# --- FUNCIONES SALIDAS / GASTOS DE CAJA ---
+def registrar_salida_caja(motivo, monto, metodo_pago):
+    """Guarda una salida de dinero realizada durante el día."""
+    db_cloud = obtener_conexion_db()
+    fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    if db_cloud is not None:
+        db_cloud.collection("salidas_caja").add({
+            "fecha_hora": fecha_hora,
+            "motivo": motivo,
+            "monto": int(monto),
+            "metodo_pago": metodo_pago
+        })
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS salidas_caja (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha_hora TEXT NOT NULL,
+                motivo TEXT NOT NULL,
+                monto INTEGER NOT NULL,
+                metodo_pago TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            INSERT INTO salidas_caja (fecha_hora, motivo, monto, metodo_pago)
+            VALUES (?, ?, ?, ?)
+        """, (fecha_hora, motivo, int(monto), metodo_pago))
+        conn.commit()
+        conn.close()
+
+def obtener_salidas_caja():
+    """Recupera la lista de todas las salidas de dinero registradas."""
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("salidas_caja").stream()
+        lista = [doc.to_dict() for doc in docs]
+        if not lista:
+            return pd.DataFrame(columns=["fecha_hora", "motivo", "monto", "metodo_pago"])
+        return pd.DataFrame(lista)
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS salidas_caja (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fecha_hora TEXT NOT NULL,
+                motivo TEXT NOT NULL,
+                monto INTEGER NOT NULL,
+                metodo_pago TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+        df = pd.read_sql_query("SELECT * FROM salidas_caja ORDER BY id DESC", conn)
+        conn.close()
+        return df
+
 # Inicializar almacenamiento
 init_db()
 
@@ -578,7 +647,7 @@ opcion = st.sidebar.radio(
         "🏢 Gestor de Marcas"
     ],
     captions=[
-        "Registrar salidas y reporte del día", 
+        "Registrar salidas, gastos y reporte del día", 
         "Control de fiados y cobro de cuentas",
         "Administrar la lista de clientes", 
         "Control de existencias", 
@@ -594,10 +663,11 @@ opcion = st.sidebar.radio(
 # ------------------------------------------
 if opcion == "🛒 Ventas y Cierre de Caja":
     st.markdown('<p class="main-title">🛒 Ventas y Cierre de Caja</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">Registra ventas a Contado o Crédito y consulta el resumen del día.</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra ventas, gastos de caja y consulta el balance positivo o negativo del día.</p>', unsafe_allow_html=True)
     
-    tab_venta, tab_cierre = st.tabs(["🛍️ Nueva Venta", "📊 Cierre de Caja del Día"])
+    tab_venta, tab_salida, tab_cierre = st.tabs(["🛍️ Nueva Venta", "💸 Registrar Salida de Caja", "📊 Cierre de Caja del Día"])
     
+    # --- TAB 1: NUEVA VENTA ---
     with tab_venta:
         if "carrito" not in st.session_state:
             st.session_state.carrito = []
@@ -730,49 +800,131 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                             st.success(f"✔️ ¡Venta registrada ({tipo_venta}) con éxito!")
                             st.rerun()
 
-    with tab_cierre:
-        st.subheader("📊 Cierre de Caja Diario")
-        fecha_cierre = st.date_input("Selecciona la fecha para consultar el cierre:", value=date.today(), key="fecha_cierre")
-        df_ventas = obtener_ventas()
+    # --- TAB 2: REGISTRAR SALIDA / GASTO DE CAJA ---
+    with tab_salida:
+        st.subheader("💸 Registrar Salida o Gasto de Dinero")
+        st.markdown("Utiliza este formulario para registrar gastos operativos, compras de insumos o retiro de dinero de la caja.")
         
-        if df_ventas.empty:
-            st.info("No hay ventas registradas aún en la base de datos.")
-        else:
-            df_ventas['fecha_solo'] = df_ventas['fecha_hora'].apply(lambda x: str(x).split(" ")[0] if pd.notna(x) else "")
-            df_ventas_dia = df_ventas[df_ventas['fecha_solo'] == str(fecha_cierre)]
+        with st.form("form_salida_caja", clear_on_submit=True):
+            s_motivo = st.text_input("Motivo / Concepto del Gasto (Ej: Pago de Luz, Almuerzo, Flete, etc.) *")
             
-            if df_ventas_dia.empty:
-                st.warning(f"No se registraron ventas en la fecha {fecha_cierre.strftime('%d/%m/%Y')}.")
+            c_s1, c_s2 = st.columns(2)
+            with c_s1:
+                s_monto = st.number_input("Monto de Salida (Gs.) *", min_value=1000, value=10000, step=5000)
+            with c_s2:
+                s_metodo = st.selectbox("Origen / Medio de Pago:", ["Efectivo", "Transferencia / PIX", "Tarjeta"], key="salida_metodo_pago")
+                
+            btn_guardar_salida = st.form_submit_button("🚨 Registrar Salida de Dinero", type="primary", use_container_width=True)
+            
+            if btn_guardar_salida:
+                if s_motivo.strip():
+                    registrar_salida_caja(s_motivo.strip(), s_monto, s_metodo)
+                    st.success(f"✔️ Salida de {formatear_gs(s_monto)} registrada correctamente.")
+                    st.rerun()
+                else:
+                    st.error("Por favor, ingresa el motivo o concepto de la salida.")
+
+    # --- TAB 3: CIERRE DE CAJA Y BALANCE ---
+    with tab_cierre:
+        st.subheader("📊 Balance y Cierre de Caja del Día")
+        fecha_cierre = st.date_input("Selecciona la fecha para evaluar el cierre:", value=date.today(), key="fecha_cierre")
+        
+        str_fecha = str(fecha_cierre)
+        
+        # 1. Obtener ventas contadas
+        df_ventas = obtener_ventas()
+        if not df_ventas.empty:
+            df_ventas['fecha_solo'] = df_ventas['fecha_hora'].apply(lambda x: str(x).split(" ")[0] if pd.notna(x) else "")
+            df_v_dia = df_ventas[(df_ventas['fecha_solo'] == str_fecha) & (df_ventas['tipo_venta'] == "Contado")]
+        else:
+            df_v_dia = pd.DataFrame()
+            
+        # 2. Obtener cobros de deudas (Historial)
+        df_pagos = obtener_historial_pagos()
+        if not df_pagos.empty:
+            df_pagos['fecha_solo'] = df_pagos['fecha_hora'].apply(lambda x: str(x).split(" ")[0] if pd.notna(x) else "")
+            df_p_dia = df_pagos[df_pagos['fecha_solo'] == str_fecha]
+        else:
+            df_p_dia = pd.DataFrame()
+
+        # 3. Obtener salidas/gastos
+        df_salidas = obtener_salidas_caja()
+        if not df_salidas.empty:
+            df_salidas['fecha_solo'] = df_salidas['fecha_hora'].apply(lambda x: str(x).split(" ")[0] if pd.notna(x) else "")
+            df_s_dia = df_salidas[df_salidas['fecha_solo'] == str_fecha]
+        else:
+            df_s_dia = pd.DataFrame()
+
+        # Cálculo de Totales
+        total_ventas_contado = int(df_v_dia['total'].sum()) if not df_v_dia.empty else 0
+        total_cobros_deudas = int(df_p_dia['monto'].sum()) if not df_p_dia.empty else 0
+        ingresos_totales = total_ventas_contado + total_cobros_deudas
+        
+        gastos_totales = int(df_s_dia['monto'].sum()) if not df_s_dia.empty else 0
+        
+        balance_neto = ingresos_totales - gastos_totales
+        cant_unidades = int(df_v_dia['cantidad'].sum()) if not df_v_dia.empty else 0
+
+        # --- TARJETAS METRICAS ---
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        with col_m1:
+            st.metric("Total Ingresos", formatear_gs(ingresos_totales))
+        with col_m2:
+            st.metric("Total Salidas/Gastos", formatear_gs(gastos_totales))
+        with col_m3:
+            st.metric("Unidades Vendidas", f"{cant_unidades} uds")
+        with col_m4:
+            st.metric("Balance de Caja", formatear_gs(balance_neto))
+
+        st.markdown("---")
+
+        # --- RESULTADO DEL CIERRE (POSITIVO / NEGATIVO) ---
+        if balance_neto > 0:
+            st.balloons()
+            st.success(f"🎉 **¡CIERRE POSITIVO!** La caja cerró con un superávit/ganancia de **{formatear_gs(balance_neto)}**")
+        elif balance_neto == 0 and ingresos_totales == 0:
+            st.info("ℹ️ No se registran movimientos (ni ingresos ni salidas) en la fecha seleccionada.")
+        elif balance_neto == 0:
+            st.warning("⚖️ **CIERRE EN CERO:** Los ingresos cubrieron exactamente las salidas del día.")
+        else:
+            st.error(f"⚠️ **¡CIERRE NEGATIVO!** Hubo más salidas de dinero que ingresos. Deficit de **{formatear_gs(balance_neto)}**")
+
+        st.markdown("---")
+        
+        # TABLAS DE DETALLES
+        col_det1, col_det2 = st.columns(2)
+        
+        with col_det1:
+            st.subheader("📥 Detalle de Ingresos (Ventas y Cobros)")
+            if df_v_dia.empty and df_p_dia.empty:
+                st.info("Sin ingresos en esta fecha.")
             else:
-                total_ingresos = int(df_ventas_dia['total'].sum())
-                num_ventas = len(df_ventas_dia)
-                unidades_vendidas = int(df_ventas_dia['cantidad'].sum())
+                if not df_v_dia.empty:
+                    st.markdown("**Ventas al Contado:**")
+                    df_v_vis = df_v_dia.copy()
+                    df_v_vis['total'] = df_v_vis['total'].apply(formatear_gs)
+                    st.dataframe(df_v_vis[['fecha_hora', 'producto_nombre', 'cantidad', 'total', 'metodo_pago']], hide_index=True, use_container_width=True)
                 
-                m1, m2, m3 = st.columns(3)
-                with m1:
-                    st.metric("Total General Generado", formatear_gs(total_ingresos))
-                with m2:
-                    st.metric("Número de Transacciones", f"{num_ventas} ventas")
-                with m3:
-                    st.metric("Total Productos Vendidos", f"{unidades_vendidas} uds")
-                
-                st.markdown("---")
-                st.write("### Detalle de Ventas del Día")
-                df_cierre_visual = df_ventas_dia.copy()
-                df_cierre_visual['precio_unitario'] = df_cierre_visual['precio_unitario'].apply(formatear_gs)
-                df_cierre_visual['total'] = df_cierre_visual['total'].apply(formatear_gs)
-                
+                if not df_p_dia.empty:
+                    st.markdown("**Cobros de Cuentas / Fiados:**")
+                    df_p_vis = df_p_dia.copy()
+                    df_p_vis['monto'] = df_p_vis['monto'].apply(formatear_gs)
+                    st.dataframe(df_p_vis[['fecha_hora', 'cliente_nombre', 'monto', 'metodo_pago']], hide_index=True, use_container_width=True)
+
+        with col_det2:
+            st.subheader("📤 Detalle de Salidas y Gastos")
+            if df_s_dia.empty:
+                st.info("Sin salidas de dinero registradas en esta fecha.")
+            else:
+                df_s_vis = df_s_dia.copy()
+                df_s_vis['monto'] = df_s_vis['monto'].apply(formatear_gs)
                 st.dataframe(
-                    df_cierre_visual[['fecha_hora', 'cliente_nombre', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'tipo_venta', 'estado_pago']],
+                    df_s_vis[['fecha_hora', 'motivo', 'monto', 'metodo_pago']],
                     column_config={
                         "fecha_hora": "Hora",
-                        "cliente_nombre": "Cliente",
-                        "producto_nombre": "Producto",
-                        "cantidad": "Cantidad",
-                        "precio_unitario": "Precio Unit.",
-                        "total": "Total",
-                        "tipo_venta": "Condición",
-                        "estado_pago": "Estado"
+                        "motivo": "Motivo / Concepto",
+                        "monto": "Monto",
+                        "metodo_pago": "Origen"
                     },
                     hide_index=True,
                     use_container_width=True
