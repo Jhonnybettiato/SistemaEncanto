@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import streamlit as st
+from datetime import datetime, date
 
 # Intentar importar la librería de Google Firestore para base de datos permanente
 try:
@@ -16,7 +17,6 @@ def obtener_conexion_db():
     """Detecta si están configuradas las credenciales de Firestore en la nube, de lo contrario usa SQLite."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
-            # Conexión permanente a la nube
             return firestore.Client.from_service_account_info(dict(st.secrets["gcp_service_account"]))
         except Exception:
             return None
@@ -39,7 +39,6 @@ def init_db():
     columnas = [col[1] for col in cursor.fetchall()]
     
     if columnas and "marca" not in columnas:
-        # Si la tabla vieja no tiene la columna marca, agregarla
         try:
             cursor.execute("ALTER TABLE productos ADD COLUMN marca TEXT")
         except sqlite3.OperationalError:
@@ -75,7 +74,21 @@ def init_db():
         )
     """)
 
-    # Insertar categorías por defecto si la tabla está vacía
+    # Crear tabla de ventas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS ventas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha_hora TEXT NOT NULL,
+            producto_id TEXT NOT NULL,
+            producto_nombre TEXT NOT NULL,
+            cantidad INTEGER NOT NULL,
+            precio_unitario INTEGER NOT NULL,
+            total INTEGER NOT NULL,
+            metodo_pago TEXT NOT NULL
+        )
+    """)
+
+    # Insertar categorías por defecto si está vacía
     cursor.execute("SELECT COUNT(*) FROM categorias")
     if cursor.fetchone()[0] == 0:
         cat_iniciales = [("Perfumes",), ("Cosméticos",), ("Cuidado Personal",), ("Otros",)]
@@ -92,7 +105,6 @@ def init_db():
 
 # --- FUNCIONES DE CATEGORÍAS ---
 def obtener_categorias():
-    """Obtiene la lista de categorías registradas."""
     db_cloud = obtener_conexion_db()
     cat_default = ["Perfumes", "Cosméticos", "Cuidado Personal", "Otros"]
     
@@ -113,7 +125,6 @@ def obtener_categorias():
         return [f[0] for f in filas]
 
 def registrar_categoria(nombre_cat):
-    """Guarda una nueva categoría en la nube o localmente."""
     db_cloud = obtener_conexion_db()
     nombre_cat = nombre_cat.strip()
     
@@ -132,9 +143,7 @@ def registrar_categoria(nombre_cat):
         conn.close()
 
 def eliminar_categoria(nombre_cat):
-    """Elimina una categoría seleccionada."""
     db_cloud = obtener_conexion_db()
-    
     if db_cloud is not None:
         docs = db_cloud.collection("categorias").where("nombre", "==", nombre_cat).stream()
         for doc in docs:
@@ -148,7 +157,6 @@ def eliminar_categoria(nombre_cat):
 
 # --- FUNCIONES DE MARCAS ---
 def obtener_marcas():
-    """Obtiene la lista de marcas registradas."""
     db_cloud = obtener_conexion_db()
     marcas_default = ["Natura", "O Boticário", "Eudora", "Sin Marca / Genérico"]
     
@@ -169,7 +177,6 @@ def obtener_marcas():
         return [f[0] for f in filas]
 
 def registrar_marca(nombre_marca):
-    """Guarda una nueva marca en la nube o localmente."""
     db_cloud = obtener_conexion_db()
     nombre_marca = nombre_marca.strip()
     
@@ -188,9 +195,7 @@ def registrar_marca(nombre_marca):
         conn.close()
 
 def eliminar_marca(nombre_marca):
-    """Elimina una marca seleccionada."""
     db_cloud = obtener_conexion_db()
-    
     if db_cloud is not None:
         docs = db_cloud.collection("marcas").where("nombre", "==", nombre_marca).stream()
         for doc in docs:
@@ -204,9 +209,7 @@ def eliminar_marca(nombre_marca):
 
 # --- FUNCIONES DE PRODUCTOS ---
 def registrar_producto(nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
-    """Guarda un producto en la base de datos activa (Nube o SQLite)."""
     db_cloud = obtener_conexion_db()
-    
     if db_cloud is not None:
         db_cloud.collection("productos").add({
             "nombre": nombre,
@@ -229,9 +232,7 @@ def registrar_producto(nombre, categoria, marca, precio_costo, ganancia_porcenta
         conn.close()
 
 def actualizar_producto(id_prod, nombre, categoria, marca, precio_costo, ganancia_porcentaje, precio_venta, stock, descripcion):
-    """Modifica los datos de un producto en la nube o local."""
     db_cloud = obtener_conexion_db()
-    
     if db_cloud is not None:
         db_cloud.collection("productos").document(str(id_prod)).update({
             "nombre": nombre,
@@ -255,9 +256,7 @@ def actualizar_producto(id_prod, nombre, categoria, marca, precio_costo, gananci
         conn.close()
 
 def eliminar_producto(id_prod):
-    """Elimina permanentemente un producto de la base de datos activa."""
     db_cloud = obtener_conexion_db()
-    
     if db_cloud is not None:
         db_cloud.collection("productos").document(str(id_prod)).delete()
     else:
@@ -268,9 +267,7 @@ def eliminar_producto(id_prod):
         conn.close()
 
 def obtener_productos():
-    """Obtiene los datos desde SQLite o Firestore en formato DataFrame."""
     db_cloud = obtener_conexion_db()
-    
     if db_cloud is not None:
         docs = db_cloud.collection("productos").stream()
         lista = []
@@ -292,11 +289,67 @@ def obtener_productos():
             df["marca"] = "Sin Marca"
         return df
 
+# --- FUNCIONES DE VENTAS ---
+def registrar_venta(producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago):
+    """Registra la venta y descuenta el stock correspondientemente."""
+    db_cloud = obtener_conexion_db()
+    fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    if db_cloud is not None:
+        # Registrar venta en Firestore
+        db_cloud.collection("ventas").add({
+            "fecha_hora": fecha_hora,
+            "producto_id": str(producto_id),
+            "producto_nombre": producto_nombre,
+            "cantidad": int(cantidad),
+            "precio_unitario": int(precio_unitario),
+            "total": int(total),
+            "metodo_pago": metodo_pago
+        })
+        # Descontar stock
+        doc_ref = db_cloud.collection("productos").document(str(producto_id))
+        doc = doc_ref.get()
+        if doc.exists:
+            stock_actual = doc.to_dict().get("stock", 0)
+            doc_ref.update({"stock": max(0, stock_actual - int(cantidad))})
+    else:
+        conn = sqlite3.connect("inventario.db")
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO ventas (fecha_hora, producto_id, producto_nombre, cantidad, precio_unitario, total, metodo_pago)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (fecha_hora, str(producto_id), producto_nombre, int(cantidad), int(precio_unitario), int(total), metodo_pago))
+        
+        # Descontar stock en SQLite
+        cursor.execute("""
+            UPDATE productos SET stock = stock - ? WHERE id = ?
+        """, (int(cantidad), int(producto_id)))
+        
+        conn.commit()
+        conn.close()
+
+def obtener_ventas():
+    """Obtiene el historial de ventas."""
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("ventas").stream()
+        lista = []
+        for doc in docs:
+            datos = doc.to_dict()
+            lista.append(datos)
+        if not lista:
+            return pd.DataFrame(columns=["fecha_hora", "producto_id", "producto_nombre", "cantidad", "precio_unitario", "total", "metodo_pago"])
+        return pd.DataFrame(lista)
+    else:
+        conn = sqlite3.connect("inventario.db")
+        df = pd.read_sql_query("SELECT * FROM ventas", conn)
+        conn.close()
+        return df
+
 # Inicializar almacenamiento
 init_db()
 
 def formatear_gs(valor):
-    """Formatea un número entero al estilo de Guaraníes paraguayos: Gs. 15.000"""
     try:
         valor_entero = int(valor)
         cadena_formateada = "{:,}".format(valor_entero)
@@ -305,7 +358,7 @@ def formatear_gs(valor):
     except Exception:
         return f"Gs. {valor}"
 
-st.set_page_config(page_title="Sistema Encanto - Stock", layout="wide", page_icon="📦")
+st.set_page_config(page_title="Sistema Encanto - Stock & Ventas", layout="wide", page_icon="📦")
 
 st.markdown("""
     <style>
@@ -344,14 +397,126 @@ else:
 
 opcion = st.sidebar.radio(
     "Selecciona una opción:",
-    ["📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto", "🏷️ Gestor de Categorías", "🏢 Gestor de Marcas"],
-    captions=["Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros", "Crear y organizar categorías", "Administrar marcas de productos"]
+    ["🛒 Ventas y Cierre de Caja", "📦 Ver Stock / Inventario", "➕ Registrar Producto", "✏️ Editar / Modificar Producto", "🏷️ Gestor de Categorías", "🏢 Gestor de Marcas"],
+    captions=["Registrar salidas y reporte del día", "Control de existencias", "Añadir nuevos artículos", "Actualizar o eliminar registros", "Organizar categorías", "Administrar marcas"]
 )
+
+# ------------------------------------------
+# VISTA: VENTAS Y CIERRE DE CAJA
+# ------------------------------------------
+if opcion == "🛒 Ventas y Cierre de Caja":
+    st.markdown('<p class="main-title">🛒 Ventas y Cierre de Caja</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra las ventas diarias y consulta el resumen de ingresos al final de la jornada.</p>', unsafe_allow_html=True)
+    
+    tab_venta, tab_cierre = st.tabs(["🛍️ Nueva Venta", "📊 Cierre de Caja del Día"])
+    
+    # TAB 1: NUEVA VENTA
+    with tab_venta:
+        df_productos = obtener_productos()
+        
+        if df_productos.empty:
+            st.info("No tienes productos registrados en el inventario para vender.")
+        else:
+            # Filtrar solo productos con stock > 0
+            df_con_stock = df_productos[df_productos['stock'] > 0]
+            
+            if df_con_stock.empty:
+                st.warning("⚠️ Todos los productos actualmente se encuentran sin stock disponible.")
+            else:
+                lista_productos = [f"{row['id']} - {row['nombre']} ({row['marca']}) - Stock: {row['stock']} uds" for _, row in df_con_stock.iterrows()]
+                prod_seleccionado_str = st.selectbox("Selecciona el Producto a Vender:", lista_productos, key="select_venta_prod")
+                
+                id_prod_sel = str(prod_seleccionado_str.split(" - ")[0])
+                prod_sel = df_con_stock[df_con_stock['id'].astype(str) == id_prod_sel].iloc[0]
+                
+                col_v1, col_v2 = st.columns(2)
+                
+                with col_v1:
+                    st.write(f"**Precio Unitario de Venta:** {formatear_gs(prod_sel['precio_venta'])}")
+                    cantidad_venta = st.number_input("Cantidad a vender", min_value=1, max_value=int(prod_sel['stock']), value=1, step=1, key="cant_venta")
+                    metodo_pago = st.selectbox("Método de Pago", ["Efectivo", "Transferencia / PIX", "Tarjeta de Débito/Crédito"], key="met_pago")
+                
+                with col_v2:
+                    total_venta = int(prod_sel['precio_venta']) * int(cantidad_venta)
+                    st.markdown("### Total a Cobrar:")
+                    st.success(f"💰 **{formatear_gs(total_venta)}**")
+                
+                st.markdown("---")
+                if st.button("💳 Confirmar y Registrar Venta", type="primary", key="btn_confirmar_venta"):
+                    registrar_venta(
+                        id_prod_sel,
+                        prod_sel['nombre'],
+                        cantidad_venta,
+                        prod_sel['precio_venta'],
+                        total_venta,
+                        metodo_pago
+                    )
+                    st.success(f"✔️ ¡Venta realizada con éxito! Se vendieron {cantidad_venta} unidades de '{prod_sel['nombre']}'.")
+                    st.rerun()
+
+    # TAB 2: CIERRE DE CAJA
+    with tab_cierre:
+        st.subheader("📊 Cierre de Caja Diario")
+        
+        fecha_cierre = st.date_input("Selecciona la fecha para consultar el cierre:", value=date.today(), key="fecha_cierre")
+        df_ventas = obtener_ventas()
+        
+        if df_ventas.empty:
+            st.info("No hay ventas registradas aún en la base de datos.")
+        else:
+            # Filtrar por la fecha seleccionada
+            df_ventas['fecha_solo'] = df_ventas['fecha_hora'].apply(lambda x: str(x).split(" ")[0] if pd.notna(x) else "")
+            df_ventas_dia = df_ventas[df_ventas['fecha_solo'] == str(fecha_cierre)]
+            
+            if df_ventas_dia.empty:
+                st.warning(f"No se registraron ventas en la fecha {fecha_cierre.strftime('%d/%m/%Y')}.")
+            else:
+                total_ingresos = int(df_ventas_dia['total'].sum())
+                num_ventas = len(df_ventas_dia)
+                unidades_vendidas = int(df_ventas_dia['cantidad'].sum())
+                
+                m1, m2, m3 = st.columns(3)
+                with m1:
+                    st.metric("Total Recaudado (Gs.)", formatear_gs(total_ingresos))
+                with m2:
+                    st.metric("Número de Transacciones", f"{num_ventas} ventas")
+                with m3:
+                    st.metric("Total Productos Vendidos", f"{unidades_vendidas} uds")
+                
+                st.markdown("---")
+                st.write("### Desglose por Método de Pago")
+                
+                resumen_pago = df_ventas_dia.groupby("metodo_pago")["total"].sum().reset_index()
+                resumen_pago.columns = ["Método de Pago", "Total (Gs.)"]
+                resumen_pago["Total (Gs.)"] = resumen_pago["Total (Gs.)"].apply(formatear_gs)
+                
+                st.table(resumen_pago)
+                
+                st.markdown("---")
+                st.write("### Detalle de Ventas del Día")
+                
+                df_cierre_visual = df_ventas_dia.copy()
+                df_cierre_visual['precio_unitario'] = df_cierre_visual['precio_unitario'].apply(formatear_gs)
+                df_cierre_visual['total'] = df_cierre_visual['total'].apply(formatear_gs)
+                
+                st.dataframe(
+                    df_cierre_visual[['fecha_hora', 'producto_nombre', 'cantidad', 'precio_unitario', 'total', 'metodo_pago']],
+                    column_config={
+                        "fecha_hora": "Hora",
+                        "producto_nombre": "Producto",
+                        "cantidad": "Cantidad",
+                        "precio_unitario": "Precio Unit.",
+                        "total": "Total",
+                        "metodo_pago": "Método de Pago"
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
 
 # ------------------------------------------
 # VISTA: VER STOCK / INVENTARIO
 # ------------------------------------------
-if opcion == "📦 Ver Stock / Inventario":
+elif opcion == "📦 Ver Stock / Inventario":
     st.markdown('<p class="main-title">📦 Control de Stock e Inventario</p>', unsafe_allow_html=True)
     st.markdown('<p class="sub-title">Visualiza, busca y analiza el rendimiento financiero de tus productos en tiempo real.</p>', unsafe_allow_html=True)
     
@@ -391,7 +556,7 @@ if opcion == "📦 Ver Stock / Inventario":
         )
         
         st.markdown("---")
-        st.subheader("📊 Resumen Financiero (Gs.)")
+        st.subheader("📊 Resumen Financiero del Inventario (Gs.)")
         
         col1, col2, col3, col4 = st.columns(4)
         
@@ -471,12 +636,10 @@ elif opcion == "✏️ Editar / Modificar Producto":
         seleccion = st.selectbox("Selecciona el producto que deseas editar:", lista_productos)
         
         id_seleccionado = str(seleccion.split(" - ")[0])
-        
-        # FIX: Converter a coluna 'id' para string evita o erro no Pandas ao comparar com id_seleccionado
         df_filtrado = df_productos[df_productos['id'].astype(str) == id_seleccionado]
         
         if df_filtrado.empty:
-            st.warning("⚠️ No se encontró el producto seleccionado. Por favor, selecciona otro de la lista.")
+            st.warning("⚠️ No se encontró el producto seleccionado.")
         else:
             prod_actual = df_filtrado.iloc[0]
             
@@ -487,7 +650,6 @@ elif opcion == "✏️ Editar / Modificar Producto":
             with col_a:
                 nuevo_nombre = st.text_input("Nombre del Producto *", value=prod_actual['nombre'], key="edit_nombre")
                 
-                # Buscar índice de categoría actual
                 try:
                     cat_index = lista_categorias.index(prod_actual['categoria'])
                 except (ValueError, KeyError):
@@ -495,7 +657,6 @@ elif opcion == "✏️ Editar / Modificar Producto":
                     
                 nueva_categoria = st.selectbox("Categoría", lista_categorias, index=cat_index, key="edit_categoria")
                 
-                # Buscar índice de marca actual
                 try:
                     marca_actual_val = prod_actual['marca'] if pd.notna(prod_actual['marca']) else ""
                     marca_index = lista_marcas.index(marca_actual_val)
@@ -548,3 +709,83 @@ elif opcion == "✏️ Editar / Modificar Producto":
                 eliminar_producto(id_seleccionado)
                 st.success(f"✔️ ¡El producto '{prod_actual['nombre']}' ha sido eliminado con éxito!")
                 st.rerun()
+
+# ------------------------------------------
+# VISTA: GESTOR DE CATEGORÍAS
+# ------------------------------------------
+elif opcion == "🏷️ Gestor de Categorías":
+    st.markdown('<p class="main-title">🏷️ Gestor de Categorías</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Crea nuevas categorías o elimina aquellas que ya no necesites para organizar tu tienda.</p>', unsafe_allow_html=True)
+    
+    col_cat1, col_cat2 = st.columns(2)
+    
+    with col_cat1:
+        st.subheader("➕ Añadir Nueva Categoría")
+        nueva_cat_input = st.text_input("Nombre de la Categoría", placeholder="Ej. Maquillaje, Accesorios...", key="input_nueva_cat")
+        
+        if st.button("💾 Registrar Categoría", key="btn_add_cat"):
+            if nueva_cat_input.strip() == "":
+                st.error("Ingresa un nombre válido para la categoría.")
+            else:
+                registrar_categoria(nueva_cat_input)
+                st.success(f"✔️ Categoría '{nueva_cat_input.strip()}' guardada con éxito.")
+                st.rerun()
+                
+    with col_cat2:
+        st.subheader("📋 Categorías Actuales")
+        categorias_actuales = obtener_categorias()
+        
+        if categorias_actuales:
+            for cat in categorias_actuales:
+                st.markdown(f"- **{cat}**")
+            
+            st.markdown("---")
+            st.subheader("🗑️ Eliminar Categoría")
+            cat_a_eliminar = st.selectbox("Selecciona la categoría a eliminar", categorias_actuales, key="select_del_cat")
+            
+            if st.button("🗑️ Eliminar Categoría", type="secondary", key="btn_del_cat"):
+                eliminar_categoria(cat_a_eliminar)
+                st.success(f"✔️ Categoría '{cat_a_eliminar}' eliminada.")
+                st.rerun()
+        else:
+            st.info("No hay categorías registradas.")
+
+# ------------------------------------------
+# VISTA: GESTOR DE MARCAS
+# ------------------------------------------
+elif opcion == "🏢 Gestor de Marcas":
+    st.markdown('<p class="main-title">🏢 Gestor de Marcas</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-title">Registra o elimina las marcas de los productos que comercializas.</p>', unsafe_allow_html=True)
+    
+    col_m1, col_m2 = st.columns(2)
+    
+    with col_m1:
+        st.subheader("➕ Añadir Nueva Marca")
+        nueva_marca_input = st.text_input("Nombre de la Marca", placeholder="Ej. Chanel, Victoria's Secret...", key="input_nueva_marca")
+        
+        if st.button("💾 Registrar Marca", key="btn_add_marca"):
+            if nueva_marca_input.strip() == "":
+                st.error("Ingresa un nombre válido para la marca.")
+            else:
+                registrar_marca(nueva_marca_input)
+                st.success(f"✔️ Marca '{nueva_marca_input.strip()}' guardada con éxito.")
+                st.rerun()
+                
+    with col_m2:
+        st.subheader("📋 Marcas Actuales")
+        marcas_actuales = obtener_marcas()
+        
+        if marcas_actuales:
+            for m in marcas_actuales:
+                st.markdown(f"- **{m}**")
+            
+            st.markdown("---")
+            st.subheader("🗑️ Eliminar Marca")
+            marca_a_eliminar = st.selectbox("Selecciona la marca a eliminar", marcas_actuales, key="select_del_marca")
+            
+            if st.button("🗑️ Eliminar Marca", type="secondary", key="btn_del_marca"):
+                eliminar_marca(marca_a_eliminar)
+                st.success(f"✔️ Marca '{marca_a_eliminar}' eliminada.")
+                st.rerun()
+        else:
+            st.info("No hay marcas registradas.")
