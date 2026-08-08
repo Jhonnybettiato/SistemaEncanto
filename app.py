@@ -1273,25 +1273,87 @@ elif opcion == "💳 Deudas de Clientes":
 # ==========================================
 # GESTOR DE CLIENTES
 # ==========================================
+# ==========================================
+# GESTOR DE CLIENTES (REGISTRO Y EDICIÓN)
+# ==========================================
 elif opcion == "👥 Gestor de Clientes":
     st.markdown('<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True)
-    with st.form("form_cliente"):
-        col1, col2 = st.columns(2)
-        nombre = col1.text_input("Nombre:")
-        apellido = col2.text_input("Apellido:")
-        ci = col1.text_input("N° Documento / CI:")
-        telefono = col2.text_input("Teléfono:")
-        ciudad = st.text_input("Ciudad:")
-        if st.form_submit_button("Guardar Cliente", type="primary"):
-            if nombre.strip() and apellido.strip():
-                registrar_cliente(nombre, apellido, ci, telefono, ciudad)
-                st.success("Cliente guardado con éxito.")
-                st.rerun()
-            else:
-                st.warning("Nombre y Apellido son requeridos.")
+    
+    tab_nuevo_c, tab_editar_c, tab_lista_c = st.tabs([
+        "➕ Registrar Cliente", 
+        "✏️ Editar / Modificar Cliente", 
+        "📋 Ver Lista de Clientes"
+    ])
 
-    st.markdown("---")
-    st.dataframe(obtener_clientes(), use_container_width=True)
+    df_clientes = obtener_clientes()
+
+    # --- Pestaña 1: Registrar Cliente ---
+    with tab_nuevo_c:
+        st.subheader("Registrar Nuevo Cliente")
+        with st.form("form_cliente"):
+            col1, col2 = st.columns(2)
+            nombre = col1.text_input("Nombre:")
+            apellido = col2.text_input("Apellido:")
+            ci = col1.text_input("N° Documento / CI:")
+            telefono = col2.text_input("Teléfono:")
+            ciudad = st.text_input("Ciudad:")
+            
+            if st.form_submit_button("Guardar Cliente", type="primary"):
+                if nombre.strip() and apellido.strip():
+                    registrar_cliente(nombre, apellido, ci, telefono, ciudad)
+                    st.success("¡Cliente guardado con éxito!")
+                    st.rerun()
+                else:
+                    st.warning("El Nombre y Apellido son obligatorios.")
+
+    # --- Pestaña 2: Editar / Modificar Cliente ---
+    with tab_editar_c:
+        st.subheader("Modificar Datos de un Cliente")
+        if df_clientes.empty:
+            st.info("No hay clientes registrados para editar.")
+        else:
+            # Creamos la lista para el desplegable
+            dict_clientes = {}
+            for _, r in df_clientes.iterrows():
+                label = f"{r['nombre']} {r['apellido']} (CI: {r['ci']})"
+                dict_clientes[label] = r['id']
+
+            cliente_sel_label = st.selectbox(
+                "🔍 Selecciona un cliente para modificar:",
+                options=list(dict_clientes.keys()),
+                index=None,
+                key="select_edit_cliente"
+            )
+
+            if cliente_sel_label:
+                id_cliente = dict_clientes[cliente_sel_label]
+                c_row = df_clientes[df_clientes["id"].astype(str) == str(id_cliente)].iloc[0]
+
+                with st.form("form_edit_cliente"):
+                    col1, col2 = st.columns(2)
+                    edit_nombre = col1.text_input("Nombre:", value=str(c_row.get("nombre", "")))
+                    edit_apellido = col2.text_input("Apellido:", value=str(c_row.get("apellido", "")))
+                    edit_ci = col1.text_input("N° Documento / CI:", value=str(c_row.get("ci", "")))
+                    edit_telefono = col2.text_input("Teléfono:", value=str(c_row.get("telefono", "")))
+                    edit_ciudad = st.text_input("Ciudad:", value=str(c_row.get("ciudad", "")))
+
+                    col_btn1, col_btn2 = st.columns([1, 1])
+                    if col_btn1.form_submit_button("💾 Guardar Cambios", type="primary"):
+                        if edit_nombre.strip() and edit_apellido.strip():
+                            # Llamada a la función de actualización
+                            actualizar_cliente(id_cliente, edit_nombre, edit_apellido, edit_ci, edit_telefono, edit_ciudad)
+                            st.success("¡Datos del cliente actualizados correctamente!")
+                            st.rerun()
+                        else:
+                            st.warning("El Nombre y Apellido no pueden quedar vacíos.")
+
+    # --- Pestaña 3: Lista de Clientes ---
+    with tab_lista_c:
+        st.subheader("Listado General de Clientes")
+        if not df_clientes.empty:
+            st.dataframe(df_clientes, use_container_width=True)
+        else:
+            st.info("No hay clientes registrados.")
 
 # ==========================================
 # FLUJO DE CAJA MENSUAL
