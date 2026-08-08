@@ -51,12 +51,10 @@ def init_db():
 
     # Categorías y Marcas
     cursor.execute(
-        "CREATE TABLE IF NOT EXISTS categorias (id INTEGER PRIMARY KEY"
-        " AUTOINCREMENT, nombre TEXT UNIQUE NOT NULL)"
+        "CREATE TABLE IF NOT EXISTS categorias (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT UNIQUE NOT NULL)"
     )
     cursor.execute(
-        "CREATE TABLE IF NOT EXISTS marcas (id INTEGER PRIMARY KEY"
-        " AUTOINCREMENT, nombre TEXT UNIQUE NOT NULL)"
+        "CREATE TABLE IF NOT EXISTS marcas (id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT UNIQUE NOT NULL)"
     )
 
     # Clientes
@@ -179,8 +177,7 @@ def obtener_saldo_inicial_dia(fecha_hoy_str):
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT saldo_final FROM cierres_caja WHERE fecha < ? ORDER BY"
-            " fecha DESC LIMIT 1",
+            "SELECT saldo_final FROM cierres_caja WHERE fecha < ? ORDER BY fecha DESC LIMIT 1",
             (fecha_hoy_str,),
         )
         row = cursor.fetchone()
@@ -188,9 +185,7 @@ def obtener_saldo_inicial_dia(fecha_hoy_str):
         return row[0] if row else 0
 
 
-def registrar_cierre_diario(
-    fecha_str, saldo_inicial, ingresos, egresos, saldo_final
-):
+def registrar_cierre_diario(fecha_str, saldo_inicial, ingresos, egresos, saldo_final):
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
         db_cloud.collection("cierres_caja").document(fecha_str).set({
@@ -232,8 +227,7 @@ def obtener_cierre_por_fecha(fecha_str):
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT fecha, saldo_inicial, ingresos, egresos, saldo_final FROM"
-            " cierres_caja WHERE fecha = ?",
+            "SELECT fecha, saldo_inicial, ingresos, egresos, saldo_final FROM cierres_caja WHERE fecha = ?",
             (fecha_str,),
         )
         row = cursor.fetchone()
@@ -387,8 +381,7 @@ def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO clientes (nombre, apellido, ci, telefono, ciudad)"
-            " VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO clientes (nombre, apellido, ci, telefono, ciudad) VALUES (?, ?, ?, ?, ?)",
             (
                 nombre.strip(),
                 apellido.strip(),
@@ -437,8 +430,7 @@ def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO proveedores (nombre, ruc_ci, telefono, ciudad) VALUES"
-            " (?, ?, ?, ?)",
+            "INSERT INTO proveedores (nombre, ruc_ci, telefono, ciudad) VALUES (?, ?, ?, ?)",
             (nombre.strip(), ruc_ci.strip(), telefono.strip(), ciudad.strip()),
         )
         conn.commit()
@@ -789,9 +781,7 @@ def obtener_compras_proveedores():
         return df
 
 
-def registrar_pago_proveedor(
-    compra_id, proveedor_nombre, monto, metodo_pago
-):
+def registrar_pago_proveedor(compra_id, proveedor_nombre, monto, metodo_pago):
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     if db_cloud is not None:
@@ -806,8 +796,7 @@ def registrar_pago_proveedor(
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO pagos_proveedores (fecha_hora, compra_id,"
-            " proveedor_nombre, monto, metodo_pago) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO pagos_proveedores (fecha_hora, compra_id, proveedor_nombre, monto, metodo_pago) VALUES (?, ?, ?, ?, ?)",
             (
                 fecha_hora,
                 int(compra_id),
@@ -851,8 +840,7 @@ def registrar_salida_caja(motivo, monto, metodo_pago):
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO salidas_caja (fecha_hora, motivo, monto, metodo_pago)"
-            " VALUES (?, ?, ?, ?)",
+            "INSERT INTO salidas_caja (fecha_hora, motivo, monto, metodo_pago) VALUES (?, ?, ?, ?)",
             (fecha_hora, motivo, int(monto), metodo_pago),
         )
         conn.commit()
@@ -1023,14 +1011,13 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         index=None,
                         key="select_v",
                     )
-                
-                    if p_sel:
+
+                if p_sel:
                     id_p = str(p_sel.split(" - ")[0])
                     p_row = df_con_stock[
                         df_con_stock["id"].astype(str) == id_p
                     ].iloc[0]
 
-                    # Calcular cuánto de este producto ya está en el carrito
                     cant_car = sum([
                         item["cantidad"]
                         for item in st.session_state.carrito
@@ -1047,536 +1034,407 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                             key="cant_v",
                         )
                     with col_a3:
-                        st.write("")  # Espaciador para alinear el botón
+                        st.write("")
                         st.write("")
                         if st.button("➕ Agregar", type="primary"):
                             if cant <= stock_disp:
                                 st.session_state.carrito.append({
                                     "id": id_p,
                                     "nombre": p_row["nombre"],
-                                    "precio_unitario": p_row["precio_venta"],
+                                    "precio_unitario": int(p_row["precio_venta"]),
                                     "cantidad": cant,
-                                    "subtotal": p_row["precio_venta"] * cant,
+                                    "subtotal": int(p_row["precio_venta"]) * cant,
                                 })
                                 st.success("¡Producto agregado al carrito!")
                                 st.rerun()
                             else:
                                 st.error("⚠️ Stock insuficiente disponible.")
-                                
-                            st.session_state.carrito.append({
-                                "id": id_p,
-                                "nombre": p_row["nombre"],
-                                "precio_venta": int(p_row["precio_venta"]),
-                                "cantidad": cant_add,
-                                "subtotal": cant_add
-                                * int(p_row["precio_venta"]),
-                            })
-                            st.rerun()
-
-                st.markdown("---")
-                st.subheader("2️⃣ Carrito de Compras")
-                if st.session_state.carrito:
-                    total_carrito = 0
-                    for idx, item in enumerate(st.session_state.carrito):
-                        c1, c2, c3, c4, c5 = st.columns([3, 1, 2, 2, 1])
-                        c1.write(f"**{item['nombre']}**")
-                        c2.write(f"Cant: {item['cantidad']}")
-                        c3.write(formatear_gs(item["precio_venta"]))
-                        c4.write(f"Subtotal: {formatear_gs(item['subtotal'])}")
-                        total_carrito += item["subtotal"]
-                        if c5.button("❌", key=f"del_{idx}"):
-                            st.session_state.carrito.pop(idx)
-                            st.rerun()
-
-                    st.markdown("---")
-                    st.markdown(
-                        f"### Total a Cobrar: **{formatear_gs(total_carrito)}**"
-                    )
-
-                    col_c1, col_c2, col_c3 = st.columns(3)
-                    with col_c1:
-                        tipo_v = st.selectbox(
-                            "Tipo de Venta:", ["Contado", "Crédito"]
-                        )
-                    with col_c2:
-                        metodo_p = st.selectbox(
-                            "Método de Pago:",
-                            ["Efectivo", "Transferencia / QR", "Tarjeta"],
-                        )
-                    with col_c3:
-                        cli_opts = ["Cliente Ocasional"]
-                        if not df_clientes.empty:
-                            cli_opts += [
-                                f"{r['nombre']} {r['apellido']}"
-                                for _, r in df_clientes.iterrows()
-                            ]
-                        cliente_v = st.selectbox("Cliente:", cli_opts)
-
-                    if st.button("✅ Finalizar Venta", type="primary"):
-                        for item in st.session_state.carrito:
-                            registrar_venta(
-                                item["id"],
-                                item["nombre"],
-                                item["cantidad"],
-                                item["precio_venta"],
-                                item["subtotal"],
-                                tipo_v,
-                                metodo_p,
-                                cliente_v,
-                            )
-                        st.session_state.carrito = []
-                        st.success("🎉 Venta registrada con éxito.")
-                        st.rerun()
-
-    # ==========================================
-    # SALIDAS DE CAJA (REGISTRO + EDICIÓN Y ELIMINACIÓN)
-    # ==========================================
-    with tab_salida:
-        st.subheader("💸 Registrar Salida de Caja")
-        with st.form("form_salida"):
-            motivo_s = st.text_input("Motivo:")
-            monto_s = st.number_input("Monto (Gs.):", min_value=1, step=1000)
-            metodo_s = st.selectbox(
-                "Método:", ["Efectivo", "Transferencia / QR", "Tarjeta"]
-            )
-            if (
-                st.form_submit_button("Registrar Salida", type="primary")
-                and motivo_s
-            ):
-                registrar_salida_caja(motivo_s, monto_s, metodo_s)
-                st.success("Salida registrada correctamente.")
-                st.rerun()
 
         st.markdown("---")
-        st.subheader("✏️ Historial y Edición de Salidas")
-        df_salidas = obtener_salidas_caja()
+        st.subheader("2️⃣ Carrito de Compras")
 
-        if df_salidas.empty:
-            st.info("No hay salidas de caja registradas.")
-        else:
-            st.dataframe(df_salidas, use_container_width=True)
+        if st.session_state.carrito:
+            df_car = pd.DataFrame(st.session_state.carrito)
+            df_car_show = df_car[["nombre", "cantidad", "precio_unitario", "subtotal"]].copy()
+            df_car_show["precio_unitario"] = df_car_show["precio_unitario"].apply(formatear_gs)
+            df_car_show["subtotal"] = df_car_show["subtotal"].apply(formatear_gs)
 
-            opts_salidas = [
-                f"{r['id']} - {r['motivo']} | {formatear_gs(r['monto'])} |"
-                f" {r['fecha_hora']}"
-                for _, r in df_salidas.iterrows()
-            ]
-            salida_sel = st.selectbox(
-                "Selecciona una salida para Modificar o Eliminar:", opts_salidas
-            )
+            st.dataframe(df_car_show, use_container_width=True)
 
-            if salida_sel:
-                id_sal = salida_sel.split(" - ")[0]
-                row_sal = df_salidas[
-                    df_salidas["id"].astype(str) == str(id_sal)
-                ].iloc[0]
+            monto_total_venta = sum(item["subtotal"] for item in st.session_state.carrito)
+            st.markdown(f"### Total: **{formatear_gs(monto_total_venta)}**")
 
-                col_es1, col_es2, col_es3 = st.columns(3)
-                with col_es1:
-                    edit_motivo = st.text_input(
-                        "Motivo:",
-                        value=row_sal["motivo"],
-                        key=f"edit_m_{id_sal}",
-                    )
-                with col_es2:
-                    edit_monto = st.number_input(
-                        "Monto (Gs.):",
-                        min_value=1,
-                        value=int(row_sal["monto"]),
-                        key=f"edit_mo_{id_sal}",
-                    )
-                with col_es3:
-                    metodos_lista = ["Efectivo", "Transferencia / QR", "Tarjeta"]
-                    idx_m = (
-                        metodos_lista.index(row_sal["metodo_pago"])
-                        if row_sal["metodo_pago"] in metodos_lista
-                        else 0
-                    )
-                    edit_metodo = st.selectbox(
-                        "Método:",
-                        metodos_lista,
-                        index=idx_m,
-                        key=f"edit_me_{id_sal}",
-                    )
+            col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
+            with col_c1:
+                tipo_venta = st.selectbox("Tipo de Venta:", ["Contado", "Crédito"])
+                
+                lista_clientes = ["Cliente Ocasional"]
+                if not df_clientes.empty:
+                    lista_clientes += [
+                        f"{r['nombre']} {r['apellido']} (CI: {r['ci']})"
+                        for _, r in df_clientes.iterrows()
+                    ]
+                cliente_sel = st.selectbox("Cliente:", lista_clientes)
 
-                col_btn1, col_btn2 = st.columns(2)
-                with col_btn1:
-                    if st.button("💾 Guardar Cambios", type="primary"):
-                        actualizar_salida_caja(
-                            id_sal, edit_motivo, edit_monto, edit_metodo
+            with col_c2:
+                metodo_pago = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"])
+
+            with col_c3:
+                st.write("")
+                st.write("")
+                if st.button("✅ Finalizar Venta", type="primary"):
+                    for item in st.session_state.carrito:
+                        registrar_venta(
+                            producto_id=item["id"],
+                            producto_nombre=item["nombre"],
+                            cantidad=item["cantidad"],
+                            precio_unitario=item["precio_unitario"],
+                            total=item["subtotal"],
+                            tipo_venta=tipo_venta,
+                            metodo_pago=metodo_pago,
+                            cliente_nombre=cliente_sel,
                         )
-                        st.success("Salida actualizada con éxito.")
-                        st.rerun()
-                with col_btn2:
-                    if st.button("🗑️ Eliminar Salida"):
-                        eliminar_salida_caja(id_sal)
-                        st.warning("Salida de caja eliminada.")
-                        st.rerun()
+                    st.session_state.carrito = []
+                    st.success("🎉 ¡Venta registrada con éxito!")
+                    st.rerun()
+
+            if st.button("🗑️ Vaciar Carrito"):
+                st.session_state.carrito = []
+                st.rerun()
+        else:
+            st.info("El carrito está vacío.")
+
+    with tab_salida:
+        st.subheader("Registrar Salida / Gasto de Caja")
+        with st.form("form_salida_caja"):
+            motivo = st.text_input("Motivo de la salida:")
+            monto = st.number_input("Monto (Gs.):", min_value=1, step=1000)
+            metodo = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Otro"])
+            if st.form_submit_button("Registrar Salida", type="primary"):
+                if motivo.strip():
+                    registrar_salida_caja(motivo, monto, metodo)
+                    st.success("Salida de caja registrada.")
+                    st.rerun()
+                else:
+                    st.warning("Escribe el motivo de la salida.")
+
+        st.markdown("---")
+        st.subheader("Histórico de Salidas")
+        df_salidas = obtener_salidas_caja()
+        if not df_salidas.empty:
+            df_salidas_show = df_salidas.copy()
+            df_salidas_show["monto"] = df_salidas_show["monto"].apply(formatear_gs)
+            st.dataframe(df_salidas_show, use_container_width=True)
 
     with tab_cierre:
-        fecha_hoy_str = date.today().strftime("%Y-%m-%d")
-        st.subheader(f"📊 Resumen de Caja ({fecha_hoy_str})")
-        saldo_ini = obtener_saldo_inicial_dia(fecha_hoy_str)
+        hoy_str = datetime.now().strftime("%Y-%m-%d")
+        st.subheader(f"Cierre de Caja - Fecha: {hoy_str}")
+
+        saldo_ini = obtener_saldo_inicial_dia(hoy_str)
         df_ventas = obtener_ventas()
+        
+        # Filtrar ventas de hoy
+        if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
+            df_ventas_hoy = df_ventas[
+                (df_ventas["fecha_hora"].str.startswith(hoy_str)) & 
+                (df_ventas["estado_pago"] == "Pagado")
+            ]
+            total_ingresos = df_ventas_hoy["total"].sum() if not df_ventas_hoy.empty else 0
+        else:
+            total_ingresos = 0
+
         df_salidas = obtener_salidas_caja()
+        if not df_salidas.empty and "fecha_hora" in df_salidas.columns:
+            df_salidas_hoy = df_salidas[df_salidas["fecha_hora"].str.startswith(hoy_str)]
+            total_egresos = df_salidas_hoy["monto"].sum() if not df_salidas_hoy.empty else 0
+        else:
+            total_egresos = 0
 
-        ingresos_hoy = (
-            df_ventas[
-                (df_ventas["fecha_hora"].str.startswith(fecha_hoy_str))
-                & (df_ventas["estado_pago"] == "Pagado")
-            ]["total"].sum()
-            if not df_ventas.empty
-            else 0
-        )
-        egresos_hoy = (
-            df_salidas[df_salidas["fecha_hora"].str.startswith(fecha_hoy_str)][
-                "monto"
-            ].sum()
-            if not df_salidas.empty
-            else 0
-        )
-        saldo_final_calc = saldo_ini + ingresos_hoy - egresos_hoy
+        saldo_final = saldo_ini + total_ingresos - total_egresos
 
-        k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Saldo Inicial", formatear_gs(saldo_ini))
-        k2.metric("Ingresos Hoy", formatear_gs(ingresos_hoy))
-        k3.metric("Egresos Hoy", formatear_gs(egresos_hoy))
-        k4.metric("Saldo Final", formatear_gs(saldo_final_calc))
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1.metric("Saldo Inicial", formatear_gs(saldo_ini))
+        col_k2.metric("Ingresos (Hoy)", formatear_gs(total_ingresos))
+        col_k3.metric("Egresos (Hoy)", formatear_gs(total_egresos))
+        col_k4.metric("Saldo Final Calculado", formatear_gs(saldo_final))
 
-        if st.button("🔒 Confirmar y Cerrar Caja", type="primary"):
-            registrar_cierre_diario(
-                fecha_hoy_str,
-                saldo_ini,
-                ingresos_hoy,
-                egresos_hoy,
-                saldo_final_calc,
-            )
-            st.success("Cierre del día guardado.")
+        if st.button("🔒 Confirmar y Guardar Cierre de Hoy", type="primary"):
+            registrar_cierre_diario(hoy_str, saldo_ini, total_ingresos, total_egresos, saldo_final)
+            st.success("¡Cierre guardado correctamente!")
 
     with tab_historico:
-        st.subheader("📅 Histórico de Cierres")
-        fecha_h = st.date_input("Selecciona una fecha:", date.today())
-        cierre = obtener_cierre_por_fecha(fecha_h.strftime("%Y-%m-%d"))
-        if cierre:
-            st.success(f"Cierre de fecha {fecha_h}:")
-            h1, h2, h3, h4 = st.columns(4)
-            h1.metric("Inicial", formatear_gs(cierre["saldo_inicial"]))
-            h2.metric("Ingresos", formatear_gs(cierre["ingresos"]))
-            h3.metric("Egresos", formatear_gs(cierre["egresos"]))
-            h4.metric("Final", formatear_gs(cierre["saldo_final"]))
+        st.subheader("Cierres de Caja Guardados")
+        db_cloud = obtener_conexion_db()
+        if db_cloud is not None:
+            docs = db_cloud.collection("cierres_caja").stream()
+            cierres = [d.to_dict() for d in docs]
+            df_cierres = pd.DataFrame(cierres)
         else:
-            st.info("Sin registros de cierre para la fecha elegida.")
+            conn = sqlite3.connect("inventario.db")
+            df_cierres = pd.read_sql_query("SELECT * FROM cierres_caja ORDER BY fecha DESC", conn)
+            conn.close()
+
+        if not df_cierres.empty:
+            df_cierres_show = df_cierres.copy()
+            for c in ["saldo_inicial", "ingresos", "egresos", "saldo_final"]:
+                if c in df_cierres_show.columns:
+                    df_cierres_show[c] = df_cierres_show[c].apply(formatear_gs)
+            st.dataframe(df_cierres_show, use_container_width=True)
+        else:
+            st.info("No hay cierres de caja registrados aún.")
 
 # ==========================================
 # GESTOR DE PROVEEDORES
 # ==========================================
 elif opcion == "🏬 Gestor de Proveedores":
-    st.markdown(
-        '<p class="main-title">🏬 Gestor de Proveedores</p>',
-        unsafe_allow_html=True,
-    )
-    st.subheader("➕ Registrar Nuevo Proveedor")
-    with st.form("form_prov"):
-        nom = st.text_input("Nombre / Razón Social:")
-        ruc = st.text_input("RUC / CI:")
-        tel = st.text_input("Teléfono:")
-        ciu = st.text_input("Ciudad:")
+    st.markdown('<p class="main-title">🏬 Gestor de Proveedores</p>', unsafe_allow_html=True)
+    with st.form("form_proveedor"):
+        col1, col2 = st.columns(2)
+        nombre = col1.text_input("Nombre / Razón Social:")
+        ruc_ci = col2.text_input("RUC o CI:")
+        telefono = col1.text_input("Teléfono:")
+        ciudad = col2.text_input("Ciudad:")
         if st.form_submit_button("Guardar Proveedor", type="primary"):
-            if nom:
-                registrar_proveedor(nom, ruc, tel, ciu)
-                st.success(
-                    f"Proveedor '{nom}' registrado. ¡Ya puedes seleccionarlo"
-                    " en Compras!"
-                )
+            if nombre.strip():
+                registrar_proveedor(nombre, ruc_ci, telefono, ciudad)
+                st.success("Proveedor registrado correctamente.")
+                st.rerun()
+            else:
+                st.warning("El nombre es obligatorio.")
+
+    st.markdown("---")
+    st.dataframe(obtener_proveedores(), use_container_width=True)
+
+# ==========================================
+# COMPRAS A PROVEEDORES
+# ==========================================
+elif opcion == "🚚 Compras a Proveedores":
+    st.markdown('<p class="main-title">🚚 Compras a Proveedores</p>', unsafe_allow_html=True)
+    df_prov = obtener_proveedores()
+    if df_prov.empty:
+        st.info("Primero debes registrar proveedores en el Gestor de Proveedores.")
+    else:
+        with st.form("form_compra_prov"):
+            prov_sel = st.selectbox("Proveedor:", df_prov["nombre"].tolist())
+            concepto = st.text_input("Concepto / Descripción del pedido:")
+            monto = st.number_input("Monto Total (Gs.):", min_value=1, step=5000)
+            tipo_compra = st.selectbox("Tipo de Compra:", ["Contado", "Crédito"])
+            metodo_pago = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Otro"])
+            if st.form_submit_button("Registrar Compra", type="primary"):
+                registrar_compra_proveedor(prov_sel, concepto, monto, tipo_compra, metodo_pago)
+                st.success("Compra a proveedor registrada.")
                 st.rerun()
 
     st.markdown("---")
-    st.subheader("📋 Lista de Proveedores Registrados")
-    df_p = obtener_proveedores()
-    if df_p.empty:
-        st.info("Aún no tienes proveedores registrados.")
-    else:
-        st.dataframe(df_p, use_container_width=True)
+    df_compras = obtener_compras_proveedores()
+    if not df_compras.empty:
+        df_show = df_compras.copy()
+        df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
+        st.dataframe(df_show, use_container_width=True)
 
 # ==========================================
-# DEUDAS CON PROVEEDORES / CUENTAS POR PAGAR
+# DEUDAS CON PROVEEDORES
 # ==========================================
 elif opcion == "📜 Deudas con Proveedores":
-    st.markdown(
-        '<p class="main-title">📜 Deudas por Pagar a Proveedores</p>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<p class="main-title">📜 Deudas con Proveedores</p>', unsafe_allow_html=True)
     df_compras = obtener_compras_proveedores()
+    if not df_compras.empty:
+        deudas = df_compras[df_compras["estado_pago"] == "Pendiente"]
+        if not deudas.empty:
+            df_show = deudas.copy()
+            df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
+            st.dataframe(df_show, use_container_width=True)
 
-    if df_compras.empty:
-        st.info("No hay registros de compras.")
-    else:
-        df_pendientes = df_compras[df_compras["estado_pago"] == "Pendiente"]
-        if df_pendientes.empty:
-            st.success("🎉 ¡Felicidades! No tienes deudas pendientes con ningún proveedor.")
-        else:
-            st.warning(
-                f"⚠️ Tienes {len(df_pendientes)} compras pendientes de pago."
-            )
-            st.dataframe(df_pendientes, use_container_width=True)
-
-            st.markdown("---")
-            st.subheader("💵 Registrar Pago / Saldar Deuda a Proveedor")
-            opts = [
-                f"{r['id']} | {r['proveedor_nombre']} | Concepto: {r['concepto']}"
-                f" | Total: {formatear_gs(r['monto_total'])}"
-                for _, r in df_pendientes.iterrows()
-            ]
-            c_sel = st.selectbox("Selecciona la compra a saldar:", opts)
-
-            if c_sel:
-                compra_id = c_sel.split(" | ")[0]
-                row_c = df_pendientes[
-                    df_pendientes["id"].astype(str) == str(compra_id)
-                ].iloc[0]
-
-                col_p1, col_p2 = st.columns(2)
-                with col_p1:
-                    monto_pago = st.number_input(
-                        "Monto a Pagar (Gs.):",
-                        min_value=1,
-                        max_value=int(row_c["monto_total"]),
-                        value=int(row_c["monto_total"]),
-                    )
-                with col_p2:
-                    metodo_pago = st.selectbox(
-                        "Método de Pago:", ["Efectivo", "Transferencia / QR"]
-                    )
-
-                if st.button("✅ Registrar Pago y Saldar", type="primary"):
-                    registrar_pago_proveedor(
-                        compra_id,
-                        row_c["proveedor_nombre"],
-                        monto_pago,
-                        metodo_pago,
-                    )
-                    registrar_salida_caja(
-                        f"Pago Proveedor {row_c['proveedor_nombre']} (Compra #{compra_id})",
-                        monto_pago,
-                        metodo_pago,
-                    )
-                    actualizar_estado_compra(compra_id, "Pagado")
-                    st.success("Pago registrado y cargado a salidas de caja.")
-                    st.rerun()
-
-# ==========================================
-# RESTO DEL CÓDIGO (COMPRAS, PRODUCCIÓN, ETC.)
-# ==========================================
-elif opcion == "🚚 Compras a Proveedores":
-    st.markdown(
-        '<p class="main-title">🚚 Registrar Compras a Proveedores</p>',
-        unsafe_allow_html=True,
-    )
-    df_prov = obtener_proveedores()
-    if df_prov.empty:
-        st.warning(
-            "⚠️ Primero debes registrar al menos un proveedor en la opción"
-            " '🏬 Gestor de Proveedores'."
-        )
-    else:
-        with st.form("form_compra"):
-            prov = st.selectbox("Proveedor:", df_prov["nombre"].tolist())
-            conc = st.text_input("Concepto / Mercadería:")
-            monto = st.number_input("Monto Total (Gs.):", min_value=1)
-            tipo_c = st.selectbox(
-                "Tipo de Compra:",
-                ["Contado", "Crédito"],
-                help=(
-                    "Si eliges Crédito, irá automáticamente al módulo 'Deudas"
-                    " con Proveedores'"
-                ),
-            )
-            metodo = st.selectbox(
-                "Método Pago:", ["Efectivo", "Transferencia / QR"]
-            )
-            if (
-                st.form_submit_button("Registrar Compra", type="primary")
-                and conc
-            ):
-                registrar_compra_proveedor(prov, conc, monto, tipo_c, metodo)
-                if tipo_c == "Contado":
-                    registrar_salida_caja(
-                        f"Compra Contado: {conc} ({prov})", monto, metodo
-                    )
-                st.success("Compra registrada correctamente.")
+            st.subheader("Marcar Deuda como Pagada")
+            id_compra = st.selectbox("Selecciona ID de Compra a pagar:", deudas["id"].tolist())
+            if st.button("Marcar como Pagado", type="primary"):
+                actualizar_estado_compra(id_compra, "Pagado")
+                st.success("Deuda actualizada a PAGADO.")
                 st.rerun()
+        else:
+            st.success("🎉 ¡No hay deudas pendientes con proveedores!")
 
+# ==========================================
+# DEUDAS DE CLIENTES
+# ==========================================
+elif opcion == "💳 Deudas de Clientes":
+    st.markdown('<p class="main-title">💳 Deudas de Clientes</p>', unsafe_allow_html=True)
+    df_ventas = obtener_ventas()
+    if not df_ventas.empty:
+        deudas = df_ventas[df_ventas["estado_pago"] == "Pendiente"]
+        if not deudas.empty:
+            df_show = deudas.copy()
+            df_show["total"] = df_show["total"].apply(formatear_gs)
+            st.dataframe(df_show, use_container_width=True)
+        else:
+            st.success("🎉 ¡No hay deudas pendientes de clientes!")
+
+# ==========================================
+# GESTOR DE CLIENTES
+# ==========================================
+elif opcion == "👥 Gestor de Clientes":
+    st.markdown('<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True)
+    with st.form("form_cliente"):
+        col1, col2 = st.columns(2)
+        nombre = col1.text_input("Nombre:")
+        apellido = col2.text_input("Apellido:")
+        ci = col1.text_input("N° Documento / CI:")
+        telefono = col2.text_input("Teléfono:")
+        ciudad = st.text_input("Ciudad:")
+        if st.form_submit_button("Guardar Cliente", type="primary"):
+            if nombre.strip() and apellido.strip():
+                registrar_cliente(nombre, apellido, ci, telefono, ciudad)
+                st.success("Cliente guardado con éxito.")
+                st.rerun()
+            else:
+                st.warning("Nombre y Apellido son requeridos.")
+
+    st.markdown("---")
+    st.dataframe(obtener_clientes(), use_container_width=True)
+
+# ==========================================
+# FLUJO DE CAJA MENSUAL
+# ==========================================
+elif opcion == "📈 Flujo de Caja Mensual":
+    st.markdown('<p class="main-title">📈 Flujo de Caja Mensual</p>', unsafe_allow_html=True)
+    df_ventas = obtener_ventas()
+    df_salidas = obtener_salidas_caja()
+    
+    col1, col2 = st.columns(2)
+    ingresos_totales = df_ventas[df_ventas["estado_pago"] == "Pagado"]["total"].sum() if not df_ventas.empty else 0
+    egresos_totales = df_salidas["monto"].sum() if not df_salidas.empty else 0
+    
+    col1.metric("Ingresos Históricos Totales", formatear_gs(ingresos_totales))
+    col2.metric("Egresos Históricos Totales", formatear_gs(egresos_totales))
+
+# ==========================================
+# VER STOCK / INVENTARIO
+# ==========================================
 elif opcion == "📦 Ver Stock / Inventario":
-    st.markdown(
-        '<p class="main-title">📦 Ver Stock / Inventario</p>',
-        unsafe_allow_html=True,
-    )
-    df = obtener_productos()
-    st.dataframe(df, use_container_width=True)
-
-elif opcion == "➕ Registrar Producto":
-    st.markdown(
-        '<p class="main-title">➕ Registrar Producto</p>', unsafe_allow_html=True
-    )
-    cats = obtener_categorias()
-    marcas = obtener_marcas()
-    with st.form("form_prod"):
-        cod_b = st.text_input("Código de Barras:")
-        nom = st.text_input("Nombre:")
-        cat = st.selectbox("Categoría:", cats)
-        mar = st.selectbox("Marca:", marcas)
-        p_costo = st.number_input("Precio Costo (Gs.):", min_value=0, step=1000)
-        p_gan = st.number_input("Ganancia (%)", min_value=0, value=30)
-        p_venta = p_costo * (1 + p_gan / 100)
-        st.write(f"**Precio Venta Calculado:** {formatear_gs(p_venta)}")
-        stk = st.number_input("Stock Inicial:", min_value=0, value=1)
-        desc = st.text_area("Descripción:")
-        if st.form_submit_button("Guardar Producto", type="primary") and nom:
-            registrar_producto(
-                cod_b, nom, cat, mar, p_costo, p_gan, p_venta, stk, desc
-            )
-            st.success("Producto registrado.")
-            st.rerun()
-
-elif opcion == "✏️ Editar / Modificar Producto":
-    st.markdown(
-        '<p class="main-title">✏️ Editar Producto</p>', unsafe_allow_html=True
-    )
+    st.markdown('<p class="main-title">📦 Ver Stock / Inventario</p>', unsafe_allow_html=True)
     df_p = obtener_productos()
     if not df_p.empty:
-        opts = [f"{r['id']} - {r['nombre']}" for _, r in df_p.iterrows()]
-        p_sel = st.selectbox("Selecciona un producto:", opts)
-        if p_sel:
-            id_p = p_sel.split(" - ")[0]
-            row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
+        df_show = df_p.copy()
+        df_show["precio_costo"] = df_show["precio_costo"].apply(formatear_gs)
+        df_show["precio_venta"] = df_show["precio_venta"].apply(formatear_gs)
+        st.dataframe(df_show, use_container_width=True)
+    else:
+        st.info("No hay productos cargados en el inventario.")
+
+# ==========================================
+# REGISTRAR PRODUCTO
+# ==========================================
+elif opcion == "➕ Registrar Producto":
+    st.markdown('<p class="main-title">➕ Registrar Producto</p>', unsafe_allow_html=True)
+    cats = obtener_categorias()
+    marcas = obtener_marcas()
+
+    with st.form("form_reg_prod"):
+        col1, col2 = st.columns(2)
+        cod_barras = col1.text_input("Código de Barras:")
+        nombre = col2.text_input("Nombre del Producto:")
+        cat = col1.selectbox("Categoría:", cats)
+        marca = col2.selectbox("Marca:", marcas)
+        costo = col1.number_input("Precio Costo (Gs.):", min_value=0, step=1000)
+        ganancia = col2.number_input("% Ganancia:", min_value=0, value=30)
+        
+        precio_sugerido = int(costo + (costo * (ganancia / 100)))
+        precio_venta = col1.number_input("Precio Venta (Gs.):", min_value=0, value=precio_sugerido, step=1000)
+        stock = col2.number_input("Stock Inicial:", min_value=0, value=1)
+        desc = st.text_area("Descripción:")
+
+        if st.form_submit_button("Guardar Producto", type="primary"):
+            if nombre.strip():
+                registrar_producto(cod_barras, nombre, cat, marca, costo, ganancia, precio_venta, stock, desc)
+                st.success("¡Producto registrado exitosamente!")
+                st.rerun()
+            else:
+                st.warning("El nombre del producto es obligatorio.")
+
+# ==========================================
+# EDITAR / MODIFICAR PRODUCTO
+# ==========================================
+elif opcion == "✏️ Editar / Modificar Producto":
+    st.markdown('<p class="main-title">✏️ Editar / Modificar Producto</p>', unsafe_allow_html=True)
+    df_p = obtener_productos()
+    if not df_p.empty:
+        prod_sel = st.selectbox("Selecciona un producto a modificar:", [f"{r['id']} - {r['nombre']}" for _, r in df_p.iterrows()])
+        if prod_sel:
+            id_p = str(prod_sel.split(" - ")[0])
+            p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
+
             cats = obtener_categorias()
             marcas = obtener_marcas()
 
-            cod_b = st.text_input("Código:", value=str(row["codigo_barras"]))
-            nom = st.text_input("Nombre:", value=row["nombre"])
-            cat = st.selectbox(
-                "Categoría:",
-                cats,
-                index=cats.index(row["categoria"])
-                if row["categoria"] in cats
-                else 0,
-            )
-            mar = st.selectbox(
-                "Marca:",
-                marcas,
-                index=marcas.index(row["marca"])
-                if row["marca"] in marcas
-                else 0,
-            )
-            p_costo = st.number_input(
-                "Precio Costo:", min_value=0, value=int(row["precio_costo"])
-            )
-            p_gan = st.number_input(
-                "Ganancia (%):",
-                min_value=0,
-                value=int(row["ganancia_porcentaje"]),
-            )
-            p_venta = p_costo * (1 + p_gan / 100)
-            st.write(f"**Precio Venta:** {formatear_gs(p_venta)}")
-            stk = st.number_input(
-                "Stock:", min_value=0, value=int(row["stock"])
-            )
-            desc = st.text_area("Descripción:", value=str(row["descripcion"]))
+            with st.form("form_edit_prod"):
+                col1, col2 = st.columns(2)
+                cod_barras = col1.text_input("Código de Barras:", value=str(p_row.get("codigo_barras", "")))
+                nombre = col2.text_input("Nombre del Producto:", value=p_row["nombre"])
+                cat = col1.selectbox("Categoría:", cats, index=cats.index(p_row["categoria"]) if p_row["categoria"] in cats else 0)
+                marca = col2.selectbox("Marca:", marcas, index=marcas.index(p_row["marca"]) if p_row["marca"] in marcas else 0)
+                costo = col1.number_input("Precio Costo (Gs.):", min_value=0, value=int(p_row["precio_costo"]))
+                ganancia = col2.number_input("% Ganancia:", min_value=0, value=int(p_row["ganancia_porcentaje"]))
+                precio_venta = col1.number_input("Precio Venta (Gs.):", min_value=0, value=int(p_row["precio_venta"]))
+                stock = col2.number_input("Stock:", min_value=0, value=int(p_row["stock"]))
+                desc = st.text_area("Descripción:", value=str(p_row.get("descripcion", "")))
 
-            col_e1, col_e2 = st.columns(2)
-            with col_e1:
-                if st.button("💾 Actualizar", type="primary"):
-                    actualizar_producto(
-                        id_p,
-                        cod_b,
-                        nom,
-                        cat,
-                        mar,
-                        p_costo,
-                        p_gan,
-                        p_venta,
-                        stk,
-                        desc,
-                    )
-                    st.success("Producto actualizado.")
-                    st.rerun()
-            with col_e2:
-                if st.button("🗑️ Eliminar"):
-                    eliminar_producto(id_p)
-                    st.warning("Producto eliminado.")
+                c_save, c_del = st.columns([1, 1])
+                if c_save.form_submit_button("Guardar Cambios", type="primary"):
+                    actualizar_producto(id_p, cod_barras, nombre, cat, marca, costo, ganancia, precio_venta, stock, desc)
+                    st.success("Producto actualizado correctamente.")
                     st.rerun()
 
+            if st.button("🗑️ Eliminar Producto"):
+                eliminar_producto(id_p)
+                st.success("Producto eliminado.")
+                st.rerun()
+
+# ==========================================
+# GESTOR DE CATEGORÍAS
+# ==========================================
 elif opcion == "🏷️ Gestor de Categorías":
-    st.markdown(
-        '<p class="main-title">🏷️ Gestor de Categorías</p>',
-        unsafe_allow_html=True,
-    )
-    nova_c = st.text_input("Nueva Categoría:")
-    if st.button("Agregar Categoría", type="primary") and nova_c:
-        registrar_categoria(nova_c)
-        st.success("Categoría agregada.")
-        st.rerun()
+    st.markdown('<p class="main-title">🏷️ Gestor de Categorías</p>', unsafe_allow_html=True)
     cats = obtener_categorias()
-    cat_del = st.selectbox("Eliminar Categoría:", cats)
-    if st.button("Eliminar Categoría") and cat_del:
-        eliminar_categoria(cat_del)
-        st.warning("Categoría eliminada.")
-        st.rerun()
-
-elif opcion == "🏢 Gestor de Marcas":
-    st.markdown(
-        '<p class="main-title">🏢 Gestor de Marcas</p>', unsafe_allow_html=True
-    )
-    nova_m = st.text_input("Nueva Marca:")
-    if st.button("Agregar Marca", type="primary") and nova_m:
-        registrar_marca(nova_m)
-        st.success("Marca agregada.")
-        st.rerun()
-    marcas = obtener_marcas()
-    mar_del = st.selectbox("Eliminar Marca:", marcas)
-    if st.button("Eliminar Marca") and mar_del:
-        eliminar_marca(mar_del)
-        st.warning("Marca eliminada.")
-        st.rerun()
-
-elif opcion == "👥 Gestor de Clientes":
-    st.markdown(
-        '<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True
-    )
-    with st.form("form_cli"):
-        nom = st.text_input("Nombre:")
-        ape = st.text_input("Apellido:")
-        ci = st.text_input("RUC / CI:")
-        tel = st.text_input("Teléfono:")
-        ciu = st.text_input("Ciudad:")
-        if st.form_submit_button("Guardar Cliente", type="primary") and nom:
-            registrar_cliente(nom, ape, ci, tel, ciu)
-            st.success("Cliente guardado.")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        nueva_cat = st.text_input("Nueva Categoría:")
+        if st.button("Agregar Categoría", type="primary"):
+            if nueva_cat.strip():
+                registrar_categoria(nueva_cat)
+                st.success("Categoría agregada.")
+                st.rerun()
+    with col2:
+        cat_del = st.selectbox("Eliminar Categoría:", cats)
+        if st.button("Eliminar"):
+            eliminar_categoria(cat_del)
+            st.success("Categoría eliminada.")
             st.rerun()
-    st.dataframe(obtener_clientes(), use_container_width=True)
 
-elif opcion == "💳 Deudas de Clientes":
-    st.markdown(
-        '<p class="main-title">💳 Deudas de Clientes (Cuentas por Cobrar)</p>',
-        unsafe_allow_html=True,
-    )
-    df_ventas = obtener_ventas()
-    if not df_ventas.empty:
-        df_credito = df_ventas[df_ventas["tipo_venta"] == "Crédito"]
-        st.dataframe(df_credito, use_container_width=True)
-    else:
-        st.info("No hay ventas a crédito registradas.")
+    st.markdown("---")
+    st.write("Categorías actuales:", cats)
 
-elif opcion == "📈 Flujo de Caja Mensual":
-    st.markdown(
-        '<p class="main-title">📈 Flujo de Caja Mensual</p>',
-        unsafe_allow_html=True,
-    )
-    df_v = obtener_ventas()
-    df_s = obtener_salidas_caja()
-    tot_v = df_v["total"].sum() if not df_v.empty else 0
-    tot_s = df_s["monto"].sum() if not df_s.empty else 0
+# ==========================================
+# GESTOR DE MARCAS
+# ==========================================
+elif opcion == "🏢 Gestor de Marcas":
+    st.markdown('<p class="main-title">🏢 Gestor de Marcas</p>', unsafe_allow_html=True)
+    marcas = obtener_marcas()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        nueva_marca = st.text_input("Nueva Marca:")
+        if st.button("Agregar Marca", type="primary"):
+            if nueva_marca.strip():
+                registrar_marca(nueva_marca)
+                st.success("Marca agregada.")
+                st.rerun()
+    with col2:
+        marca_del = st.selectbox("Eliminar Marca:", marcas)
+        if st.button("Eliminar"):
+            eliminar_marca(marca_del)
+            st.success("Marca eliminada.")
+            st.rerun()
 
-    col_m1, col_m2 = st.columns(2)
-    col_m1.metric("Total Ingresos Ventas", formatear_gs(tot_v))
-    col_m2.metric("Total Egresos / Gastos", formatear_gs(tot_s))
+    st.markdown("---")
+    st.write("Marcas actuales:", marcas)
