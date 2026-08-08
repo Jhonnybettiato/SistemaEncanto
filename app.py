@@ -1023,31 +1023,46 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         index=None,
                         key="select_v",
                     )
-                if p_sel:
+                
+                        if p_sel:
                     id_p = str(p_sel.split(" - ")[0])
                     p_row = df_con_stock[
                         df_con_stock["id"].astype(str) == id_p
                     ].iloc[0]
+
+                    # Calcular cuánto de este producto ya está en el carrito
                     cant_car = sum([
                         item["cantidad"]
                         for item in st.session_state.carrito
                         if str(item["id"]) == id_p
                     ])
-                    stk_disp = int(p_row["stock"]) - cant_car
+                    stock_disp = int(p_row["stock"]) - cant_car
+
                     with col_a2:
-                        cant_add = st.number_input(
-                            "Cantidad",
+                        cant = st.number_input(
+                            "Cantidad:",
                             min_value=1,
-                            max_value=max(1, stk_disp),
+                            max_value=max(1, stock_disp),
                             value=1,
+                            key="cant_v",
                         )
                     with col_a3:
-                        st.markdown("<br>", unsafe_allow_html=True)
-                        if st.button(
-                            "➕ Agregar",
-                            type="primary",
-                            disabled=stk_disp <= 0,
-                        ):
+                        st.write("")  # Espaciador para alinear el botón
+                        st.write("")
+                        if st.button("➕ Agregar", type="primary"):
+                            if cant <= stock_disp:
+                                st.session_state.carrito.append({
+                                    "id": id_p,
+                                    "nombre": p_row["nombre"],
+                                    "precio_unitario": p_row["precio_venta"],
+                                    "cantidad": cant,
+                                    "subtotal": p_row["precio_venta"] * cant,
+                                })
+                                st.success("¡Producto agregado al carrito!")
+                                st.rerun()
+                            else:
+                                st.error("⚠️ Stock insuficiente disponible.")
+                                
                             st.session_state.carrito.append({
                                 "id": id_p,
                                 "nombre": p_row["nombre"],
