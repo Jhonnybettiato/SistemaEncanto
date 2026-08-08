@@ -952,7 +952,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Menú Lateral Actualizado
+# Menú Lateral
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 
@@ -960,9 +960,9 @@ opcion = st.sidebar.radio(
     "Selecciona una opción:",
     [
         "🛒 Ventas y Cierre de Caja",
-        "🏬 Gestor de Proveedores",  # NUEVA OPCIÓN
+        "🏬 Gestor de Proveedores",
         "🚚 Compras a Proveedores",
-        "📜 Deudas con Proveedores",  # NUEVA OPCIÓN (Cuentas por Pagar)
+        "📜 Deudas con Proveedores",
         "💳 Deudas de Clientes",
         "👥 Gestor de Clientes",
         "📈 Flujo de Caja Mensual",
@@ -975,113 +975,16 @@ opcion = st.sidebar.radio(
 )
 
 # ==========================================
-# GESTOR DE PROVEEDORES (NUEVO)
+# VENTAS Y CIERRE DE CAJA
 # ==========================================
-if opcion == "🏬 Gestor de Proveedores":
-    st.markdown(
-        '<p class="main-title">🏬 Gestor de Proveedores</p>',
-        unsafe_allow_html=True,
-    )
-    st.subheader("➕ Registrar Nuevo Proveedor")
-    with st.form("form_prov"):
-        nom = st.text_input("Nombre / Razon Social:")
-        ruc = st.text_input("RUC / CI:")
-        tel = st.text_input("Teléfono:")
-        ciu = st.text_input("Ciudad:")
-        if st.form_submit_button("Guardar Proveedor", type="primary"):
-            if nom:
-                registrar_proveedor(nom, ruc, tel, ciu)
-                st.success(
-                    f"Proveedor '{nom}' registrado. ¡Ya puedes seleccionarlo"
-                    " en Compras!"
-                )
-                st.rerun()
-
-    st.markdown("---")
-    st.subheader("📋 Lista de Proveedores Registrados")
-    df_p = obtener_proveedores()
-    if df_p.empty:
-        st.info("Aún no tienes proveedores registrados.")
-    else:
-        st.dataframe(df_p, use_container_width=True)
-
-# ==========================================
-# DEUDAS CON PROVEEDORES / CUENTAS POR PAGAR (NUEVO)
-# ==========================================
-elif opcion == "📜 Deudas con Proveedores":
-    st.markdown(
-        '<p class="main-title">📜 Deudas por Pagar a Proveedores</p>',
-        unsafe_allow_html=True,
-    )
-    df_compras = obtener_compras_proveedores()
-
-    if df_compras.empty:
-        st.info("No hay registros de compras.")
-    else:
-        df_pendientes = df_compras[df_compras["estado_pago"] == "Pendiente"]
-        if df_pendientes.empty:
-            st.success("🎉 ¡Felicidades! No tienes deudas pendientes con ningún proveedor.")
-        else:
-            st.warning(
-                f"⚠️ Tienes {len(df_pendientes)} compras pendientes de pago."
-            )
-            st.dataframe(df_pendientes, use_container_width=True)
-
-            st.markdown("---")
-            st.subheader("💵 Registrar Pago / Saldar Deuda a Proveedor")
-            opts = [
-                f"{r['id']} | {r['proveedor_nombre']} | Concepto: {r['concepto']}"
-                f" | Total: {formatear_gs(r['monto_total'])}"
-                for _, r in df_pendientes.iterrows()
-            ]
-            c_sel = st.selectbox("Selecciona la compra a saldar:", opts)
-
-            if c_sel:
-                compra_id = c_sel.split(" | ")[0]
-                row_c = df_pendientes[
-                    df_pendientes["id"].astype(str) == str(compra_id)
-                ].iloc[0]
-
-                col_p1, col_p2 = st.columns(2)
-                with col_p1:
-                    monto_pago = st.number_input(
-                        "Monto a Pagar (Gs.):",
-                        min_value=1,
-                        max_value=int(row_c["monto_total"]),
-                        value=int(row_c["monto_total"]),
-                    )
-                with col_p2:
-                    metodo_pago = st.selectbox(
-                        "Método de Pago:", ["Efectivo", "Transferencia / QR"]
-                    )
-
-                if st.button("✅ Registrar Pago y Saldar", type="primary"):
-                    registrar_pago_proveedor(
-                        compra_id,
-                        row_c["proveedor_nombre"],
-                        monto_pago,
-                        metodo_pago,
-                    )
-                    registrar_salida_caja(
-                        f"Pago Proveedor {row_c['proveedor_nombre']} (Compra #{compra_id})",
-                        monto_pago,
-                        metodo_pago,
-                    )
-                    actualizar_estado_compra(compra_id, "Pagado")
-                    st.success("Pago registrado y cargado a salidas de caja.")
-                    st.rerun()
-
-# ==========================================
-# RESTO DEL CÓDIGO (VENTAS, COMPRAS, PRODUCCIÓN, ETC.)
-# ==========================================
-elif opcion == "🛒 Ventas y Cierre de Caja":
+if opcion == "🛒 Ventas y Cierre de Caja":
     st.markdown(
         '<p class="main-title">🛒 Ventas y Cierre de Caja</p>',
         unsafe_allow_html=True,
     )
     tab_venta, tab_salida, tab_cierre, tab_historico = st.tabs([
         "🛍️ Nueva Venta",
-        "💸 Registrar Salida",
+        "💸 Salidas de Caja",
         "📊 Cierre de Caja (Hoy)",
         "📅 Histórico de Cierres",
     ])
@@ -1210,6 +1113,9 @@ elif opcion == "🛒 Ventas y Cierre de Caja":
                         st.success("🎉 Venta registrada con éxito.")
                         st.rerun()
 
+    # ==========================================
+    # SALIDAS DE CAJA (REGISTRO + EDICIÓN Y ELIMINACIÓN)
+    # ==========================================
     with tab_salida:
         st.subheader("💸 Registrar Salida de Caja")
         with st.form("form_salida"):
@@ -1223,8 +1129,74 @@ elif opcion == "🛒 Ventas y Cierre de Caja":
                 and motivo_s
             ):
                 registrar_salida_caja(motivo_s, monto_s, metodo_s)
-                st.success("Salida registrada.")
+                st.success("Salida registrada correctamente.")
                 st.rerun()
+
+        st.markdown("---")
+        st.subheader("✏️ Historial y Edición de Salidas")
+        df_salidas = obtener_salidas_caja()
+
+        if df_salidas.empty:
+            st.info("No hay salidas de caja registradas.")
+        else:
+            st.dataframe(df_salidas, use_container_width=True)
+
+            opts_salidas = [
+                f"{r['id']} - {r['motivo']} | {formatear_gs(r['monto'])} |"
+                f" {r['fecha_hora']}"
+                for _, r in df_salidas.iterrows()
+            ]
+            salida_sel = st.selectbox(
+                "Selecciona una salida para Modificar o Eliminar:", opts_salidas
+            )
+
+            if salida_sel:
+                id_sal = salida_sel.split(" - ")[0]
+                row_sal = df_salidas[
+                    df_salidas["id"].astype(str) == str(id_sal)
+                ].iloc[0]
+
+                col_es1, col_es2, col_es3 = st.columns(3)
+                with col_es1:
+                    edit_motivo = st.text_input(
+                        "Motivo:",
+                        value=row_sal["motivo"],
+                        key=f"edit_m_{id_sal}",
+                    )
+                with col_es2:
+                    edit_monto = st.number_input(
+                        "Monto (Gs.):",
+                        min_value=1,
+                        value=int(row_sal["monto"]),
+                        key=f"edit_mo_{id_sal}",
+                    )
+                with col_es3:
+                    metodos_lista = ["Efectivo", "Transferencia / QR", "Tarjeta"]
+                    idx_m = (
+                        metodos_lista.index(row_sal["metodo_pago"])
+                        if row_sal["metodo_pago"] in metodos_lista
+                        else 0
+                    )
+                    edit_metodo = st.selectbox(
+                        "Método:",
+                        metodos_lista,
+                        index=idx_m,
+                        key=f"edit_me_{id_sal}",
+                    )
+
+                col_btn1, col_btn2 = st.columns(2)
+                with col_btn1:
+                    if st.button("💾 Guardar Cambios", type="primary"):
+                        actualizar_salida_caja(
+                            id_sal, edit_motivo, edit_monto, edit_metodo
+                        )
+                        st.success("Salida actualizada con éxito.")
+                        st.rerun()
+                with col_btn2:
+                    if st.button("🗑️ Eliminar Salida"):
+                        eliminar_salida_caja(id_sal)
+                        st.warning("Salida de caja eliminada.")
+                        st.rerun()
 
     with tab_cierre:
         fecha_hoy_str = date.today().strftime("%Y-%m-%d")
@@ -1280,6 +1252,106 @@ elif opcion == "🛒 Ventas y Cierre de Caja":
         else:
             st.info("Sin registros de cierre para la fecha elegida.")
 
+# ==========================================
+# GESTOR DE PROVEEDORES
+# ==========================================
+elif opcion == "🏬 Gestor de Proveedores":
+    st.markdown(
+        '<p class="main-title">🏬 Gestor de Proveedores</p>',
+        unsafe_allow_html=True,
+    )
+    st.subheader("➕ Registrar Nuevo Proveedor")
+    with st.form("form_prov"):
+        nom = st.text_input("Nombre / Razón Social:")
+        ruc = st.text_input("RUC / CI:")
+        tel = st.text_input("Teléfono:")
+        ciu = st.text_input("Ciudad:")
+        if st.form_submit_button("Guardar Proveedor", type="primary"):
+            if nom:
+                registrar_proveedor(nom, ruc, tel, ciu)
+                st.success(
+                    f"Proveedor '{nom}' registrado. ¡Ya puedes seleccionarlo"
+                    " en Compras!"
+                )
+                st.rerun()
+
+    st.markdown("---")
+    st.subheader("📋 Lista de Proveedores Registrados")
+    df_p = obtener_proveedores()
+    if df_p.empty:
+        st.info("Aún no tienes proveedores registrados.")
+    else:
+        st.dataframe(df_p, use_container_width=True)
+
+# ==========================================
+# DEUDAS CON PROVEEDORES / CUENTAS POR PAGAR
+# ==========================================
+elif opcion == "📜 Deudas con Proveedores":
+    st.markdown(
+        '<p class="main-title">📜 Deudas por Pagar a Proveedores</p>',
+        unsafe_allow_html=True,
+    )
+    df_compras = obtener_compras_proveedores()
+
+    if df_compras.empty:
+        st.info("No hay registros de compras.")
+    else:
+        df_pendientes = df_compras[df_compras["estado_pago"] == "Pendiente"]
+        if df_pendientes.empty:
+            st.success("🎉 ¡Felicidades! No tienes deudas pendientes con ningún proveedor.")
+        else:
+            st.warning(
+                f"⚠️ Tienes {len(df_pendientes)} compras pendientes de pago."
+            )
+            st.dataframe(df_pendientes, use_container_width=True)
+
+            st.markdown("---")
+            st.subheader("💵 Registrar Pago / Saldar Deuda a Proveedor")
+            opts = [
+                f"{r['id']} | {r['proveedor_nombre']} | Concepto: {r['concepto']}"
+                f" | Total: {formatear_gs(r['monto_total'])}"
+                for _, r in df_pendientes.iterrows()
+            ]
+            c_sel = st.selectbox("Selecciona la compra a saldar:", opts)
+
+            if c_sel:
+                compra_id = c_sel.split(" | ")[0]
+                row_c = df_pendientes[
+                    df_pendientes["id"].astype(str) == str(compra_id)
+                ].iloc[0]
+
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    monto_pago = st.number_input(
+                        "Monto a Pagar (Gs.):",
+                        min_value=1,
+                        max_value=int(row_c["monto_total"]),
+                        value=int(row_c["monto_total"]),
+                    )
+                with col_p2:
+                    metodo_pago = st.selectbox(
+                        "Método de Pago:", ["Efectivo", "Transferencia / QR"]
+                    )
+
+                if st.button("✅ Registrar Pago y Saldar", type="primary"):
+                    registrar_pago_proveedor(
+                        compra_id,
+                        row_c["proveedor_nombre"],
+                        monto_pago,
+                        metodo_pago,
+                    )
+                    registrar_salida_caja(
+                        f"Pago Proveedor {row_c['proveedor_nombre']} (Compra #{compra_id})",
+                        monto_pago,
+                        metodo_pago,
+                    )
+                    actualizar_estado_compra(compra_id, "Pagado")
+                    st.success("Pago registrado y cargado a salidas de caja.")
+                    st.rerun()
+
+# ==========================================
+# RESTO DEL CÓDIGO (COMPRAS, PRODUCCIÓN, ETC.)
+# ==========================================
 elif opcion == "🚚 Compras a Proveedores":
     st.markdown(
         '<p class="main-title">🚚 Registrar Compras a Proveedores</p>',
