@@ -1024,7 +1024,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         key="select_v",
                     )
                 
-                        if p_sel:
+                    if p_sel:
                     id_p = str(p_sel.split(" - ")[0])
                     p_row = df_con_stock[
                         df_con_stock["id"].astype(str) == id_p
