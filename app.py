@@ -941,6 +941,7 @@ st.markdown(
 )
 
 # Menú Lateral
+# Menú Lateral
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 
@@ -948,9 +949,7 @@ opcion = st.sidebar.radio(
     "Selecciona una opción:",
     [
         "🛒 Ventas y Cierre de Caja",
-        "🏬 Gestor de Proveedores",
-        "🚚 Compras a Proveedores",
-        "📜 Deudas con Proveedores",
+        "🏬 Gestor de Proveedores",  # <-- Ahora reúne todo lo de proveedores
         "💳 Deudas de Clientes",
         "👥 Gestor de Clientes",
         "📈 Flujo de Caja Mensual",
