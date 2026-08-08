@@ -992,28 +992,29 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 st.warning("⚠️ Todos los productos están sin stock.")
             else:
                 st.subheader("1️⃣ Agregar productos al carrito")
-                lista_prods = []
+                
+                # Diccionario para ocultar el ID de Firestore en el texto
+                opciones_dict = {}
                 for _, r in df_con_stock.iterrows():
                     cod_str = str(r.get("codigo_barras", "")).strip()
                     prefix_cod = (
-                        f"[{cod_str}] " if cod_str and cod_str != "nan" else ""
+                        f"[{cod_str}] " if cod_str and cod_str != "nan" and cod_str != "" else ""
                     )
-                    lista_prods.append(
-                        f"{r['id']} - {prefix_cod}{r['nombre']}"
-                        f" ({r['marca']}) - Stock: {r['stock']}"
-                    )
+                    # Texto limpio para mostrar en pantalla
+                    label = f"{prefix_cod}{r['nombre']} ({r['marca']}) - Stock: {r['stock']}"
+                    opciones_dict[label] = r['id']
 
                 col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
                 with col_a1:
-                    p_sel = st.selectbox(
+                    p_sel_label = st.selectbox(
                         "🔍 Buscar o Escanear Código:",
-                        lista_prods,
+                        options=list(opciones_dict.keys()),
                         index=None,
                         key="select_v",
                     )
 
-                if p_sel:
-                    id_p = str(p_sel.split(" - ")[0])
+                if p_sel_label:
+                    id_p = str(opciones_dict[p_sel_label])
                     p_row = df_con_stock[
                         df_con_stock["id"].astype(str) == id_p
                     ].iloc[0]
