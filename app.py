@@ -1061,8 +1061,27 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 
             st.dataframe(df_car_show, use_container_width=True)
 
-            monto_total_venta = sum(item["subtotal"] for item in st.session_state.carrito)
-            st.markdown(f"### Total: **{formatear_gs(monto_total_venta)}**")
+            subtotal_venta = sum(item["subtotal"] for item in st.session_state.carrito)
+
+            # --- SECCIÓN DE DESCUENTO EN GUARANÍES ---
+            col_des1, col_des2 = st.columns([1, 2])
+            with col_des1:
+                descuento = st.number_input(
+                    "🏷️ Descuento (Gs.):",
+                    min_value=0,
+                    max_value=subtotal_venta,
+                    value=0,
+                    step=1000,
+                    key="descuento_v"
+                )
+
+            monto_total_venta = subtotal_venta - descuento
+
+            # Muestra de Totales
+            if descuento > 0:
+                st.markdown(f"Subtotal: ~~{formatear_gs(subtotal_venta)}~~ | Descuento: -{formatear_gs(descuento)}")
+            
+            st.markdown(f"### Total Final: **{formatear_gs(monto_total_venta)}**")
 
             col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
             with col_c1:
@@ -1083,13 +1102,15 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 st.write("")
                 st.write("")
                 if st.button("✅ Finalizar Venta", type="primary"):
+                    # Calcular proporcionadamente el precio con descuento o pasarlo directamente
                     for item in st.session_state.carrito:
+                        # Si deseas registrar el total global con descuento aplicado
                         registrar_venta(
                             producto_id=item["id"],
                             producto_nombre=item["nombre"],
                             cantidad=item["cantidad"],
                             precio_unitario=item["precio_unitario"],
-                            total=item["subtotal"],
+                            total=item["subtotal"] - int(descuento * (item["subtotal"] / subtotal_venta)),
                             tipo_venta=tipo_venta,
                             metodo_pago=metodo_pago,
                             cliente_nombre=cliente_sel,
