@@ -1186,73 +1186,184 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 # ==========================================
 # GESTOR DE PROVEEDORES
 # ==========================================
+# ==========================================
+# GESTOR DE PROVEEDORES (COMPLETO)
+# ==========================================
 elif opcion == "🏬 Gestor de Proveedores":
     st.markdown('<p class="main-title">🏬 Gestor de Proveedores</p>', unsafe_allow_html=True)
-    with st.form("form_proveedor"):
-        col1, col2 = st.columns(2)
-        nombre = col1.text_input("Nombre / Razón Social:")
-        ruc_ci = col2.text_input("RUC o CI:")
-        telefono = col1.text_input("Teléfono:")
-        ciudad = col2.text_input("Ciudad:")
-        if st.form_submit_button("Guardar Proveedor", type="primary"):
-            if nombre.strip():
-                registrar_proveedor(nombre, ruc_ci, telefono, ciudad)
-                st.success("Proveedor registrado correctamente.")
-                st.rerun()
-            else:
-                st.warning("El nombre es obligatorio.")
+    
+    tab_prov, tab_compras, tab_deudas = st.tabs([
+        "👤 Registro / Proveedores", 
+        "🚚 Registrar Compra", 
+        "📜 Deudas por Pagar"
+    ])
 
-    st.markdown("---")
-    st.dataframe(obtener_proveedores(), use_container_width=True)
+    # ---------------------------------------------------------
+    # TAB 1: REGISTRO Y LISTA DE PROVEEDORES
+    # ---------------------------------------------------------
+    with tab_prov:
+        st.subheader("Registrar Nuevo Proveedor")
+        with st.form("form_proveedor"):
+            col1, col2 = st.columns(2)
+            nombre = col1.text_input("Nombre / Razón Social:")
+            ruc_ci = col2.text_input("RUC o CI:")
+            telefono = col1.text_input("Teléfono:")
+            ciudad = col2.text_input("Ciudad:")
+            
+            if st.form_submit_button("💾 Guardar Proveedor", type="primary"):
+                if nombre.strip():
+                    registrar_proveedor(nombre, ruc_ci, telefono, ciudad)
+                    st.success("¡Proveedor registrado correctamente!")
+                    st.rerun()
+                else:
+                    st.warning("El Nombre / Razón Social es obligatorio.")
 
-# ==========================================
-# COMPRAS A PROVEEDORES
-# ==========================================
-elif opcion == "🚚 Compras a Proveedores":
-    st.markdown('<p class="main-title">🚚 Compras a Proveedores</p>', unsafe_allow_html=True)
-    df_prov = obtener_proveedores()
-    if df_prov.empty:
-        st.info("Primero debes registrar proveedores en el Gestor de Proveedores.")
-    else:
-        with st.form("form_compra_prov"):
-            prov_sel = st.selectbox("Proveedor:", df_prov["nombre"].tolist())
-            concepto = st.text_input("Concepto / Descripción del pedido:")
-            monto = st.number_input("Monto Total (Gs.):", min_value=1, step=5000)
-            tipo_compra = st.selectbox("Tipo de Compra:", ["Contado", "Crédito"])
-            metodo_pago = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Otro"])
-            if st.form_submit_button("Registrar Compra", type="primary"):
-                registrar_compra_proveedor(prov_sel, concepto, monto, tipo_compra, metodo_pago)
-                st.success("Compra a proveedor registrada.")
-                st.rerun()
-
-    st.markdown("---")
-    df_compras = obtener_compras_proveedores()
-    if not df_compras.empty:
-        df_show = df_compras.copy()
-        df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
-        st.dataframe(df_show, use_container_width=True)
-
-# ==========================================
-# DEUDAS CON PROVEEDORES
-# ==========================================
-elif opcion == "📜 Deudas con Proveedores":
-    st.markdown('<p class="main-title">📜 Deudas con Proveedores</p>', unsafe_allow_html=True)
-    df_compras = obtener_compras_proveedores()
-    if not df_compras.empty:
-        deudas = df_compras[df_compras["estado_pago"] == "Pendiente"]
-        if not deudas.empty:
-            df_show = deudas.copy()
-            df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
-            st.dataframe(df_show, use_container_width=True)
-
-            st.subheader("Marcar Deuda como Pagada")
-            id_compra = st.selectbox("Selecciona ID de Compra a pagar:", deudas["id"].tolist())
-            if st.button("Marcar como Pagado", type="primary"):
-                actualizar_estado_compra(id_compra, "Pagado")
-                st.success("Deuda actualizada a PAGADO.")
-                st.rerun()
+        st.markdown("---")
+        st.subheader("📋 Lista de Proveedores")
+        df_prov = obtener_proveedores()
+        if not df_prov.empty:
+            st.dataframe(df_prov, use_container_width=True)
         else:
-            st.success("🎉 ¡No hay deudas pendientes con proveedores!")
+            st.info("No hay proveedores registrados aún.")
+
+    # ---------------------------------------------------------
+    # TAB 2: REGISTRAR COMPRA A PROVEEDOR
+    # ---------------------------------------------------------
+    with tab_compras:
+        st.subheader("Registrar Compra a Proveedor")
+        df_prov = obtener_proveedores()
+        
+        if df_prov.empty:
+            st.warning("⚠️ Primero debes registrar al menos un proveedor en la pestaña anterior.")
+        else:
+            with st.form("form_compra_prov"):
+                prov_sel = st.selectbox("Seleccionar Proveedor:", df_prov["nombre"].tolist())
+                concepto = st.text_input("Concepto / Descripción de la compra:")
+                monto = st.number_input("Monto Total (Gs.):", min_value=1, step=5000)
+                tipo_compra = st.selectbox("Tipo de Compra:", ["Contado", "Crédito"])
+                metodo_pago = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"])
+                
+                if st.form_submit_button("🚚 Registrar Compra", type="primary"):
+                    if concepto.strip():
+                        # Si es Contado se guarda pagado, si es Crédito queda Pendiente
+                        estado_pago = "Pagado" if tipo_compra == "Contado" else "Pendiente"
+                        
+                        registrar_compra_proveedor(
+                            proveedor=prov_sel, 
+                            concepto=concepto, 
+                            monto=monto, 
+                            tipo_compra=tipo_compra, 
+                            metodo_pago=metodo_pago,
+                            estado_pago=estado_pago
+                        )
+                        st.success("¡Compra a proveedor registrada exitosamente!")
+                        st.rerun()
+                    else:
+                        st.warning("Por favor ingresa un concepto o descripción para la compra.")
+
+            st.markdown("---")
+            st.subheader("📋 Historial de Compras")
+            df_compras = obtener_compras_proveedores()
+            if not df_compras.empty:
+                df_show = df_compras.copy()
+                if "monto_total" in df_show.columns:
+                    df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
+                st.dataframe(df_show, use_container_width=True)
+
+    # ---------------------------------------------------------
+    # TAB 3: DEUDAS Y PAGOS (PARCIALES Y TOTALES)
+    # ---------------------------------------------------------
+    with tab_deudas:
+        st.subheader("📜 Deudas Pendientes con Proveedores")
+        df_compras = obtener_compras_proveedores()
+        
+        if not df_compras.empty:
+            # Filtrar las compras que no están 100% pagadas
+            if "estado_pago" in df_compras.columns:
+                deudas = df_compras[df_compras["estado_pago"].isin(["Pendiente", "Parcial"])]
+            else:
+                deudas = pd.DataFrame()
+
+            if not deudas.empty:
+                # Asegurar columnas numéricas para el saldo
+                deudas["monto_total"] = deudas["monto_total"].astype(int)
+                if "monto_pagado" not in deudas.columns:
+                    deudas["monto_pagado"] = 0
+                else:
+                    deudas["monto_pagado"] = deudas["monto_pagado"].fillna(0).astype(int)
+
+                deudas["saldo_pendiente"] = deudas["monto_total"] - deudas["monto_pagado"]
+
+                # Mostrar tabla con formato visual
+                df_show_deudas = deudas.copy()
+                df_show_deudas["monto_total"] = df_show_deudas["monto_total"].apply(formatear_gs)
+                df_show_deudas["monto_pagado"] = df_show_deudas["monto_pagado"].apply(formatear_gs)
+                df_show_deudas["saldo_pendiente"] = df_show_deudas["saldo_pendiente"].apply(formatear_gs)
+
+                st.dataframe(df_show_deudas, use_container_width=True)
+
+                st.markdown("---")
+                st.subheader("💵 Registrar Pago / Entrega")
+
+                # Diccionario para seleccionar fácilmente la compra
+                dict_deudas = {
+                    f"ID: {r['id']} | {r['proveedor']} | Saldo: {formatear_gs(r['saldo_pendiente'])}": r['id']
+                    for _, r in deudas.iterrows()
+                }
+
+                compra_sel_label = st.selectbox("Selecciona la compra a pagar:", options=list(dict_deudas.keys()))
+                
+                if compra_sel_label:
+                    id_compra_sel = dict_deudas[compra_sel_label]
+                    compra_row = deudas[deudas["id"] == id_compra_sel].iloc[0]
+
+                    saldo_actual = int(compra_row["saldo_pendiente"])
+                    monto_pagado_actual = int(compra_row["monto_pagado"])
+                    monto_total_original = int(compra_row["monto_total"])
+
+                    col_p1, col_p2 = st.columns(2)
+                    col_p1.metric("Monto Total Compra", formatear_gs(monto_total_original))
+                    col_p2.metric("Saldo Pendiente Actual", formatear_gs(saldo_actual))
+
+                    with st.form("form_pago_proveedor"):
+                        monto_a_pagar = st.number_input(
+                            "Monto a Abonar (Gs.):", 
+                            min_value=1, 
+                            max_value=saldo_actual, 
+                            value=saldo_actual, 
+                            step=5000,
+                            help="Puedes ingresar el monto total para cancelar la deuda o un monto menor para un pago parcial."
+                        )
+                        metodo_pago_deuda = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Otro"])
+
+                        if st.form_submit_button("✅ Confirmar Pago", type="primary"):
+                            nuevo_monto_pagado = monto_pagado_actual + monto_a_pagar
+                            
+                            if nuevo_monto_pagado >= monto_total_original:
+                                nuevo_estado = "Pagado"
+                            else:
+                                nuevo_estado = "Parcial"
+
+                            # Actualizar registro en BD o Firestore
+                            actualizar_pago_compra_proveedor(
+                                id_compra=id_compra_sel, 
+                                nuevo_monto_pagado=nuevo_monto_pagado, 
+                                nuevo_estado=nuevo_estado
+                            )
+
+                            # Opcional: Registrar la salida de caja correspondiente
+                            registrar_salida_caja(
+                                motivo=f"Pago deuda proveedor {compra_row['proveedor']} (ID Compra: {id_compra_sel})",
+                                monto=monto_a_pagar,
+                                metodo=metodo_pago_deuda
+                            )
+
+                            st.success(f"¡Pago de {formatear_gs(monto_a_pagar)} registrado con éxito! Estado: {nuevo_estado}")
+                            st.rerun()
+            else:
+                st.success("🎉 ¡No hay deudas pendientes con proveedores!")
+        else:
+            st.info("No hay registro de compras aún.")
 
 # ==========================================
 # DEUDAS DE CLIENTES
