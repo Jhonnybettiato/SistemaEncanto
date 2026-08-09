@@ -1273,6 +1273,9 @@ elif opcion == "🏬 Gestor de Proveedores":
     # ---------------------------------------------------------
     # TAB 3: DEUDAS Y PAGOS (PARCIALES Y TOTALES)
     # ---------------------------------------------------------
+    # ---------------------------------------------------------
+    # TAB 3: DEUDAS Y PAGOS (PARCIALES Y TOTALES)
+    # ---------------------------------------------------------
     with tab_deudas:
         st.subheader("📜 Deudas Pendientes con Proveedores")
         df_compras = obtener_compras_proveedores()
@@ -1280,13 +1283,13 @@ elif opcion == "🏬 Gestor de Proveedores":
         if not df_compras.empty:
             # Filtrar las compras que no están 100% pagadas
             if "estado_pago" in df_compras.columns:
-                deudas = df_compras[df_compras["estado_pago"].isin(["Pendiente", "Parcial"])]
+                deudas = df_compras[df_compras["estado_pago"].isin(["Pendiente", "Parcial"])].copy()
             else:
                 deudas = pd.DataFrame()
 
             if not deudas.empty:
                 # Asegurar columnas numéricas para el saldo
-                deudas["monto_total"] = deudas["monto_total"].astype(int)
+                deudas["monto_total"] = deudas["monto_total"].fillna(0).astype(int)
                 if "monto_pagado" not in deudas.columns:
                     deudas["monto_pagado"] = 0
                 else:
@@ -1305,11 +1308,12 @@ elif opcion == "🏬 Gestor de Proveedores":
                 st.markdown("---")
                 st.subheader("💵 Registrar Pago / Entrega")
 
-                # Diccionario para seleccionar fácilmente la compra
-                dict_deudas = {
-                    f"ID: {r['id']} | {r['proveedor']} | Saldo: {formatear_gs(r['saldo_pendiente'])}": r['id']
-                    for _, r in deudas.iterrows()
-                }
+                # Diccionario seguro (evita KeyError si no encuentra la columna 'proveedor')
+                dict_deudas = {}
+                for _, r in deudas.iterrows():
+                    nombre_prov = r.get('proveedor', r.get('proveedor_nombre', r.get('nombre_proveedor', 'Proveedor')))
+                    label = f"ID: {r['id']} | {nombre_prov} | Saldo: {formatear_gs(r['saldo_pendiente'])}"
+                    dict_deudas[label] = r['id']
 
                 compra_sel_label = st.selectbox("Selecciona la compra a pagar:", options=list(dict_deudas.keys()))
                 
@@ -1320,6 +1324,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                     saldo_actual = int(compra_row["saldo_pendiente"])
                     monto_pagado_actual = int(compra_row["monto_pagado"])
                     monto_total_original = int(compra_row["monto_total"])
+                    prov_nombre_final = compra_row.get('proveedor', compra_row.get('proveedor_nombre', 'Proveedor'))
 
                     col_p1, col_p2 = st.columns(2)
                     col_p1.metric("Monto Total Compra", formatear_gs(monto_total_original))
@@ -1329,7 +1334,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                         monto_a_pagar = st.number_input(
                             "Monto a Abonar (Gs.):", 
                             min_value=1, 
-                            max_value=saldo_actual, 
+                            max_value=max(1, saldo_actual), 
                             value=saldo_actual, 
                             step=5000,
                             help="Puedes ingresar el monto total para cancelar la deuda o un monto menor para un pago parcial."
@@ -1344,16 +1349,16 @@ elif opcion == "🏬 Gestor de Proveedores":
                             else:
                                 nuevo_estado = "Parcial"
 
-                            # Actualizar registro en BD o Firestore
+                            # Actualizar registro en BD
                             actualizar_pago_compra_proveedor(
                                 id_compra=id_compra_sel, 
                                 nuevo_monto_pagado=nuevo_monto_pagado, 
                                 nuevo_estado=nuevo_estado
                             )
 
-                            # Opcional: Registrar la salida de caja correspondiente
+                            # Registrar la salida de caja
                             registrar_salida_caja(
-                                motivo=f"Pago deuda proveedor {compra_row['proveedor']} (ID Compra: {id_compra_sel})",
+                                motivo=f"Pago deuda proveedor {prov_nombre_final} (ID Compra: {id_compra_sel})",
                                 monto=monto_a_pagar,
                                 metodo=metodo_pago_deuda
                             )
