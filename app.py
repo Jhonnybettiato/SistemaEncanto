@@ -1318,22 +1318,20 @@ elif opcion == "🏬 Gestor de Proveedores":
                 df_show_deudas["saldo_pendiente"] = df_show_deudas["saldo_pendiente"].apply(formatear_gs)
 
                 # =========================================================
-                # REORDENAR COLUMNAS: FECHA PRIMERO, LUEGO PROVEEDOR
+                # ORDENAR COLUMNAS Y EXCLUIR 'estado_pago'
                 # =========================================================
                 columnas_deseadas = [
                     "fecha_hora", "fecha", 
-                    "proveedor_nombre", "proveedor", "nombre_proveedor", 
-                    "concepto",
-                    "monto_total",
-                    "monto_pagado",
-                    "saldo_pendiente",
+                    "proveedor_nombre", "proveedor", "nombre_proveedor",
+                    "concepto", "monto_total", "monto_pagado", 
+                    "saldo_pendiente", "tipo_compra", "metodo_pago", "id"
                 ]
-                # Ordenar dinámicamente según las columnas reales existentes
+                
+                # Seleccionamos solo las columnas deseadas que existan en el DataFrame
                 cols_existentes = [c for c in columnas_deseadas if c in df_show_deudas.columns]
-                cols_restantes = [c for c in df_show_deudas.columns if c not in cols_existentes]
-                df_show_deudas = df_show_deudas[cols_existentes + cols_restantes]
-
-                st.dataframe(df_show_deudas, use_container_width=True)
+                
+                # Renderizamos la tabla limpia sin 'estado_pago'
+                st.dataframe(df_show_deudas[cols_existentes], use_container_width=True)
 
                 st.markdown("---")
                 st.subheader("💵 Registrar Pago / Entrega")
