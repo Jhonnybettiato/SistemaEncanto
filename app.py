@@ -1583,14 +1583,23 @@ elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Ed
         df_p = obtener_productos()
         
         if not df_p.empty:
-            prod_sel = st.selectbox(
+            # Armamos una lista limpia de nombres (con código de barras opcional) ocultando el ID
+            dict_productos = {}
+            for _, r in df_p.iterrows():
+                # Si tiene código de barras, lo agrega entre paréntesis para diferenciar productos con mismo nombre
+                cod = str(r.get('codigo_barras', '')).strip()
+                label = f"{r['nombre']} (Cód: {cod})" if cod and cod != '-' else f"{r['nombre']}"
+                dict_productos[label] = r['id']
+
+            prod_sel_label = st.selectbox(
                 "🔍 Selecciona un producto a modificar:", 
-                [f"{r['id']} - {r['nombre']}" for _, r in df_p.iterrows()],
+                options=list(dict_productos.keys()),
                 key="select_edit_prod"
             )
             
-            if prod_sel:
-                id_p = str(prod_sel.split(" - ")[0])
+            if prod_sel_label:
+                # Recuperamos el ID oculto internamente
+                id_p = str(dict_productos[prod_sel_label])
                 p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
 
                 cats = obtener_categorias()
