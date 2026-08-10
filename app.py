@@ -955,7 +955,6 @@ opcion = st.sidebar.radio(
         "📈 Flujo de Caja Mensual",
         "📦 Ver Stock / Inventario",
         "➕ Registrar Producto",
-        "✏️ Editar / Modificar Producto",
         "🏷️ Gestor de Categorías",
     ],
 )
@@ -1540,72 +1539,87 @@ elif opcion == "📦 Ver Stock / Inventario":
         st.info("No hay productos en el inventario.")
 
 # ==========================================
-# REGISTRAR PRODUCTO
+# GESTOR DE PRODUCTOS (REGISTRAR Y MODIFICAR)
 # ==========================================
-elif opcion == "➕ Registrar Producto":
-    st.markdown('<p class="main-title">➕ Registrar Producto</p>', unsafe_allow_html=True)
-    cats = obtener_categorias()
-    marcas = obtener_marcas()
+elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Editar / Modificar Producto"]:
+    st.markdown('<p class="main-title">📦 Gestor de Productos</p>', unsafe_allow_html=True)
+    
+    tab_reg_p, tab_edit_p = st.tabs([
+        "➕ Registrar Producto", 
+        "✏️ Editar / Modificar Producto"
+    ])
 
-    with st.form("form_reg_prod"):
-        col1, col2 = st.columns(2)
-        cod_barras = col1.text_input("Código de Barras:")
-        nombre = col2.text_input("Nombre del Producto:")
-        cat = col1.selectbox("Categoría:", cats)
-        marca = col2.selectbox("Marca:", marcas)
-        costo = col1.number_input("Precio Costo (Gs.):", min_value=0, step=1000)
-        ganancia = col2.number_input("% Ganancia:", min_value=0, value=30)
-        
-        precio_sugerido = int(costo + (costo * (ganancia / 100)))
-        precio_venta = col1.number_input("Precio Venta (Gs.):", min_value=0, value=precio_sugerido, step=1000)
-        stock = col2.number_input("Stock Inicial:", min_value=0, value=1)
-        desc = st.text_area("Descripción:")
+    # --- Pestaña 1: Registrar Producto ---
+    with tab_reg_p:
+        st.subheader("Registrar Nuevo Producto")
+        cats = obtener_categorias()
+        marcas = obtener_marcas()
 
-        if st.form_submit_button("Guardar Producto", type="primary"):
-            if nombre.strip():
-                registrar_producto(cod_barras, nombre, cat, marca, costo, ganancia, precio_venta, stock, desc)
-                st.success("¡Producto registrado exitosamente!")
-                st.rerun()
-            else:
-                st.warning("El nombre del producto es obligatorio.")
+        with st.form("form_reg_prod"):
+            col1, col2 = st.columns(2)
+            cod_barras = col1.text_input("Código de Barras:")
+            nombre = col2.text_input("Nombre del Producto:")
+            cat = col1.selectbox("Categoría:", cats)
+            marca = col2.selectbox("Marca:", marcas)
+            costo = col1.number_input("Precio Costo (Gs.):", min_value=0, step=1000)
+            ganancia = col2.number_input("% Ganancia:", min_value=0, value=30)
+            
+            precio_sugerido = int(costo + (costo * (ganancia / 100)))
+            precio_venta = col1.number_input("Precio Venta (Gs.):", min_value=0, value=precio_sugerido, step=1000)
+            stock = col2.number_input("Stock Inicial:", min_value=0, value=1)
+            desc = st.text_area("Descripción:")
 
-# ==========================================
-# EDITAR / MODIFICAR PRODUCTO
-# ==========================================
-elif opcion == "✏️ Editar / Modificar Producto":
-    st.markdown('<p class="main-title">✏️ Editar / Modificar Producto</p>', unsafe_allow_html=True)
-    df_p = obtener_productos()
-    if not df_p.empty:
-        prod_sel = st.selectbox("Selecciona un producto a modificar:", [f"{r['id']} - {r['nombre']}" for _, r in df_p.iterrows()])
-        if prod_sel:
-            id_p = str(prod_sel.split(" - ")[0])
-            p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
-
-            cats = obtener_categorias()
-            marcas = obtener_marcas()
-
-            with st.form("form_edit_prod"):
-                col1, col2 = st.columns(2)
-                cod_barras = col1.text_input("Código de Barras:", value=str(p_row.get("codigo_barras", "")))
-                nombre = col2.text_input("Nombre del Producto:", value=p_row["nombre"])
-                cat = col1.selectbox("Categoría:", cats, index=cats.index(p_row["categoria"]) if p_row["categoria"] in cats else 0)
-                marca = col2.selectbox("Marca:", marcas, index=marcas.index(p_row["marca"]) if p_row["marca"] in marcas else 0)
-                costo = col1.number_input("Precio Costo (Gs.):", min_value=0, value=int(p_row["precio_costo"]))
-                ganancia = col2.number_input("% Ganancia:", min_value=0, value=int(p_row["ganancia_porcentaje"]))
-                precio_venta = col1.number_input("Precio Venta (Gs.):", min_value=0, value=int(p_row["precio_venta"]))
-                stock = col2.number_input("Stock:", min_value=0, value=int(p_row["stock"]))
-                desc = st.text_area("Descripción:", value=str(p_row.get("descripcion", "")))
-
-                c_save, c_del = st.columns([1, 1])
-                if c_save.form_submit_button("Guardar Cambios", type="primary"):
-                    actualizar_producto(id_p, cod_barras, nombre, cat, marca, costo, ganancia, precio_venta, stock, desc)
-                    st.success("Producto actualizado correctamente.")
+            if st.form_submit_button("Guardar Producto", type="primary"):
+                if nombre.strip():
+                    registrar_producto(cod_barras, nombre, cat, marca, costo, ganancia, precio_venta, stock, desc)
+                    st.success("¡Producto registrado exitosamente!")
                     st.rerun()
+                else:
+                    st.warning("El nombre del producto es obligatorio.")
 
-            if st.button("🗑️ Eliminar Producto"):
-                eliminar_producto(id_p)
-                st.success("Producto eliminado.")
-                st.rerun()
+    # --- Pestaña 2: Editar / Modificar Producto ---
+    with tab_edit_p:
+        st.subheader("Modificar / Eliminar Producto")
+        df_p = obtener_productos()
+        
+        if not df_p.empty:
+            prod_sel = st.selectbox(
+                "🔍 Selecciona un producto a modificar:", 
+                [f"{r['id']} - {r['nombre']}" for _, r in df_p.iterrows()],
+                key="select_edit_prod"
+            )
+            
+            if prod_sel:
+                id_p = str(prod_sel.split(" - ")[0])
+                p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
+
+                cats = obtener_categorias()
+                marcas = obtener_marcas()
+
+                with st.form("form_edit_prod"):
+                    col1, col2 = st.columns(2)
+                    cod_barras = col1.text_input("Código de Barras:", value=str(p_row.get("codigo_barras", "")))
+                    nombre = col2.text_input("Nombre del Producto:", value=p_row["nombre"])
+                    cat = col1.selectbox("Categoría:", cats, index=cats.index(p_row["categoria"]) if p_row["categoria"] in cats else 0)
+                    marca = col2.selectbox("Marca:", marcas, index=marcas.index(p_row["marca"]) if p_row["marca"] in marcas else 0)
+                    costo = col1.number_input("Precio Costo (Gs.):", min_value=0, value=int(p_row["precio_costo"]))
+                    ganancia = col2.number_input("% Ganancia:", min_value=0, value=int(p_row["ganancia_porcentaje"]))
+                    precio_venta = col1.number_input("Precio Venta (Gs.):", min_value=0, value=int(p_row["precio_venta"]))
+                    stock = col2.number_input("Stock:", min_value=0, value=int(p_row["stock"]))
+                    desc = st.text_area("Descripción:", value=str(p_row.get("descripcion", "")))
+
+                    c_save, _ = st.columns([1, 1])
+                    if c_save.form_submit_button("Guardar Cambios", type="primary"):
+                        actualizar_producto(id_p, cod_barras, nombre, cat, marca, costo, ganancia, precio_venta, stock, desc)
+                        st.success("Producto actualizado correctamente.")
+                        st.rerun()
+
+                if st.button("🗑️ Eliminar Producto", key="btn_del_prod"):
+                    eliminar_producto(id_p)
+                    st.success("Producto eliminado.")
+                    st.rerun()
+        else:
+            st.info("No hay productos registrados para modificar.")
 
 # ==========================================
 # GESTOR DE CATEGORÍAS Y MARCAS (UNIFICADO)
