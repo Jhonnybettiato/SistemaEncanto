@@ -1609,9 +1609,9 @@ elif opcion == "✏️ Editar / Modificar Producto":
                 st.rerun()
 
 # ==========================================
-# GESTOR DE CATEGORÍAS Y MARCAS
+# GESTOR DE CATEGORÍAS Y MARCAS (UNIFICADO)
 # ==========================================
-elif opcion in ["🏷️ Gestor de Categorías y Marcas", "Gestor de Categorías y Marcas"]:
+elif opcion in ["🏷️ Gestor de Categorías", "🏢 Gestor de Marcas", "Gestor de Categorías", "Gestor de Marcas"]:
     st.markdown('<p class="main-title">🏷️ Gestor de Categorías y Marcas</p>', unsafe_allow_html=True)
     
     tab_cat, tab_mar = st.tabs(["🏷️ Categorías", "🏢 Marcas"])
@@ -1661,3 +1661,4 @@ elif opcion in ["🏷️ Gestor de Categorías y Marcas", "Gestor de Categorías
 
         st.markdown("---")
         st.write("Marcas actuales:", marcas)
+        
