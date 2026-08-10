@@ -1536,12 +1536,12 @@ elif opcion == "📦 Ver Stock / Inventario":
     if not df_stock.empty:
         columnas_ordenadas = [
             'codigo_barras', 
-            'nombre', 
-            'precio_venta', 
+            'nombre',
             'categoria', 
-            'marca', 
+            'marca',
+            'precio_costo',
             'ganancia_porcentaje', 
-            'precio_costo', 
+            'precio_venta',  
             'descripcion', 
             'id'
         ]
