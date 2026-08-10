@@ -1510,23 +1510,28 @@ elif opcion == "📈 Flujo de Caja Mensual":
 # VER STOCK / INVENTARIO
 # ==========================================
 elif opcion == "📦 Ver Stock / Inventario":
-    # ⚠️ Todo este bloque DEBE llevar 4 espacios a la izquierda
-    columnas_ordenadas = [
-        'codigo_barras', 
-        'nombre', 
-        'precio_venta', 
-        'categoria', 
-        'marca', 
-        'ganancia_porcentaje', 
-        'precio_costo', 
-        'descripcion', 
-        'id'
-    ]
-    cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
-    st.dataframe(df_stock[cols_existentes], use_container_width=True)
+    st.markdown('<p class="main-title">📦 Ver Stock / Inventario</p>', unsafe_allow_html=True)
+    
+    # Cargamos los productos actualizados
+    df_stock = obtener_productos()
+    
+    if not df_stock.empty:
+        columnas_ordenadas = [
+            'codigo_barras', 
+            'nombre', 
+            'precio_venta', 
+            'categoria', 
+            'marca', 
+            'ganancia_porcentaje', 
+            'precio_costo', 
+            'descripcion', 
+            'id'
+        ]
+        cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
+        st.dataframe(df_stock[cols_existentes], use_container_width=True)
+    else:
+        st.info("No hay productos en el inventario.")
 
-elif opcion == "➕ Registrar Producto":
-    # (aquí continúa tu código normal de Registrar Producto)
 # ==========================================
 # REGISTRAR PRODUCTO
 # ==========================================
