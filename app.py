@@ -1509,26 +1509,18 @@ elif opcion == "📈 Flujo de Caja Mensual":
 # ==========================================
 # VER STOCK / INVENTARIO
 # ==========================================
-# 1. Definimos la lista con el orden exacto de las columnas que deseas:
-columnas_ordenadas = [
-    'codigo_barras',
-    'nombre',
-    'precio_venta',
-    'categoria',
-    'marca',
-    'ganancia_porcentaje', # o 'porcentaje' según el nombre en tu DataFrame
-    'precio_costo',
-    'descripcion',
-    'id'                   # Si tu índice o columna ID existe en el DataFrame
-]
+elif opcion == "📦 Ver Stock / Inventario":
+    # Todo el código dentro de esta opción DEBE llevar sangría (4 espacios)
+    columnas_ordenadas = [
+        'codigo_barras', 'nombre', 'precio_venta', 'categoria',
+        'marca', 'ganancia_porcentaje', 'precio_costo', 'descripcion', 'id'
+    ]
+    cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
+    df_mostrar = df_stock[cols_existentes]
+    st.dataframe(df_mostrar, use_container_width=True)
 
-# 2. Filtrar o reordenar el DataFrame antes de mostrarlo:
-# (Asegúrate de incluir solo las columnas que realmente existen en df_stock)
-cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
-df_mostrar = df_stock[cols_existentes]
-
-# 3. Mostrar la tabla en Streamlit:
-st.dataframe(df_mostrar, use_container_width=True)
+elif opcion == "➕ Registrar Producto":
+    # Código de registrar producto...
 
 # ==========================================
 # REGISTRAR PRODUCTO
