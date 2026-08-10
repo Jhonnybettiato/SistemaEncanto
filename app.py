@@ -957,7 +957,6 @@ opcion = st.sidebar.radio(
         "➕ Registrar Producto",
         "✏️ Editar / Modificar Producto",
         "🏷️ Gestor de Categorías",
-        "🏢 Gestor de Marcas",
     ],
 )
 
