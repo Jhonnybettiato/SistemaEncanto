@@ -1484,12 +1484,31 @@ elif opcion == "👥 Gestor de Clientes":
                             st.warning("El Nombre y Apellido no pueden quedar vacíos.")
 
     # --- Pestaña 3: Lista de Clientes ---
-    with tab_lista_c:
-        st.subheader("Listado General de Clientes")
-        if not df_clientes.empty:
-            st.dataframe(df_clientes, use_container_width=True)
-        else:
-            st.info("No hay clientes registrados.")
+    # ==========================================
+    # GESTOR / LISTA DE CLIENTES
+    # ==========================================
+elif opcion == "👥 Gestor de Clientes":
+    st.markdown('<p class="main-title">👥 Listado General de Clientes</p>', unsafe_allow_html=True)
+    
+    # Cargamos la lista de clientes desde la base de datos
+    df_clientes = obtener_clientes()  # Asegúrate de usar la función que tengas definida (ej. obtener_clientes)
+    
+    if not df_clientes.empty:
+        # Definimos el orden exacto solicitado:
+        columnas_ordenadas = [
+            'nombre',
+            'cedula',     # Si en tu base de datos se llama 'ruc' o 'cedula_ruc', ajusta el nombre aquí
+            'telefono',
+            'direccion',
+            'deuda',        # Ajusta a 'deuda_pendiente' o el nombre exacto de la columna si varía
+            'id'
+        ]
+        
+        # Filtramos y reordenamos solo las columnas que existan en el DataFrame
+        cols_existentes = [col for col in columnas_ordenadas if col in df_clientes.columns]
+        st.dataframe(df_clientes[cols_existentes], use_container_width=True)
+    else:
+        st.info("No hay clientes registrados en el sistema.")
 
 # ==========================================
 # FLUJO DE CAJA MENSUAL
