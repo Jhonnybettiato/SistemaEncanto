@@ -1510,18 +1510,23 @@ elif opcion == "📈 Flujo de Caja Mensual":
 # VER STOCK / INVENTARIO
 # ==========================================
 elif opcion == "📦 Ver Stock / Inventario":
-    # Todo el código dentro de esta opción DEBE llevar sangría (4 espacios)
+    # ⚠️ Todo este bloque DEBE llevar 4 espacios a la izquierda
     columnas_ordenadas = [
-        'codigo_barras', 'nombre', 'precio_venta', 'categoria',
-        'marca', 'ganancia_porcentaje', 'precio_costo', 'descripcion', 'id'
+        'codigo_barras', 
+        'nombre', 
+        'precio_venta', 
+        'categoria', 
+        'marca', 
+        'ganancia_porcentaje', 
+        'precio_costo', 
+        'descripcion', 
+        'id'
     ]
     cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
-    df_mostrar = df_stock[cols_existentes]
-    st.dataframe(df_mostrar, use_container_width=True)
+    st.dataframe(df_stock[cols_existentes], use_container_width=True)
 
 elif opcion == "➕ Registrar Producto":
-    # Código de registrar producto...
-
+    # (aquí continúa tu código normal de Registrar Producto)
 # ==========================================
 # REGISTRAR PRODUCTO
 # ==========================================
