@@ -1534,7 +1534,6 @@ elif opcion == "📦 Ver Stock / Inventario":
     df_stock = obtener_productos()
     
     if not df_stock.empty:
-        # Definimos la secuencia exacta de columnas
         columnas_ordenadas = [
             'codigo_barras', 
             'nombre',
@@ -1547,9 +1546,15 @@ elif opcion == "📦 Ver Stock / Inventario":
             'id'
         ]
         
-        # Filtramos y reordenamos solo las columnas que existan en el DataFrame
+        # Filtramos solo las columnas que existan en el DataFrame
         cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
-        st.dataframe(df_stock[cols_existentes], use_container_width=True)
+        
+        # Usamos column_order para forzar la visualización en Streamlit
+        st.dataframe(
+            df_stock, 
+            column_order=cols_existentes, 
+            use_container_width=True
+        )
     else:
         st.info("No hay productos en el inventario.")
 
