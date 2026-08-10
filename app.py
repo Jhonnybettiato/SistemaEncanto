@@ -1327,8 +1327,6 @@ elif opcion == "🏬 Gestor de Proveedores":
                     "monto_total",
                     "monto_pagado",
                     "saldo_pendiente",
-                    "estado_pago", 
-                    "id"
                 ]
                 # Ordenar dinámicamente según las columnas reales existentes
                 cols_existentes = [c for c in columnas_deseadas if c in df_show_deudas.columns]
