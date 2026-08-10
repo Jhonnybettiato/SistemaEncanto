@@ -952,10 +952,10 @@ opcion = st.sidebar.radio(
         "🏬 Gestor de Proveedores",  # <-- Ahora reúne todo lo de proveedores
         "💳 Deudas de Clientes",
         "👥 Gestor de Clientes",
-        "📈 Flujo de Caja Mensual",
         "📦 Ver Stock / Inventario",
         "➕ Registrar Producto",
         "🏷️ Gestor de Categorías",
+        "📈 Flujo de Caja Mensual",
     ],
 )
 
