@@ -1289,9 +1289,7 @@ elif opcion == "🏬 Gestor de Proveedores":
     # ---------------------------------------------------------
     # TAB 3: DEUDAS Y PAGOS (PARCIALES Y TOTALES)
     # ---------------------------------------------------------
-    # ---------------------------------------------------------
-    # TAB 3: DEUDAS Y PAGOS (PARCIALES Y TOTALES)
-    # ---------------------------------------------------------
+    
     with tab_deudas:
         st.subheader("📜 Deudas Pendientes con Proveedores")
         df_compras = obtener_compras_proveedores()
@@ -1318,6 +1316,20 @@ elif opcion == "🏬 Gestor de Proveedores":
                 df_show_deudas["monto_total"] = df_show_deudas["monto_total"].apply(formatear_gs)
                 df_show_deudas["monto_pagado"] = df_show_deudas["monto_pagado"].apply(formatear_gs)
                 df_show_deudas["saldo_pendiente"] = df_show_deudas["saldo_pendiente"].apply(formatear_gs)
+
+                # =========================================================
+                # REORDENAR COLUMNAS: FECHA PRIMERO, LUEGO PROVEEDOR
+                # =========================================================
+                columnas_deseadas = [
+                    "fecha_hora", "fecha", 
+                    "proveedor_nombre", "proveedor", "nombre_proveedor",
+                    "concepto", "tipo_compra", "metodo_pago", 
+                    "monto_total", "monto_pagado", "saldo_pendiente", "estado_pago", "id"
+                ]
+                # Ordenar dinámicamente según las columnas reales existentes
+                cols_existentes = [c for c in columnas_deseadas if c in df_show_deudas.columns]
+                cols_restantes = [c for c in df_show_deudas.columns if c not in cols_existentes]
+                df_show_deudas = df_show_deudas[cols_existentes + cols_restantes]
 
                 st.dataframe(df_show_deudas, use_container_width=True)
 
