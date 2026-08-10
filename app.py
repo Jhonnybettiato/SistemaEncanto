@@ -949,11 +949,11 @@ opcion = st.sidebar.radio(
     "Selecciona una opción:",
     [
         "🛒 Ventas y Cierre de Caja",
-        "🏬 Gestor de Proveedores",  # <-- Ahora reúne todo lo de proveedores
-        "💳 Deudas de Clientes",
-        "👥 Gestor de Clientes",
         "📦 Ver Stock / Inventario",
         "➕ Registrar Producto",
+        "👥 Gestor de Clientes",
+        "💳 Deudas de Clientes",
+        "🏬 Gestor de Proveedores",  # <-- Ahora reúne todo lo de proveedores
         "🏷️ Gestor de Categorías",
         "📈 Flujo de Caja Mensual",
     ],
