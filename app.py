@@ -1407,10 +1407,7 @@ elif opcion == "💳 Deudas de Clientes":
             st.success("🎉 ¡No hay deudas pendientes de clientes!")
 
 # ==========================================
-# GESTOR DE CLIENTES
-# ==========================================
-# ==========================================
-# GESTOR DE CLIENTES (REGISTRO Y EDICIÓN)
+# GESTOR DE CLIENTES (REGISTRO, EDICIÓN Y LISTA)
 # ==========================================
 elif opcion == "👥 Gestor de Clientes":
     st.markdown('<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True)
@@ -1448,7 +1445,6 @@ elif opcion == "👥 Gestor de Clientes":
         if df_clientes.empty:
             st.info("No hay clientes registrados para editar.")
         else:
-            # Creamos la lista para el desplegable
             dict_clientes = {}
             for _, r in df_clientes.iterrows():
                 label = f"{r['nombre']} {r['apellido']} (CI: {r['ci']})"
@@ -1476,39 +1472,35 @@ elif opcion == "👥 Gestor de Clientes":
                     col_btn1, col_btn2 = st.columns([1, 1])
                     if col_btn1.form_submit_button("💾 Guardar Cambios", type="primary"):
                         if edit_nombre.strip() and edit_apellido.strip():
-                            # Llamada a la función de actualización
                             actualizar_cliente(id_cliente, edit_nombre, edit_apellido, edit_ci, edit_telefono, edit_ciudad)
                             st.success("¡Datos del cliente actualizados correctamente!")
                             st.rerun()
                         else:
                             st.warning("El Nombre y Apellido no pueden quedar vacíos.")
 
-# --- Pestaña 3: Lista de Clientes ---
-# ==========================================
-# GESTOR / LISTA DE CLIENTES
-# ==========================================
-elif opcion == "👥 Gestor de Clientes":
-    st.markdown('<p class="main-title">👥 Listado General de Clientes</p>', unsafe_allow_html=True)
-    
-    # Cargamos la lista de clientes desde la base de datos
-    df_clientes = obtener_clientes()  # Asegúrate de usar la función que tengas definida (ej. obtener_clientes)
-    
-    if not df_clientes.empty:
-        # Definimos el orden exacto solicitado:
-        columnas_ordenadas = [
-            'nombre',
-            'cedula',     # Si en tu base de datos se llama 'ruc' o 'cedula_ruc', ajusta el nombre aquí
-            'telefono',
-            'direccion',
-            'deuda',        # Ajusta a 'deuda_pendiente' o el nombre exacto de la columna si varía
-            'id'
-        ]
+    # --- Pestaña 3: Lista de Clientes ---
+    with tab_lista_c:
+        st.subheader("📋 Listado General de Clientes")
         
-        # Filtramos y reordenamos solo las columnas que existan en el DataFrame
-        cols_existentes = [col for col in columnas_ordenadas if col in df_clientes.columns]
-        st.dataframe(df_clientes[cols_existentes], use_container_width=True)
-    else:
-        st.info("No hay clientes registrados en el sistema.")
+        if not df_clientes.empty:
+            # Lista con el orden solicitado (incluye 'ci'/'cedula' y 'ciudad'/'direccion'):
+            columnas_ordenadas = [
+                'nombre',
+                'apellido',
+                'ci',          # Tu campo de documento en el formulario
+                'cedula',      # Por si acaso en el DF se guardó como cédula
+                'telefono',
+                'ciudad',      # Tu campo de ubicación en el formulario
+                'direccion',   # Por si acaso existe en el DF
+                'deuda',
+                'deuda_pendiente',
+                'id'
+            ]
+            
+            cols_existentes = [col for col in columnas_ordenadas if col in df_clientes.columns]
+            st.dataframe(df_clientes[cols_existentes], use_container_width=True)
+        else:
+            st.info("No hay clientes registrados en el sistema.")
 
 # ==========================================
 # FLUJO DE CAJA MENSUAL
