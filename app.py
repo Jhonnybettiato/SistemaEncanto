@@ -1324,9 +1324,9 @@ elif opcion == "🏬 Gestor de Proveedores":
                     "fecha_hora", "fecha", 
                     "proveedor_nombre", "proveedor", "nombre_proveedor", 
                     "concepto",
+                    "monto_total",
+                    "monto_pagado",
                     "saldo_pendiente",
-                    "monto_total", 
-                    "monto_pagado", 
                     "estado_pago", 
                     "id"
                 ]
