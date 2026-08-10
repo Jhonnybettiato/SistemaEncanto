@@ -1583,23 +1583,19 @@ elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Ed
         df_p = obtener_productos()
         
         if not df_p.empty:
-            # Armamos una lista limpia de nombres (con código de barras opcional) ocultando el ID
-            dict_productos = {}
-            for _, r in df_p.iterrows():
-                # Si tiene código de barras, lo agrega entre paréntesis para diferenciar productos con mismo nombre
-                cod = str(r.get('codigo_barras', '')).strip()
-                label = f"{r['nombre']} (Cód: {cod})" if cod and cod != '-' else f"{r['nombre']}"
-                dict_productos[label] = r['id']
+            # 1. Guardamos los nombres para mostrar y los ID ocultos
+            dict_productos = {str(r['nombre']): str(r['id']) for _, r in df_p.iterrows()}
 
-            prod_sel_label = st.selectbox(
+            # 2. El desplegable AHORA solo muestra el NOMBRE del producto
+            prod_sel_nombre = st.selectbox(
                 "🔍 Selecciona un producto a modificar:", 
                 options=list(dict_productos.keys()),
                 key="select_edit_prod"
             )
             
-            if prod_sel_label:
-                # Recuperamos el ID oculto internamente
-                id_p = str(dict_productos[prod_sel_label])
+            if prod_sel_nombre:
+                # 3. Obtenemos el ID internamente
+                id_p = dict_productos[prod_sel_nombre]
                 p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
 
                 cats = obtener_categorias()
