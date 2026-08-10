@@ -1483,10 +1483,10 @@ elif opcion == "👥 Gestor de Clientes":
                         else:
                             st.warning("El Nombre y Apellido no pueden quedar vacíos.")
 
-    # --- Pestaña 3: Lista de Clientes ---
-    # ==========================================
-    # GESTOR / LISTA DE CLIENTES
-    # ==========================================
+# --- Pestaña 3: Lista de Clientes ---
+# ==========================================
+# GESTOR / LISTA DE CLIENTES
+# ==========================================
 elif opcion == "👥 Gestor de Clientes":
     st.markdown('<p class="main-title">👥 Listado General de Clientes</p>', unsafe_allow_html=True)
     
