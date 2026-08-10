@@ -1534,17 +1534,20 @@ elif opcion == "📦 Ver Stock / Inventario":
     df_stock = obtener_productos()
     
     if not df_stock.empty:
+        # Definimos la secuencia exacta de columnas
         columnas_ordenadas = [
             'codigo_barras', 
             'nombre',
-            'categoria', 
             'marca',
+            'categoria', 
             'precio_costo',
             'ganancia_porcentaje', 
             'precio_venta',  
             'descripcion', 
             'id'
         ]
+        
+        # Filtramos y reordenamos solo las columnas que existan en el DataFrame
         cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
         st.dataframe(df_stock[cols_existentes], use_container_width=True)
     else:
