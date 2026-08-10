@@ -1205,9 +1205,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             st.info("No hay cierres de caja registrados aún.")
 
 # ==========================================
-# GESTOR DE PROVEEDORES
-# ==========================================
-# ==========================================
 # GESTOR DE PROVEEDORES (COMPLETO)
 # ==========================================
 elif opcion == "🏬 Gestor de Proveedores":
@@ -1612,51 +1609,55 @@ elif opcion == "✏️ Editar / Modificar Producto":
                 st.rerun()
 
 # ==========================================
-# GESTOR DE CATEGORÍAS
+# GESTOR DE CATEGORÍAS Y MARCAS
 # ==========================================
-elif opcion == "🏷️ Gestor de Categorías":
-    st.markdown('<p class="main-title">🏷️ Gestor de Categorías</p>', unsafe_allow_html=True)
-    cats = obtener_categorias()
+elif opcion in ["🏷️ Gestor de Categorías y Marcas", "Gestor de Categorías y Marcas"]:
+    st.markdown('<p class="main-title">🏷️ Gestor de Categorías y Marcas</p>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
-        nueva_cat = st.text_input("Nueva Categoría:")
-        if st.button("Agregar Categoría", type="primary"):
-            if nueva_cat.strip():
-                registrar_categoria(nueva_cat)
-                st.success("Categoría agregada.")
+    tab_cat, tab_mar = st.tabs(["🏷️ Categorías", "🏢 Marcas"])
+
+    # --- Pestaña 1: Categorías ---
+    with tab_cat:
+        st.subheader("Gestión de Categorías")
+        cats = obtener_categorias()
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            nueva_cat = st.text_input("Nueva Categoría:", key="input_nueva_cat")
+            if st.button("Agregar Categoría", type="primary", key="btn_add_cat"):
+                if nueva_cat.strip():
+                    registrar_categoria(nueva_cat)
+                    st.success("Categoría agregada.")
+                    st.rerun()
+        with col2:
+            cat_del = st.selectbox("Eliminar Categoría:", cats, key="select_del_cat")
+            if st.button("Eliminar Categoría", key="btn_del_cat"):
+                eliminar_categoria(cat_del)
+                st.success("Categoría eliminada.")
                 st.rerun()
-    with col2:
-        cat_del = st.selectbox("Eliminar Categoría:", cats)
-        if st.button("Eliminar"):
-            eliminar_categoria(cat_del)
-            st.success("Categoría eliminada.")
-            st.rerun()
 
-    st.markdown("---")
-    st.write("Categorías actuales:", cats)
+        st.markdown("---")
+        st.write("Categorías actuales:", cats)
 
-# ==========================================
-# GESTOR DE MARCAS
-# ==========================================
-elif opcion == "🏢 Gestor de Marcas":
-    st.markdown('<p class="main-title">🏢 Gestor de Marcas</p>', unsafe_allow_html=True)
-    marcas = obtener_marcas()
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        nueva_marca = st.text_input("Nueva Marca:")
-        if st.button("Agregar Marca", type="primary"):
-            if nueva_marca.strip():
-                registrar_marca(nueva_marca)
-                st.success("Marca agregada.")
+    # --- Pestaña 2: Marcas ---
+    with tab_mar:
+        st.subheader("Gestión de Marcas")
+        marcas = obtener_marcas()
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            nueva_marca = st.text_input("Nueva Marca:", key="input_nueva_marca")
+            if st.button("Agregar Marca", type="primary", key="btn_add_marca"):
+                if nueva_marca.strip():
+                    registrar_marca(nueva_marca)
+                    st.success("Marca agregada.")
+                    st.rerun()
+        with col2:
+            marca_del = st.selectbox("Eliminar Marca:", marcas, key="select_del_marca")
+            if st.button("Eliminar Marca", key="btn_del_marca"):
+                eliminar_marca(marca_del)
+                st.success("Marca eliminada.")
                 st.rerun()
-    with col2:
-        marca_del = st.selectbox("Eliminar Marca:", marcas)
-        if st.button("Eliminar"):
-            eliminar_marca(marca_del)
-            st.success("Marca eliminada.")
-            st.rerun()
 
-    st.markdown("---")
-    st.write("Marcas actuales:", marcas)
+        st.markdown("---")
+        st.write("Marcas actuales:", marcas)
