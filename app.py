@@ -710,19 +710,45 @@ def obtener_ventas():
         df["cliente_nombre"] = "Cliente Ocasional"
     return df
 
-
 def registrar_compra_proveedor(
-    proveedor_nombre, concepto, monto_total, tipo_compra, metodo_pago
+    proveedor_nombre=None,
+    concepto="",
+    monto_total=0,
+    tipo_compra="Contado",
+    metodo_pago="Efectivo",
+    estado_pago=None,  # Acepta este argumento por si se envía desde la interfaz
+    proveedor=None,  # Alias para evitar errores si usas 'proveedor=...' al llamar
 ):
-    db_cloud = obtener_conexion_db()
+    # Soporte para alias 'proveedor' en lugar de 'proveedor_nombre'
+    if proveedor_nombre is None and proveedor is not None:
+        proveedor_nombre = proveedor
+
+    # Asegurar cadenas válidas
+    proveedor_nombre = str(proveedor_nombre) if proveedor_nombre else ""
+    concepto = str(concepto) if concepto else ""
+    tipo_compra = str(tipo_compra) if tipo_compra else "Contado"
+    metodo_pago = str(metodo_pago) if metodo_pago else "Efectivo"
+
+    # Conversión segura del monto a entero (evita TypeError con flotantes o None)
+    try:
+        monto_total = int(float(monto_total))
+    except (ValueError, TypeError):
+        monto_total = 0
+
+    # Determinar estado de pago si no fue especificado manualmente
+    if not estado_pago:
+        estado_pago = "Pendiente" if tipo_compra == "Crédito" else "Pagado"
+
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    estado_pago = "Pendiente" if tipo_compra == "Crédito" else "Pagado"
+
+    db_cloud = obtener_conexion_db()
+
     if db_cloud is not None:
         db_cloud.collection("compras_proveedores").add({
             "fecha_hora": fecha_hora,
             "proveedor_nombre": proveedor_nombre,
             "concepto": concepto,
-            "monto_total": int(monto_total),
+            "monto_total": monto_total,
             "tipo_compra": tipo_compra,
             "metodo_pago": metodo_pago,
             "estado_pago": estado_pago,
@@ -732,14 +758,15 @@ def registrar_compra_proveedor(
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO compras_proveedores (fecha_hora, proveedor_nombre, concepto, monto_total, tipo_compra, metodo_pago, estado_pago)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO compras_proveedores (
+                fecha_hora, proveedor_nombre, concepto, monto_total, tipo_compra, metodo_pago, estado_pago
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 fecha_hora,
                 proveedor_nombre,
                 concepto,
-                int(monto_total),
+                monto_total,
                 tipo_compra,
                 metodo_pago,
                 estado_pago,
@@ -784,25 +811,35 @@ def obtener_compras_proveedores():
 def registrar_pago_proveedor(compra_id, proveedor_nombre, monto, metodo_pago):
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    try:
+        monto_int = int(float(monto))
+    except (ValueError, TypeError):
+        monto_int = 0
+
     if db_cloud is not None:
         db_cloud.collection("pagos_proveedores").add({
             "fecha_hora": fecha_hora,
             "compra_id": str(compra_id),
-            "proveedor_nombre": proveedor_nombre,
-            "monto": int(monto),
-            "metodo_pago": metodo_pago,
+            "proveedor_nombre": str(proveedor_nombre),
+            "monto": monto_int,
+            "metodo_pago": str(metodo_pago),
         })
     else:
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO pagos_proveedores (fecha_hora, compra_id, proveedor_nombre, monto, metodo_pago) VALUES (?, ?, ?, ?, ?)",
+            """
+            INSERT INTO pagos_proveedores (
+                fecha_hora, compra_id, proveedor_nombre, monto, metodo_pago
+            ) VALUES (?, ?, ?, ?, ?)
+        """,
             (
                 fecha_hora,
                 int(compra_id),
-                proveedor_nombre,
-                int(monto),
-                metodo_pago,
+                str(proveedor_nombre),
+                monto_int,
+                str(metodo_pago),
             ),
         )
         conn.commit()
@@ -814,13 +851,13 @@ def actualizar_estado_compra(compra_id, estado_pago):
     if db_cloud is not None:
         db_cloud.collection("compras_proveedores").document(
             str(compra_id)
-        ).update({"estado_pago": estado_pago})
+        ).update({"estado_pago": str(estado_pago)})
     else:
         conn = sqlite3.connect("inventario.db")
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE compras_proveedores SET estado_pago = ? WHERE id = ?",
-            (estado_pago, int(compra_id)),
+            (str(estado_pago), int(compra_id)),
         )
         conn.commit()
         conn.close()
