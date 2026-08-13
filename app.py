@@ -1323,7 +1323,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                     df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
                 st.dataframe(df_show, use_container_width=True)
 
-    # ---------------------------------------------------------
+   # ---------------------------------------------------------
     # TAB 3: DEUDAS Y PAGOS (PARCIALES Y TOTALES)
     # ---------------------------------------------------------
     
@@ -1367,8 +1367,8 @@ elif opcion == "🏬 Gestor de Proveedores":
                 # Seleccionamos solo las columnas deseadas que existan en el DataFrame
                 cols_existentes = [c for c in columnas_deseadas if c in df_show_deudas.columns]
                 
-                # Renderizamos la tabla limpia sin 'estado_pago'
-                st.dataframe(df_show_deudas[cols_existentes], use_container_width=True)
+                # Renderizamos la tabla limpia sin 'estado_pago' (actualizado a width="stretch")
+                st.dataframe(df_show_deudas[cols_existentes], width="stretch")
 
                 st.markdown("---")
                 st.subheader("💵 Registrar Pago / Entrega")
@@ -1434,7 +1434,6 @@ elif opcion == "🏬 Gestor de Proveedores":
                 st.success("🎉 ¡No hay deudas pendientes con proveedores!")
         else:
             st.info("No hay registro de compras aún.")
-
 # ==========================================
 # DEUDAS DE CLIENTES
 # ==========================================
