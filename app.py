@@ -1304,7 +1304,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                         registrar_compra_proveedor(
                             proveedor=prov_sel, 
                             concepto=concepto, 
-                            monto=monto, 
+                            monto_total=monto,  # <-- Se cambió 'monto' por 'monto_total'
                             tipo_compra=tipo_compra, 
                             metodo_pago=metodo_pago,
                             estado_pago=estado_pago
