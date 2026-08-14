@@ -1234,7 +1234,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             st.dataframe(df_salidas_show, use_container_width=True)
 
     # Contraseña de seguridad para acciones sensibles
-CLAVE_ENCANTO = "12345amor"  # 👈 Cambia esto por tu contraseña deseada
+CLAVE_ADMIN = "12345amor"  # 👈 Cambia esto por tu contraseña deseada
 
 # --- TAB 3: CIERRE DE CAJA (HOY) ---
 with tab_cierre:
@@ -1254,7 +1254,7 @@ with tab_cierre:
     pwd_guardar = st.text_input("Ingresa la contraseña para guardar el cierre:", type="password", key="pwd_cierre_hoy")
     
     if st.button("🔒 Confirmar y Guardar Cierre de Hoy", type="primary"):
-        if pwd_guardar == CLAVE_ENCANTO:
+        if pwd_guardar == CLAVE_ADMIN:
             guardar_cierre_caja(fecha_hoy, saldo_inicial, ingresos_hoy, egresos_hoy, saldo_final)
             st.success("✅ ¡Cierre de caja guardado con éxito!")
             st.rerun()
