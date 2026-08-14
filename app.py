@@ -1,8 +1,47 @@
 from datetime import date, datetime
-import sqlite3
 import pandas as pd
 import streamlit as st
+import sqlite3
 
+# 1. Definición de la conexión a la base de datos
+def obtener_conexion():
+    # Cambia 'base_datos.db' por el nombre exacto de tu archivo .db si es distinto
+    return sqlite3.connect("base_datos.db")
+
+# 2. Función para actualizar pago de compras
+def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs):
+    try:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE compras
+            SET monto_pagado = ?, 
+                estado = ?
+            WHERE id = ?
+        """, (nuevo_monto_pagado, nuevo_estado, id_compra))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error al actualizar el pago: {e}")
+        return False
+
+# 3. Función para registrar la salida de caja (acepta cualquier nombre de parámetro sin dar TypeError)
+def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
+    try:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO caja (tipo, motivo, monto, metodo)
+            VALUES ('SALIDA', ?, ?, ?)
+        """, (motivo, monto, metodo))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error al registrar salida de caja: {e}")
+        return False
+        
 # Intentar importar Google Firestore
 try:
     from google.cloud import firestore
