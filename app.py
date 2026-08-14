@@ -3,17 +3,28 @@ import pandas as pd
 import streamlit as st
 import sqlite3
 
-# 1. Actualizar pago (con la tabla correcta: compras_proveedores)
-def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs):
+# 1. Definimos la conexión que faltaba
+def obtener_conexion():
+    # Si tu archivo .db tiene otro nombre (ej: 'encanto.db'), cámbialo aquí
+    return sqlite3.connect("base_datos.db")
+
+
+# 2. Función para actualizar pago
+def actualizar_pago_compra_proveedor(
+    id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs
+):
     try:
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE compras_proveedores
             SET monto_pagado = ?, 
                 estado = ?
             WHERE id = ?
-        """, (nuevo_monto_pagado, nuevo_estado, id_compra))
+        """,
+            (nuevo_monto_pagado, nuevo_estado, id_compra),
+        )
         conn.commit()
         conn.close()
         return True
@@ -21,50 +32,25 @@ def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado
         st.error(f"Error al actualizar el pago: {e}")
         return False
 
-# 2. Registrar salida de caja (flexible para recibir cualquier parámetro sin dar TypeError)
-def registrar_salida_caja(*args, **kwargs):
-    motivo = kwargs.get('motivo') or (args[0] if len(args) > 0 else "Salida de caja")
-    monto = kwargs.get('monto') or (args[1] if len(args) > 1 else 0)
-    metodo = kwargs.get('metodo') or (args[2] if len(args) > 2 else "Efectivo")
-    
-    try:
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute("""
-            INSERT INTO caja (tipo, motivo, monto, metodo)
-            VALUES ('SALIDA', ?, ?, ?)
-        """, (motivo, monto, metodo))
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error al registrar salida de caja: {e}")
-        return False
-        
-# 3. Función para registrar la salida de caja (acepta cualquier nombre de parámetro sin dar TypeError)
+
+# 3. Función para registrar salida de caja
 def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
     try:
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO caja (tipo, motivo, monto, metodo)
             VALUES ('SALIDA', ?, ?, ?)
-        """, (motivo, monto, metodo))
+        """,
+            (motivo, monto, metodo),
+        )
         conn.commit()
         conn.close()
         return True
     except Exception as e:
         st.error(f"Error al registrar salida de caja: {e}")
         return False
-        
-# Intentar importar Google Firestore
-try:
-    from google.cloud import firestore
-
-    FIRESTORE_DISPONIBLE = True
-except ImportError:
-    FIRESTORE_DISPONIBLE = False
-
 
 # ==========================================
 # CONSTANTES Y CONFIGURACIÓN DE CONEXIÓN
