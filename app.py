@@ -469,45 +469,51 @@ def obtener_clientes():
         conn.close()
         return df
 
-def actualizar_proveedor(id_prov, nombre, ruc_ci, telefono, ciudad):
+def actualizar_compra_proveedor(
+    id_compra, concepto, monto_total, monto_pagado, estado_pago
+):
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        db_cloud.collection("proveedores").document(str(id_prov)).update({
-            "nombre": nombre.strip(),
-            "ruc_ci": ruc_ci.strip(),
-            "telefono": telefono.strip(),
-            "ciudad": ciudad.strip(),
+        db_cloud.collection("compras_proveedores").document(
+            str(id_compra)
+        ).update({
+            "concepto": concepto.strip(),
+            "monto_total": int(monto_total),
+            "monto_pagado": int(monto_pagado),
+            "estado_pago": str(estado_pago),
         })
     else:
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
-            UPDATE proveedores
-            SET nombre = ?, ruc_ci = ?, telefono = ?, ciudad = ?
+            UPDATE compras_proveedores
+            SET concepto = ?, monto_total = ?, monto_pagado = ?, estado_pago = ?
             WHERE id = ?
         """,
             (
-                nombre.strip(),
-                ruc_ci.strip(),
-                telefono.strip(),
-                ciudad.strip(),
-                int(id_prov) if str(id_prov).isdigit() else id_prov,
+                concepto.strip(),
+                int(monto_total),
+                int(monto_pagado),
+                str(estado_pago),
+                int(id_compra) if str(id_compra).isdigit() else id_compra,
             ),
         )
         conn.commit()
         conn.close()
 
-def eliminar_proveedor(id_prov):
+def eliminar_compra_proveedor(id_compra):
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        db_cloud.collection("proveedores").document(str(id_prov)).delete()
+        db_cloud.collection("compras_proveedores").document(
+            str(id_compra)
+        ).delete()
     else:
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
-            "DELETE FROM proveedores WHERE id = ?",
-            (int(id_prov) if str(id_prov).isdigit() else id_prov,),
+            "DELETE FROM compras_proveedores WHERE id = ?",
+            (int(id_compra) if str(id_compra).isdigit() else id_compra,),
         )
         conn.commit()
         conn.close()
@@ -1448,25 +1454,36 @@ elif opcion == "🏬 Gestor de Proveedores":
     with tab_compras:
         st.subheader("Registrar Compra / Factura de Proveedor")
         df_prov = obtener_proveedores()
-        
+
         if df_prov.empty:
             st.warning("⚠️ Primero debes registrar al menos un proveedor.")
         else:
             with st.form("form_compra_prov"):
-                prov_sel = st.selectbox("Seleccionar Proveedor:", df_prov["nombre"].tolist())
-                concepto = st.text_input("Concepto / Descripción de la compra:")
-                monto = st.number_input("Monto Total (Gs.):", min_value=1, step=5000)
-                metodo_pago = st.selectbox("Método de Pago Preferido / Cuenta:", ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"])
-                
-                if st.form_submit_button("🚚 Registrar Compra (A Crédito)", type="primary"):
+                prov_sel = st.selectbox(
+                    "Seleccionar Proveedor:", df_prov["nombre"].tolist()
+                )
+                concepto = st.text_input(
+                    "Concepto / Descripción de la compra:"
+                )
+                monto = st.number_input(
+                    "Monto Total (Gs.):", min_value=1, step=5000
+                )
+                metodo_pago = st.selectbox(
+                    "Método de Pago Preferido / Cuenta:",
+                    ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"],
+                )
+
+                if st.form_submit_button(
+                    "🚚 Registrar Compra (A Crédito)", type="primary"
+                ):
                     if concepto.strip():
                         registrar_compra_proveedor(
-                            proveedor=prov_sel, 
-                            concepto=concepto, 
+                            proveedor=prov_sel,
+                            concepto=concepto,
                             monto_total=monto,
-                            tipo_compra="Crédito", 
+                            tipo_compra="Crédito",
                             metodo_pago=metodo_pago,
-                            estado_pago="Pendiente"
+                            estado_pago="Pendiente",
                         )
                         st.success("¡Compra registrada correctamente!")
                         st.rerun()
@@ -1476,102 +1493,132 @@ elif opcion == "🏬 Gestor de Proveedores":
             st.markdown("---")
             st.subheader("📋 Historial de Compras")
             df_compras = obtener_compras_proveedores()
+
             if not df_compras.empty:
                 df_show = df_compras.copy()
                 if "monto_total" in df_show.columns:
-                    df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
+                    df_show["monto_total"] = df_show["monto_total"].apply(
+                        formatear_gs
+                    )
+                if "monto_pagado" in df_show.columns:
+                    df_show["monto_pagado"] = df_show["monto_pagado"].apply(
+                        lambda x: (
+                            formatear_gs(x) if pd.notnull(x) else "Gs. 0"
+                        )
+                    )
+
                 st.dataframe(df_show, use_container_width=True)
 
-    with tab_deudas:
-        st.subheader("📜 Deudas Pendientes con Proveedores")
-        df_compras = obtener_compras_proveedores()
-        
-        if not df_compras.empty:
-            if "estado_pago" in df_compras.columns:
-                deudas = df_compras[df_compras["estado_pago"].isin(["Pendiente", "Parcial"])].copy()
-            else:
-                deudas = pd.DataFrame()
-
-            if not deudas.empty:
-                deudas["monto_total"] = deudas["monto_total"].fillna(0).astype(int)
-                if "monto_pagado" not in deudas.columns:
-                    deudas["monto_pagado"] = 0
-                else:
-                    deudas["monto_pagado"] = deudas["monto_pagado"].fillna(0).astype(int)
-
-                deudas["saldo_pendiente"] = deudas["monto_total"] - deudas["monto_pagado"]
-
-                df_show_deudas = deudas.copy()
-                df_show_deudas["monto_total"] = df_show_deudas["monto_total"].apply(formatear_gs)
-                df_show_deudas["monto_pagado"] = df_show_deudas["monto_pagado"].apply(formatear_gs)
-                df_show_deudas["saldo_pendiente"] = df_show_deudas["saldo_pendiente"].apply(formatear_gs)
-
-                columnas_deseadas = [
-                    "fecha_hora", "fecha", 
-                    "proveedor_nombre", "proveedor", "nombre_proveedor",
-                    "concepto", "monto_total", "monto_pagado", 
-                    "saldo_pendiente", "tipo_compra", "metodo_pago", "id"
-                ]
-                
-                cols_existentes = [c for c in columnas_deseadas if c in df_show_deudas.columns]
-                st.dataframe(df_show_deudas[cols_existentes], use_container_width=True)
-
                 st.markdown("---")
-                st.subheader("💵 Registrar Pago / Entrega")
+                expander_compra_admin = st.expander(
+                    "🛠️ Opciones Avanzadas (Editar / Eliminar Compra)"
+                )
 
-                dict_deudas = {}
-                for _, r in deudas.iterrows():
-                    nombre_prov = r.get('proveedor', r.get('proveedor_nombre', r.get('nombre_proveedor', 'Proveedor')))
-                    label = f"ID: {r['id']} | {nombre_prov} | Saldo: {formatear_gs(r['saldo_pendiente'])}"
-                    dict_deudas[label] = r['id']
+                with expander_compra_admin:
+                    opcion_c_admin = st.radio(
+                        "Selecciona una acción:",
+                        ["Editar Compra", "Eliminar Compra"],
+                        key="radio_compra_admin",
+                    )
 
-                compra_sel_label = st.selectbox("Selecciona la compra a pagar:", options=list(dict_deudas.keys()))
-                
-                if compra_sel_label:
-                    id_compra_sel = dict_deudas[compra_sel_label]
-                    compra_row = deudas[deudas["id"] == id_compra_sel].iloc[0]
+                    dict_compras_edit = {}
+                    for _, r in df_compras.iterrows():
+                        label = f"ID: {r['id']} | {r.get('proveedor_nombre', 'Proveedor')} | {r.get('concepto', '')} - Total: {formatear_gs(r.get('monto_total', 0))}"
+                        dict_compras_edit[label] = r["id"]
 
-                    saldo_actual = int(compra_row["saldo_pendiente"])
-                    monto_pagado_actual = int(compra_row["monto_pagado"])
-                    monto_total_original = int(compra_row["monto_total"])
-                    prov_nombre_final = compra_row.get('proveedor', compra_row.get('proveedor_nombre', 'Proveedor'))
+                    compra_sel_admin = st.selectbox(
+                        "Selecciona la compra a modificar:",
+                        options=list(dict_compras_edit.keys()),
+                        key="select_compra_admin",
+                    )
 
-                    col_p1, col_p2 = st.columns(2)
-                    col_p1.metric("Monto Total Compra", formatear_gs(monto_total_original))
-                    col_p2.metric("Saldo Pendiente Actual", formatear_gs(saldo_actual))
+                    if compra_sel_admin:
+                        id_c_sel = dict_compras_edit[compra_sel_admin]
+                        c_row = df_compras[
+                            df_compras["id"].astype(str) == str(id_c_sel)
+                        ].iloc[0]
 
-                    with st.form("form_pago_proveedor"):
-                        monto_a_pagar = st.number_input(
-                            "Monto a Abonar (Gs.):", 
-                            min_value=1, 
-                            max_value=max(1, saldo_actual), 
-                            value=saldo_actual, 
-                            step=5000
-                        )
-                        metodo_pago_deuda = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Otro"])
-
-                        if st.form_submit_button("✅ Confirmar Pago", type="primary"):
-                            nuevo_monto_pagado = monto_pagado_actual + monto_a_pagar
-                            nuevo_estado = "Pagado" if nuevo_monto_pagado >= monto_total_original else "Parcial"
-
-                            actualizar_pago_compra_proveedor(
-                                id_compra=id_compra_sel, 
-                                nuevo_monto_pagado=nuevo_monto_pagado, 
-                                nuevo_estado=nuevo_estado
+                        if opcion_c_admin == "Editar Compra":
+                            m_total_orig = int(c_row.get("monto_total", 0))
+                            m_pagado_orig = int(
+                                c_row.get("monto_pagado", 0)
+                                if pd.notnull(c_row.get("monto_pagado"))
+                                else 0
                             )
 
-                            registrar_salida_caja(
-                                motivo=f"Pago deuda proveedor {prov_nombre_final} (ID Compra: {id_compra_sel})",
-                                monto=monto_a_pagar,
-                                metodo=metodo_pago_deuda
+                            edit_concepto = st.text_input(
+                                "Nuevo Concepto:",
+                                value=str(c_row.get("concepto", "")),
+                                key="edit_c_concepto",
+                            )
+                            edit_monto_total = st.number_input(
+                                "Nuevo Monto Total (Gs.):",
+                                min_value=0,
+                                value=m_total_orig,
+                                step=5000,
+                                key="edit_c_monto_total",
+                            )
+                            edit_monto_pagado = st.number_input(
+                                "Nuevo Monto Pagado (Gs.):",
+                                min_value=0,
+                                value=m_pagado_orig,
+                                step=5000,
+                                key="edit_c_monto_pagado",
                             )
 
-                            st.success(f"¡Pago de {formatear_gs(monto_a_pagar)} registrado con éxito!")
-                            st.rerun()
+                            pwd_c_edit = st.text_input(
+                                "Contraseña de confirmación:",
+                                type="password",
+                                key="pwd_c_edit",
+                            )
+
+                            if st.button("✏️ Guardar Cambios en Compra"):
+                                if pwd_c_edit == CLAVE_ADMIN:
+                                    if edit_monto_pagado >= edit_monto_total:
+                                        nuevo_est = "Pagado"
+                                    elif edit_monto_pagado > 0:
+                                        nuevo_est = "Parcial"
+                                    else:
+                                        nuevo_est = "Pendiente"
+
+                                    actualizar_compra_proveedor(
+                                        id_c_sel,
+                                        edit_concepto,
+                                        edit_monto_total,
+                                        edit_monto_pagado,
+                                        nuevo_est,
+                                    )
+                                    st.success(
+                                        "✅ Compra actualizada correctamente."
+                                    )
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Contraseña incorrecta.")
+
+                        elif opcion_c_admin == "Eliminar Compra":
+                            st.warning(
+                                "⚠️ Esta acción eliminará permanentemente la compra del historial."
+                            )
+                            pwd_c_del = st.text_input(
+                                "Contraseña de confirmación para BORRAR:",
+                                type="password",
+                                key="pwd_c_del",
+                            )
+
+                            if st.button(
+                                "🗑️ Eliminar Compra Definitivamente",
+                                type="primary",
+                            ):
+                                if pwd_c_del == CLAVE_ADMIN:
+                                    eliminar_compra_proveedor(id_c_sel)
+                                    st.success(
+                                        "✅ Registro de compra eliminado correctamente."
+                                    )
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Contraseña incorrecta.")
             else:
-                st.success("🎉 ¡No hay deudas pendientes con proveedores!")
-        else:
-            st.info("No hay registro de compras aún.")
+                st.info("No hay registro de compras aún.")
 
 # ==========================================
 # DEUDAS DE CLIENTES
