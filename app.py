@@ -3,59 +3,24 @@ import pandas as pd
 import streamlit as st
 import sqlite3
 
-# 1. Definimos la conexión que faltaba
-def obtener_conexion():
-    # Si tu archivo .db tiene otro nombre (ej: 'encanto.db'), cámbialo aquí
-    return sqlite3.connect("base_datos.db")
+# Importación segura de Firestore
+try:
+    from google.cloud import firestore
+    FIRESTORE_DISPONIBLE = True
+except ImportError:
+    FIRESTORE_DISPONIBLE = False
 
-
-# 2. Función para actualizar pago
-def actualizar_pago_compra_proveedor(
-    id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs
-):
-    try:
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE compras_proveedores
-            SET monto_pagado = ?, 
-                estado = ?
-            WHERE id = ?
-        """,
-            (nuevo_monto_pagado, nuevo_estado, id_compra),
-        )
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error al actualizar el pago: {e}")
-        return False
-
-
-# 3. Función para registrar salida de caja
-def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
-    try:
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO caja (tipo, motivo, monto, metodo)
-            VALUES ('SALIDA', ?, ?, ?)
-        """,
-            (motivo, monto, metodo),
-        )
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        st.error(f"Error al registrar salida de caja: {e}")
-        return False
 
 # ==========================================
 # CONSTANTES Y CONFIGURACIÓN DE CONEXIÓN
 # ==========================================
+def obtener_conexion():
+    """Conexión estándar a SQLite local."""
+    return sqlite3.connect("inventario.db")
+
+
 def obtener_conexion_db():
+    """Conexión a Firestore en Cloud (si está configurado)."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
             return firestore.Client.from_service_account_info(
@@ -70,7 +35,7 @@ def obtener_conexion_db():
 # 1. CONTROL DE BASE DE DATOS Y PERSISTENCIA
 # ==========================================
 def init_db():
-    conn = sqlite3.connect("inventario.db")
+    conn = obtener_conexion()
     cursor = conn.cursor()
 
     # Productos
@@ -176,6 +141,7 @@ def init_db():
             proveedor_nombre TEXT NOT NULL,
             concepto TEXT NOT NULL,
             monto_total INTEGER NOT NULL,
+            monto_pagado INTEGER DEFAULT 0,
             tipo_compra TEXT NOT NULL,
             metodo_pago TEXT NOT NULL,
             estado_pago TEXT DEFAULT 'Pagado'
@@ -214,7 +180,7 @@ def obtener_saldo_inicial_dia(fecha_hoy_str):
             return int(registros_ordenados[0].get("saldo_final", 0))
         return 0
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             "SELECT saldo_final FROM cierres_caja WHERE fecha < ? ORDER BY fecha DESC LIMIT 1",
@@ -236,7 +202,7 @@ def registrar_cierre_diario(fecha_str, saldo_inicial, ingresos, egresos, saldo_f
             "saldo_final": int(saldo_final),
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -264,7 +230,7 @@ def obtener_cierre_por_fecha(fecha_str):
         doc = db_cloud.collection("cierres_caja").document(fecha_str).get()
         return doc.to_dict() if doc.exists else None
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             "SELECT fecha, saldo_inicial, ingresos, egresos, saldo_final FROM cierres_caja WHERE fecha = ?",
@@ -303,7 +269,7 @@ def obtener_categorias():
         ]
         return sorted(list(set(lista))) if lista else cat_default
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute("SELECT nombre FROM categorias ORDER BY nombre ASC")
         filas = cursor.fetchall()
@@ -318,7 +284,7 @@ def registrar_categoria(nombre_cat):
         if nombre_cat not in obtener_categorias():
             db_cloud.collection("categorias").add({"nombre": nombre_cat})
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         try:
             cursor.execute(
@@ -341,7 +307,7 @@ def eliminar_categoria(nombre_cat):
         for doc in docs:
             db_cloud.collection("categorias").document(doc.id).delete()
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             "DELETE FROM categorias WHERE nombre = ?", (nombre_cat,)
@@ -362,7 +328,7 @@ def obtener_marcas():
         ]
         return sorted(list(set(lista))) if lista else marcas_default
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute("SELECT nombre FROM marcas ORDER BY nombre ASC")
         filas = cursor.fetchall()
@@ -377,7 +343,7 @@ def registrar_marca(nombre_marca):
         if nombre_marca not in obtener_marcas():
             db_cloud.collection("marcas").add({"nombre": nombre_marca})
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         try:
             cursor.execute(
@@ -400,7 +366,7 @@ def eliminar_marca(nombre_marca):
         for doc in docs:
             db_cloud.collection("marcas").document(doc.id).delete()
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM marcas WHERE nombre = ?", (nombre_marca,))
         conn.commit()
@@ -418,7 +384,7 @@ def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
             "ciudad": ciudad.strip(),
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO clientes (nombre, apellido, ci, telefono, ciudad) VALUES (?, ?, ?, ?, ?)",
@@ -428,6 +394,39 @@ def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
                 ci.strip(),
                 telefono.strip(),
                 ciudad.strip(),
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+
+def actualizar_cliente(id_cliente, nombre, apellido, ci, telefono, ciudad):
+    """Función agregada para corregir el NameError al editar clientes."""
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("clientes").document(str(id_cliente)).update({
+            "nombre": nombre.strip(),
+            "apellido": apellido.strip(),
+            "ci": ci.strip(),
+            "telefono": telefono.strip(),
+            "ciudad": ciudad.strip(),
+        })
+    else:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE clientes
+            SET nombre = ?, apellido = ?, ci = ?, telefono = ?, ciudad = ?
+            WHERE id = ?
+        """,
+            (
+                nombre.strip(),
+                apellido.strip(),
+                ci.strip(),
+                telefono.strip(),
+                ciudad.strip(),
+                int(id_cliente),
             ),
         )
         conn.commit()
@@ -451,7 +450,7 @@ def obtener_clientes():
             )
         )
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         df = pd.read_sql_query("SELECT * FROM clientes", conn)
         conn.close()
         return df
@@ -467,7 +466,7 @@ def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
             "ciudad": ciudad.strip(),
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO proveedores (nombre, ruc_ci, telefono, ciudad) VALUES (?, ?, ?, ?)",
@@ -494,33 +493,39 @@ def obtener_proveedores():
             )
         )
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         df = pd.read_sql_query("SELECT * FROM proveedores", conn)
         conn.close()
         return df
 
+
 def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs):
-    """
-    Actualiza el monto pagado y estado de la compra del proveedor.
-    """
-    try:
-        conn = obtener_conexion()  # Usa tu función de conexión a la BD
-        cursor = conn.cursor()
-        
-        cursor.execute("""
-            UPDATE compras
-            SET monto_pagado = ?, 
-                estado = ?
-            WHERE id = ?
-        """, (nuevo_monto_pagado, nuevo_estado, id_compra))
-        
-        conn.commit()
-        conn.close()
+    """Actualiza el pago y estado de la compra en compras_proveedores (Firestore/SQLite)."""
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("compras_proveedores").document(str(id_compra)).update({
+            "monto_pagado": int(nuevo_monto_pagado),
+            "estado_pago": str(nuevo_estado)
+        })
         return True
-    except Exception as e:
-        st.error(f"Error al actualizar el pago: {e}")
-        return False
-        
+    else:
+        try:
+            conn = obtener_conexion()
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE compras_proveedores
+                SET monto_pagado = ?, 
+                    estado_pago = ?
+                WHERE id = ?
+            """, (int(nuevo_monto_pagado), str(nuevo_estado), int(id_compra)))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            st.error(f"Error al actualizar el pago: {e}")
+            return False
+
+
 def registrar_producto(
     codigo_barras,
     nombre,
@@ -547,7 +552,7 @@ def registrar_producto(
             "descripcion": descripcion,
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -597,7 +602,7 @@ def actualizar_producto(
             "descripcion": descripcion,
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -627,7 +632,7 @@ def eliminar_producto(id_prod):
     if db_cloud is not None:
         db_cloud.collection("productos").document(str(id_prod)).delete()
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM productos WHERE id = ?", (int(id_prod),))
         conn.commit()
@@ -660,7 +665,7 @@ def obtener_productos():
             )
         df = pd.DataFrame(lista)
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         df = pd.read_sql_query("SELECT * FROM productos", conn)
         conn.close()
 
@@ -704,7 +709,7 @@ def registrar_venta(
             stock_actual = doc.to_dict().get("stock", 0)
             doc_ref.update({"stock": max(0, stock_actual - int(cantidad))})
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -759,7 +764,7 @@ def obtener_ventas():
             )
         df = pd.DataFrame(lista)
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         df = pd.read_sql_query("SELECT * FROM ventas", conn)
         conn.close()
 
@@ -771,37 +776,33 @@ def obtener_ventas():
         df["cliente_nombre"] = "Cliente Ocasional"
     return df
 
+
 def registrar_compra_proveedor(
     proveedor_nombre=None,
     concepto="",
     monto_total=0,
     tipo_compra="Contado",
     metodo_pago="Efectivo",
-    estado_pago=None,  # Acepta este argumento por si se envía desde la interfaz
-    proveedor=None,  # Alias para evitar errores si usas 'proveedor=...' al llamar
+    estado_pago=None,
+    proveedor=None,
 ):
-    # Soporte para alias 'proveedor' en lugar de 'proveedor_nombre'
     if proveedor_nombre is None and proveedor is not None:
         proveedor_nombre = proveedor
 
-    # Asegurar cadenas válidas
     proveedor_nombre = str(proveedor_nombre) if proveedor_nombre else ""
     concepto = str(concepto) if concepto else ""
     tipo_compra = str(tipo_compra) if tipo_compra else "Contado"
     metodo_pago = str(metodo_pago) if metodo_pago else "Efectivo"
 
-    # Conversión segura del monto a entero (evita TypeError con flotantes o None)
     try:
         monto_total = int(float(monto_total))
     except (ValueError, TypeError):
         monto_total = 0
 
-    # Determinar estado de pago si no fue especificado manualmente
     if not estado_pago:
         estado_pago = "Pendiente" if tipo_compra == "Crédito" else "Pagado"
 
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
     db_cloud = obtener_conexion_db()
 
     if db_cloud is not None:
@@ -810,24 +811,26 @@ def registrar_compra_proveedor(
             "proveedor_nombre": proveedor_nombre,
             "concepto": concepto,
             "monto_total": monto_total,
+            "monto_pagado": monto_total if estado_pago == "Pagado" else 0,
             "tipo_compra": tipo_compra,
             "metodo_pago": metodo_pago,
             "estado_pago": estado_pago,
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
             INSERT INTO compras_proveedores (
-                fecha_hora, proveedor_nombre, concepto, monto_total, tipo_compra, metodo_pago, estado_pago
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                fecha_hora, proveedor_nombre, concepto, monto_total, monto_pagado, tipo_compra, metodo_pago, estado_pago
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 fecha_hora,
                 proveedor_nombre,
                 concepto,
                 monto_total,
+                monto_total if estado_pago == "Pagado" else 0,
                 tipo_compra,
                 metodo_pago,
                 estado_pago,
@@ -856,6 +859,7 @@ def obtener_compras_proveedores():
                     "proveedor_nombre",
                     "concepto",
                     "monto_total",
+                    "monto_pagado",
                     "tipo_compra",
                     "metodo_pago",
                     "estado_pago",
@@ -863,7 +867,7 @@ def obtener_compras_proveedores():
             )
         )
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         df = pd.read_sql_query("SELECT * FROM compras_proveedores", conn)
         conn.close()
         return df
@@ -887,7 +891,7 @@ def registrar_pago_proveedor(compra_id, proveedor_nombre, monto, metodo_pago):
             "metodo_pago": str(metodo_pago),
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -907,26 +911,12 @@ def registrar_pago_proveedor(compra_id, proveedor_nombre, monto, metodo_pago):
         conn.close()
 
 
-def actualizar_estado_compra(compra_id, estado_pago):
-    db_cloud = obtener_conexion_db()
-    if db_cloud is not None:
-        db_cloud.collection("compras_proveedores").document(
-            str(compra_id)
-        ).update({"estado_pago": str(estado_pago)})
-    else:
-        conn = sqlite3.connect("inventario.db")
-        cursor = conn.cursor()
-        cursor.execute(
-            "UPDATE compras_proveedores SET estado_pago = ? WHERE id = ?",
-            (str(estado_pago), int(compra_id)),
-        )
-        conn.commit()
-        conn.close()
-
-
-def registrar_salida_caja(motivo, monto, metodo_pago):
+def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
+    """Registra salidas de caja tanto en Firestore como SQLite."""
+    metodo_pago = kwargs.get("metodo_pago", metodo)
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
     if db_cloud is not None:
         db_cloud.collection("salidas_caja").add({
             "fecha_hora": fecha_hora,
@@ -934,15 +924,21 @@ def registrar_salida_caja(motivo, monto, metodo_pago):
             "monto": int(monto),
             "metodo_pago": metodo_pago,
         })
+        return True
     else:
-        conn = sqlite3.connect("inventario.db")
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO salidas_caja (fecha_hora, motivo, monto, metodo_pago) VALUES (?, ?, ?, ?)",
-            (fecha_hora, motivo, int(monto), metodo_pago),
-        )
-        conn.commit()
-        conn.close()
+        try:
+            conn = obtener_conexion()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO salidas_caja (fecha_hora, motivo, monto, metodo_pago) VALUES (?, ?, ?, ?)",
+                (fecha_hora, motivo, int(monto), metodo_pago),
+            )
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            st.error(f"Error al registrar salida de caja: {e}")
+            return False
 
 
 def obtener_salidas_caja():
@@ -961,7 +957,7 @@ def obtener_salidas_caja():
         df = pd.DataFrame(lista)
         return df.sort_values(by="fecha_hora", ascending=False)
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         df = pd.read_sql_query(
             "SELECT * FROM salidas_caja ORDER BY id DESC", conn
         )
@@ -978,7 +974,7 @@ def actualizar_salida_caja(id_salida, motivo, monto, metodo_pago):
             "metodo_pago": metodo_pago,
         })
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -997,7 +993,7 @@ def eliminar_salida_caja(id_salida):
     if db_cloud is not None:
         db_cloud.collection("salidas_caja").document(str(id_salida)).delete()
     else:
-        conn = sqlite3.connect("inventario.db")
+        conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
             "DELETE FROM salidas_caja WHERE id = ?", (int(id_salida),)
@@ -1006,7 +1002,7 @@ def eliminar_salida_caja(id_salida):
         conn.close()
 
 
-# Inicialización
+# Inicialización de la base de datos local
 init_db()
 
 
@@ -1039,7 +1035,6 @@ st.markdown(
 )
 
 # Menú Lateral
-# Menú Lateral
 st.sidebar.title("✨ Sistema Encanto")
 st.sidebar.markdown("---")
 
@@ -1051,7 +1046,7 @@ opcion = st.sidebar.radio(
         "➕ Registrar Producto",
         "👥 Gestor de Clientes",
         "💳 Deudas de Clientes",
-        "🏬 Gestor de Proveedores",  # <-- Ahora reúne todo lo de proveedores
+        "🏬 Gestor de Proveedores",
         "🏷️ Gestor de Categorías",
         "📈 Flujo de Caja Mensual",
     ],
@@ -1088,14 +1083,12 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             else:
                 st.subheader("1️⃣ Agregar productos al carrito")
                 
-                # Diccionario para ocultar el ID de Firestore en el texto
                 opciones_dict = {}
                 for _, r in df_con_stock.iterrows():
                     cod_str = str(r.get("codigo_barras", "")).strip()
                     prefix_cod = (
                         f"[{cod_str}] " if cod_str and cod_str != "nan" and cod_str != "" else ""
                     )
-                    # Texto limpio para mostrar en pantalla
                     label = f"{prefix_cod}{r['nombre']} ({r['marca']}) - Stock: {r['stock']}"
                     opciones_dict[label] = r['id']
 
@@ -1159,7 +1152,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 
             subtotal_venta = sum(item["subtotal"] for item in st.session_state.carrito)
 
-            # --- SECCIÓN DE DESCUENTO EN GUARANÍES ---
             col_des1, col_des2 = st.columns([1, 2])
             with col_des1:
                 descuento = st.number_input(
@@ -1173,7 +1165,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 
             monto_total_venta = subtotal_venta - descuento
 
-            # Muestra de Totales
             if descuento > 0:
                 st.markdown(f"Subtotal: ~~{formatear_gs(subtotal_venta)}~~ | Descuento: -{formatear_gs(descuento)}")
             
@@ -1198,15 +1189,14 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 st.write("")
                 st.write("")
                 if st.button("✅ Finalizar Venta", type="primary"):
-                    # Calcular proporcionadamente el precio con descuento o pasarlo directamente
                     for item in st.session_state.carrito:
-                        # Si deseas registrar el total global con descuento aplicado
+                        desc_item = int(descuento * (item["subtotal"] / subtotal_venta)) if subtotal_venta > 0 else 0
                         registrar_venta(
                             producto_id=item["id"],
                             producto_nombre=item["nombre"],
                             cantidad=item["cantidad"],
                             precio_unitario=item["precio_unitario"],
-                            total=item["subtotal"] - int(descuento * (item["subtotal"] / subtotal_venta)),
+                            total=item["subtotal"] - desc_item,
                             tipo_venta=tipo_venta,
                             metodo_pago=metodo_pago,
                             cliente_nombre=cliente_sel,
@@ -1229,7 +1219,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             metodo = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Otro"])
             if st.form_submit_button("Registrar Salida", type="primary"):
                 if motivo.strip():
-                    registrar_salida_caja(motivo, monto, metodo)
+                    registrar_salida_caja(motivo=motivo, monto=monto, metodo=metodo)
                     st.success("Salida de caja registrada.")
                     st.rerun()
                 else:
@@ -1250,7 +1240,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         saldo_ini = obtener_saldo_inicial_dia(hoy_str)
         df_ventas = obtener_ventas()
         
-        # Filtrar ventas de hoy
         if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
             df_ventas_hoy = df_ventas[
                 (df_ventas["fecha_hora"].str.startswith(hoy_str)) & 
@@ -1287,7 +1276,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             cierres = [d.to_dict() for d in docs]
             df_cierres = pd.DataFrame(cierres)
         else:
-            conn = sqlite3.connect("inventario.db")
+            conn = obtener_conexion()
             df_cierres = pd.read_sql_query("SELECT * FROM cierres_caja ORDER BY fecha DESC", conn)
             conn.close()
 
@@ -1301,7 +1290,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             st.info("No hay cierres de caja registrados aún.")
 
 # ==========================================
-# GESTOR DE PROVEEDORES (COMPLETO)
+# GESTOR DE PROVEEDORES
 # ==========================================
 elif opcion == "🏬 Gestor de Proveedores":
     st.markdown('<p class="main-title">🏬 Gestor de Proveedores</p>', unsafe_allow_html=True)
@@ -1312,9 +1301,6 @@ elif opcion == "🏬 Gestor de Proveedores":
         "📜 Deudas por Pagar"
     ])
 
-    # ---------------------------------------------------------
-    # TAB 1: REGISTRO Y LISTA DE PROVEEDORES
-    # ---------------------------------------------------------
     with tab_prov:
         st.subheader("Registrar Nuevo Proveedor")
         with st.form("form_proveedor"):
@@ -1340,9 +1326,6 @@ elif opcion == "🏬 Gestor de Proveedores":
         else:
             st.info("No hay proveedores registrados aún.")
 
-    # ---------------------------------------------------------
-    # TAB 2: REGISTRAR COMPRA A PROVEEDOR
-    # ---------------------------------------------------------
     with tab_compras:
         st.subheader("Registrar Compra a Proveedor")
         df_prov = obtener_proveedores()
@@ -1359,13 +1342,12 @@ elif opcion == "🏬 Gestor de Proveedores":
                 
                 if st.form_submit_button("🚚 Registrar Compra", type="primary"):
                     if concepto.strip():
-                        # Si es Contado se guarda pagado, si es Crédito queda Pendiente
                         estado_pago = "Pagado" if tipo_compra == "Contado" else "Pendiente"
                         
                         registrar_compra_proveedor(
                             proveedor=prov_sel, 
                             concepto=concepto, 
-                            monto_total=monto,  # <-- Se cambió 'monto' por 'monto_total'
+                            monto_total=monto,
                             tipo_compra=tipo_compra, 
                             metodo_pago=metodo_pago,
                             estado_pago=estado_pago
@@ -1384,23 +1366,17 @@ elif opcion == "🏬 Gestor de Proveedores":
                     df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
                 st.dataframe(df_show, use_container_width=True)
 
-   # ---------------------------------------------------------
-    # TAB 3: DEUDAS Y PAGOS (PARCIALES Y TOTALES)
-    # ---------------------------------------------------------
-    
     with tab_deudas:
         st.subheader("📜 Deudas Pendientes con Proveedores")
         df_compras = obtener_compras_proveedores()
         
         if not df_compras.empty:
-            # Filtrar las compras que no están 100% pagadas
             if "estado_pago" in df_compras.columns:
                 deudas = df_compras[df_compras["estado_pago"].isin(["Pendiente", "Parcial"])].copy()
             else:
                 deudas = pd.DataFrame()
 
             if not deudas.empty:
-                # Asegurar columnas numéricas para el saldo
                 deudas["monto_total"] = deudas["monto_total"].fillna(0).astype(int)
                 if "monto_pagado" not in deudas.columns:
                     deudas["monto_pagado"] = 0
@@ -1409,15 +1385,11 @@ elif opcion == "🏬 Gestor de Proveedores":
 
                 deudas["saldo_pendiente"] = deudas["monto_total"] - deudas["monto_pagado"]
 
-                # Mostrar tabla con formato visual
                 df_show_deudas = deudas.copy()
                 df_show_deudas["monto_total"] = df_show_deudas["monto_total"].apply(formatear_gs)
                 df_show_deudas["monto_pagado"] = df_show_deudas["monto_pagado"].apply(formatear_gs)
                 df_show_deudas["saldo_pendiente"] = df_show_deudas["saldo_pendiente"].apply(formatear_gs)
 
-                # =========================================================
-                # ORDENAR COLUMNAS Y EXCLUIR 'estado_pago'
-                # =========================================================
                 columnas_deseadas = [
                     "fecha_hora", "fecha", 
                     "proveedor_nombre", "proveedor", "nombre_proveedor",
@@ -1425,16 +1397,12 @@ elif opcion == "🏬 Gestor de Proveedores":
                     "saldo_pendiente", "tipo_compra", "metodo_pago", "id"
                 ]
                 
-                # Seleccionamos solo las columnas deseadas que existan en el DataFrame
                 cols_existentes = [c for c in columnas_deseadas if c in df_show_deudas.columns]
-                
-                # Renderizamos la tabla limpia sin 'estado_pago' (actualizado a width="stretch")
-                st.dataframe(df_show_deudas[cols_existentes], width="stretch")
+                st.dataframe(df_show_deudas[cols_existentes], use_container_width=True)
 
                 st.markdown("---")
                 st.subheader("💵 Registrar Pago / Entrega")
 
-                # Diccionario seguro (evita KeyError si no encuentra la columna 'proveedor')
                 dict_deudas = {}
                 for _, r in deudas.iterrows():
                     nombre_prov = r.get('proveedor', r.get('proveedor_nombre', r.get('nombre_proveedor', 'Proveedor')))
@@ -1469,20 +1437,14 @@ elif opcion == "🏬 Gestor de Proveedores":
 
                         if st.form_submit_button("✅ Confirmar Pago", type="primary"):
                             nuevo_monto_pagado = monto_pagado_actual + monto_a_pagar
-                            
-                            if nuevo_monto_pagado >= monto_total_original:
-                                nuevo_estado = "Pagado"
-                            else:
-                                nuevo_estado = "Parcial"
+                            nuevo_estado = "Pagado" if nuevo_monto_pagado >= monto_total_original else "Parcial"
 
-                            # Actualizar registro en BD
                             actualizar_pago_compra_proveedor(
                                 id_compra=id_compra_sel, 
                                 nuevo_monto_pagado=nuevo_monto_pagado, 
                                 nuevo_estado=nuevo_estado
                             )
 
-                            # Registrar la salida de caja
                             registrar_salida_caja(
                                 motivo=f"Pago deuda proveedor {prov_nombre_final} (ID Compra: {id_compra_sel})",
                                 monto=monto_a_pagar,
@@ -1495,6 +1457,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                 st.success("🎉 ¡No hay deudas pendientes con proveedores!")
         else:
             st.info("No hay registro de compras aún.")
+
 # ==========================================
 # DEUDAS DE CLIENTES
 # ==========================================
@@ -1511,7 +1474,7 @@ elif opcion == "💳 Deudas de Clientes":
             st.success("🎉 ¡No hay deudas pendientes de clientes!")
 
 # ==========================================
-# GESTOR DE CLIENTES (REGISTRO, EDICIÓN Y LISTA)
+# GESTOR DE CLIENTES
 # ==========================================
 elif opcion == "👥 Gestor de Clientes":
     st.markdown('<p class="main-title">👥 Gestor de Clientes</p>', unsafe_allow_html=True)
@@ -1524,7 +1487,6 @@ elif opcion == "👥 Gestor de Clientes":
 
     df_clientes = obtener_clientes()
 
-    # --- Pestaña 1: Registrar Cliente ---
     with tab_nuevo_c:
         st.subheader("Registrar Nuevo Cliente")
         with st.form("form_cliente"):
@@ -1543,7 +1505,6 @@ elif opcion == "👥 Gestor de Clientes":
                 else:
                     st.warning("El Nombre y Apellido son obligatorios.")
 
-    # --- Pestaña 2: Editar / Modificar Cliente ---
     with tab_editar_c:
         st.subheader("Modificar Datos de un Cliente")
         if df_clientes.empty:
@@ -1582,20 +1543,18 @@ elif opcion == "👥 Gestor de Clientes":
                         else:
                             st.warning("El Nombre y Apellido no pueden quedar vacíos.")
 
-    # --- Pestaña 3: Lista de Clientes ---
     with tab_lista_c:
         st.subheader("📋 Listado General de Clientes")
         
         if not df_clientes.empty:
-            # Lista con el orden solicitado (incluye 'ci'/'cedula' y 'ciudad'/'direccion'):
             columnas_ordenadas = [
                 'nombre',
                 'apellido',
-                'ci',          # Tu campo de documento en el formulario
-                'cedula',      # Por si acaso en el DF se guardó como cédula
+                'ci',
+                'cedula',
                 'telefono',
-                'ciudad',      # Tu campo de ubicación en el formulario
-                'direccion',   # Por si acaso existe en el DF
+                'ciudad',
+                'direccion',
                 'deuda',
                 'deuda_pendiente',
                 'id'
@@ -1627,12 +1586,9 @@ elif opcion == "📈 Flujo de Caja Mensual":
 elif opcion == "📦 Ver Stock / Inventario":
     st.markdown('<p class="main-title">📦 Ver Stock / Inventario</p>', unsafe_allow_html=True)
     
-    # Cargamos los productos actualizados
     df_stock = obtener_productos()
     
     if not df_stock.empty:
-        # Definimos la secuencia exacta solicitada:
-        # codigo_barras - nombre - marca - categoria - precio_costo - ganancia_porcentaje - precio_venta - descripcion - id
         columnas_ordenadas = [
             'codigo_barras', 
             'nombre',
@@ -1645,13 +1601,9 @@ elif opcion == "📦 Ver Stock / Inventario":
             'id'
         ]
         
-        # 1. Filtramos solo las columnas que realmente existen en df_stock respetando el nuevo orden
         cols_existentes = [col for col in columnas_ordenadas if col in df_stock.columns]
-        
-        # 2. Reordenamos explícitamente el DataFrame
         df_mostrar = df_stock[cols_existentes]
         
-        # 3. Renderizamos con key único para limpiar el cache visual de la tabla
         st.dataframe(
             df_mostrar, 
             use_container_width=True,
@@ -1661,7 +1613,7 @@ elif opcion == "📦 Ver Stock / Inventario":
         st.info("No hay productos en el inventario.")
 
 # ==========================================
-# GESTOR DE PRODUCTOS (REGISTRAR Y MODIFICAR)
+# GESTOR DE PRODUCTOS
 # ==========================================
 elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Editar / Modificar Producto"]:
     st.markdown('<p class="main-title">📦 Gestor de Productos</p>', unsafe_allow_html=True)
@@ -1671,7 +1623,6 @@ elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Ed
         "✏️ Editar / Modificar Producto"
     ])
 
-    # --- Pestaña 1: Registrar Producto ---
     with tab_reg_p:
         st.subheader("Registrar Nuevo Producto")
         cats = obtener_categorias()
@@ -1699,16 +1650,13 @@ elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Ed
                 else:
                     st.warning("El nombre del producto es obligatorio.")
 
-    # --- Pestaña 2: Editar / Modificar Producto ---
     with tab_edit_p:
         st.subheader("Modificar / Eliminar Producto")
         df_p = obtener_productos()
         
         if not df_p.empty:
-            # 1. Guardamos los nombres para mostrar y los ID ocultos
             dict_productos = {str(r['nombre']): str(r['id']) for _, r in df_p.iterrows()}
 
-            # 2. El desplegable AHORA solo muestra el NOMBRE del producto
             prod_sel_nombre = st.selectbox(
                 "🔍 Selecciona un producto a modificar:", 
                 options=list(dict_productos.keys()),
@@ -1716,7 +1664,6 @@ elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Ed
             )
             
             if prod_sel_nombre:
-                # 3. Obtenemos el ID internamente
                 id_p = dict_productos[prod_sel_nombre]
                 p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
 
@@ -1749,14 +1696,13 @@ elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Ed
             st.info("No hay productos registrados para modificar.")
 
 # ==========================================
-# GESTOR DE CATEGORÍAS Y MARCAS (UNIFICADO)
+# GESTOR DE CATEGORÍAS Y MARCAS
 # ==========================================
 elif opcion in ["🏷️ Gestor de Categorías", "🏢 Gestor de Marcas", "Gestor de Categorías", "Gestor de Marcas"]:
     st.markdown('<p class="main-title">🏷️ Gestor de Categorías y Marcas</p>', unsafe_allow_html=True)
     
     tab_cat, tab_mar = st.tabs(["🏷️ Categorías", "🏢 Marcas"])
 
-    # --- Pestaña 1: Categorías ---
     with tab_cat:
         st.subheader("Gestión de Categorías")
         cats = obtener_categorias()
@@ -1779,7 +1725,6 @@ elif opcion in ["🏷️ Gestor de Categorías", "🏢 Gestor de Marcas", "Gesto
         st.markdown("---")
         st.write("Categorías actuales:", cats)
 
-    # --- Pestaña 2: Marcas ---
     with tab_mar:
         st.subheader("Gestión de Marcas")
         marcas = obtener_marcas()
@@ -1801,4 +1746,3 @@ elif opcion in ["🏷️ Gestor de Categorías", "🏢 Gestor de Marcas", "Gesto
 
         st.markdown("---")
         st.write("Marcas actuales:", marcas)
-        
