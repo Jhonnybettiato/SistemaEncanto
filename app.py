@@ -3,18 +3,13 @@ import pandas as pd
 import streamlit as st
 import sqlite3
 
-# 1. Definición de la conexión a la base de datos
-def obtener_conexion():
-    # Cambia 'base_datos.db' por el nombre exacto de tu archivo .db si es distinto
-    return sqlite3.connect("base_datos.db")
-
-# 2. Función para actualizar pago de compras
+# 1. Actualizar pago (con la tabla correcta: compras_proveedores)
 def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs):
     try:
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute("""
-            UPDATE compras
+            UPDATE compras_proveedores
             SET monto_pagado = ?, 
                 estado = ?
             WHERE id = ?
@@ -26,6 +21,26 @@ def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado
         st.error(f"Error al actualizar el pago: {e}")
         return False
 
+# 2. Registrar salida de caja (flexible para recibir cualquier parámetro sin dar TypeError)
+def registrar_salida_caja(*args, **kwargs):
+    motivo = kwargs.get('motivo') or (args[0] if len(args) > 0 else "Salida de caja")
+    monto = kwargs.get('monto') or (args[1] if len(args) > 1 else 0)
+    metodo = kwargs.get('metodo') or (args[2] if len(args) > 2 else "Efectivo")
+    
+    try:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO caja (tipo, motivo, monto, metodo)
+            VALUES ('SALIDA', ?, ?, ?)
+        """, (motivo, monto, metodo))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Error al registrar salida de caja: {e}")
+        return False
+        
 # 3. Función para registrar la salida de caja (acepta cualquier nombre de parámetro sin dar TypeError)
 def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
     try:
