@@ -1327,7 +1327,7 @@ elif opcion == "🏬 Gestor de Proveedores":
             st.info("No hay proveedores registrados aún.")
 
     with tab_compras:
-        st.subheader("Registrar Compra a Proveedor")
+        st.subheader("Registrar Compra / Factura de Proveedor")
         df_prov = obtener_proveedores()
         
         if df_prov.empty:
@@ -1337,22 +1337,22 @@ elif opcion == "🏬 Gestor de Proveedores":
                 prov_sel = st.selectbox("Seleccionar Proveedor:", df_prov["nombre"].tolist())
                 concepto = st.text_input("Concepto / Descripción de la compra:")
                 monto = st.number_input("Monto Total (Gs.):", min_value=1, step=5000)
-                tipo_compra = st.selectbox("Tipo de Compra:", ["Contado", "Crédito"])
-                metodo_pago = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"])
                 
-                if st.form_submit_button("🚚 Registrar Compra", type="primary"):
+                # Asumimos por defecto que es una compra a crédito / deuda por pagar
+                metodo_pago = st.selectbox("Método de Pago Preferido / Cuenta:", ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"])
+                
+                if st.form_submit_button("🚚 Registrar Compra (A Crédito)", type="primary"):
                     if concepto.strip():
-                        estado_pago = "Pagado" if tipo_compra == "Contado" else "Pendiente"
-                        
+                        # Guardamos automáticamente como Crédito y estado Pendiente
                         registrar_compra_proveedor(
                             proveedor=prov_sel, 
                             concepto=concepto, 
                             monto_total=monto,
-                            tipo_compra=tipo_compra, 
+                            tipo_compra="Crédito", 
                             metodo_pago=metodo_pago,
-                            estado_pago=estado_pago
+                            estado_pago="Pendiente"
                         )
-                        st.success("¡Compra a proveedor registrada exitosamente!")
+                        st.success("¡Compra registrada correctamente y enviada a Deudas por Pagar!")
                         st.rerun()
                     else:
                         st.warning("Por favor ingresa un concepto o descripción para la compra.")
@@ -1365,7 +1365,6 @@ elif opcion == "🏬 Gestor de Proveedores":
                 if "monto_total" in df_show.columns:
                     df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
                 st.dataframe(df_show, use_container_width=True)
-
     with tab_deudas:
         st.subheader("📜 Deudas Pendientes con Proveedores")
         df_compras = obtener_compras_proveedores()
