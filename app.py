@@ -224,31 +224,46 @@ def registrar_cierre_diario(fecha_str, saldo_inicial, ingresos, egresos, saldo_f
         conn.close()
 
 
-def obtener_cierre_por_fecha(fecha_str):
+def obtener_historico_cierres():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        doc = db_cloud.collection("cierres_caja").document(fecha_str).get()
-        return doc.to_dict() if doc.exists else None
+        docs = db_cloud.collection("cierres_caja").stream()
+        lista = [doc.to_dict() for doc in docs]
+        if not lista:
+            return pd.DataFrame(columns=["fecha", "saldo_inicial", "ingresos", "egresos", "saldo_final"])
+        df = pd.DataFrame(lista)
+        return df.sort_values(by="fecha", ascending=False)
+    else:
+        conn = obtener_conexion()
+        df = pd.read_sql_query("SELECT * FROM cierres_caja ORDER BY fecha DESC", conn)
+        conn.close()
+        return df
+
+
+def actualizar_cierre_caja(fecha_str, nuevo_saldo_final):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("cierres_caja").document(fecha_str).update({"saldo_final": int(nuevo_saldo_final)})
     else:
         conn = obtener_conexion()
         cursor = conn.cursor()
-        cursor.execute(
-            "SELECT fecha, saldo_inicial, ingresos, egresos, saldo_final FROM cierres_caja WHERE fecha = ?",
-            (fecha_str,),
-        )
-        row = cursor.fetchone()
+        cursor.execute("UPDATE cierres_caja SET saldo_final = ? WHERE fecha = ?", (int(nuevo_saldo_final), fecha_str))
+        conn.commit()
         conn.close()
-        return (
-            {
-                "fecha": row[0],
-                "saldo_inicial": row[1],
-                "ingresos": row[2],
-                "egresos": row[3],
-                "saldo_final": row[4],
-            }
-            if row
-            else None
-        )
+
+
+def limpiar_historico_cierres():
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs = db_cloud.collection("cierres_caja").stream()
+        for doc in docs:
+            db_cloud.collection("cierres_caja").document(doc.id).delete()
+    else:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM cierres_caja")
+        conn.commit()
+        conn.close()
 
 
 def obtener_categorias():
@@ -401,7 +416,6 @@ def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
 
 
 def actualizar_cliente(id_cliente, nombre, apellido, ci, telefono, ciudad):
-    """Función agregada para corregir el NameError al editar clientes."""
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
         db_cloud.collection("clientes").document(str(id_cliente)).update({
@@ -500,7 +514,6 @@ def obtener_proveedores():
 
 
 def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs):
-    """Actualiza el pago y estado de la compra en compras_proveedores (Firestore/SQLite)."""
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
         db_cloud.collection("compras_proveedores").document(str(id_compra)).update({
@@ -912,7 +925,6 @@ def registrar_pago_proveedor(compra_id, proveedor_nombre, monto, metodo_pago):
 
 
 def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
-    """Registra salidas de caja tanto en Firestore como SQLite."""
     metodo_pago = kwargs.get("metodo_pago", metodo)
     db_cloud = obtener_conexion_db()
     fecha_hora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1234,81 +1246,97 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             st.dataframe(df_salidas_show, use_container_width=True)
 
     # Contraseña de seguridad para acciones sensibles
-CLAVE_ADMIN = "12345amor"  # 👈 Cambia esto por tu contraseña deseada
+    CLAVE_ADMIN = "12345amor"
 
-# --- TAB 3: CIERRE DE CAJA (HOY) ---
-with tab_cierre:
-    st.subheader(f"Cierre de Caja - Fecha: {fecha_hoy}")
+    # --- DATOS PARA CIERRE DE CAJA ---
+    fecha_hoy = date.today().strftime("%Y-%m-%d")
+    saldo_inicial = obtener_saldo_inicial_dia(fecha_hoy)
     
-    # Muestra de métricas (Saldo Inicial, Ingresos, Egresos, Saldo Final)
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Saldo Inicial", formatear_gs(saldo_inicial))
-    col2.metric("Ingresos (Hoy)", formatear_gs(ingresos_hoy))
-    col3.metric("Egresos (Hoy)", formatear_gs(egresos_hoy))
-    col4.metric("Saldo Final Calculado", formatear_gs(saldo_final))
-    
-    st.markdown("---")
-    st.subheader("🔒 Confirmar Cierre")
-    
-    # Campo para la contraseña antes de guardar
-    pwd_guardar = st.text_input("Ingresa la contraseña para guardar el cierre:", type="password", key="pwd_cierre_hoy")
-    
-    if st.button("🔒 Confirmar y Guardar Cierre de Hoy", type="primary"):
-        if pwd_guardar == CLAVE_ADMIN:
-            guardar_cierre_caja(fecha_hoy, saldo_inicial, ingresos_hoy, egresos_hoy, saldo_final)
-            st.success("✅ ¡Cierre de caja guardado con éxito!")
-            st.rerun()
-        else:
-            st.error("❌ Contraseña incorrecta. No se pudo guardar el cierre.")
-
-# --- TAB 4: HISTÓRICO DE CIERRES ---
-with tab_historico:
-    st.subheader("🗓️ Histórico de Cierres de Caja")
-    df_cierres = obtener_historico_cierres()
-    
-    if df_cierres.empty:
-        st.info("No hay cierres guardados aún.")
+    df_v = obtener_ventas()
+    if not df_v.empty and "fecha_hora" in df_v.columns:
+        df_v_hoy = df_v[(df_v["fecha_hora"].str.startswith(fecha_hoy)) & (df_v["estado_pago"] == "Pagado")]
+        ingresos_hoy = int(df_v_hoy["total"].sum()) if not df_v_hoy.empty else 0
     else:
-        # Formatear montos para visualización
-        df_show = df_cierres.copy()
-        for col in ["saldo_inicial", "ingresos", "egresos", "saldo_final"]:
-            if col in df_show.columns:
-                df_show[col] = df_show[col].apply(formatear_gs)
-                
-        st.dataframe(df_show, use_container_width=True)
+        ingresos_hoy = 0
+
+    df_s = obtener_salidas_caja()
+    if not df_s.empty and "fecha_hora" in df_s.columns:
+        df_s_hoy = df_s[df_s["fecha_hora"].str.startswith(fecha_hoy)]
+        egresos_hoy = int(df_s_hoy["monto"].sum()) if not df_s_hoy.empty else 0
+    else:
+        egresos_hoy = 0
+
+    saldo_final = saldo_inicial + ingresos_hoy - egresos_hoy
+
+    # --- TAB 3: CIERRE DE CAJA (HOY) ---
+    with tab_cierre:
+        st.subheader(f"Cierre de Caja - Fecha: {fecha_hoy}")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Saldo Inicial", formatear_gs(saldo_inicial))
+        col2.metric("Ingresos (Hoy)", formatear_gs(ingresos_hoy))
+        col3.metric("Egresos (Hoy)", formatear_gs(egresos_hoy))
+        col4.metric("Saldo Final Calculado", formatear_gs(saldo_final))
         
         st.markdown("---")
+        st.subheader("🔒 Confirmar Cierre")
         
-        # Opciones de Administración (Editar / Borrar)
-        expander_admin = st.expander("🛠️ Opciones Avanzadas (Editar / Limpiar Histórico)")
-        with expander_admin:
-            opcion = st.radio("Selecciona una acción:", ["Editar Cierre Existente", "Limpiar Todo el Histórico"])
-            
-            if opcion == "Editar Cierre Existente":
-                fecha_sel = st.selectbox("Selecciona la fecha a editar:", df_cierres["fecha"].tolist())
-                nuevo_saldo_final = st.number_input("Nuevo Saldo Final (Gs.):", min_value=0, step=1000)
-                pwd_edit = st.text_input("Contraseña de confirmación:", type="password", key="pwd_edit")
-                
-                if st.button("✏️ Actualizar Cierre"):
-                    if pwd_edit == CLAVE_ADMIN:
-                        actualizar_cierre_caja(fecha_sel, nuevo_saldo_final) # Asegúrate de tener la función en tu base de datos
-                        st.success(f"✅ Cierre del {fecha_sel} actualizado correctamente.")
-                        st.rerun()
-                    else:
-                        st.error("❌ Contraseña incorrecta.")
+        pwd_guardar = st.text_input("Ingresa la contraseña para guardar el cierre:", type="password", key="pwd_cierre_hoy")
+        
+        if st.button("🔒 Confirmar y Guardar Cierre de Hoy", type="primary"):
+            if pwd_guardar == CLAVE_ADMIN:
+                registrar_cierre_diario(fecha_hoy, saldo_inicial, ingresos_hoy, egresos_hoy, saldo_final)
+                st.success("✅ ¡Cierre de caja guardado con éxito!")
+                st.rerun()
+            else:
+                st.error("❌ Contraseña incorrecta. No se pudo guardar el cierre.")
 
-            elif opcion == "Limpiar Todo el Histórico":
-                st.warning("⚠️ Esta acción borrará permanentemente todos los cierres guardados.")
-                pwd_del = st.text_input("Contraseña de confirmación para BORRAR:", type="password", key="pwd_del")
+    # --- TAB 4: HISTÓRICO DE CIERRES ---
+    with tab_historico:
+        st.subheader("🗓️ Histórico de Cierres de Caja")
+        df_cierres = obtener_historico_cierres()
+        
+        if df_cierres.empty:
+            st.info("No hay cierres guardados aún.")
+        else:
+            df_show = df_cierres.copy()
+            for col in ["saldo_inicial", "ingresos", "egresos", "saldo_final"]:
+                if col in df_show.columns:
+                    df_show[col] = df_show[col].apply(formatear_gs)
+                    
+            st.dataframe(df_show, use_container_width=True)
+            
+            st.markdown("---")
+            
+            expander_admin = st.expander("🛠️ Opciones Avanzadas (Editar / Limpiar Histórico)")
+            with expander_admin:
+                opcion_admin = st.radio("Selecciona una acción:", ["Editar Cierre Existente", "Limpiar Todo el Histórico"])
                 
-                if st.button("🗑️ Limpiar Histórico Completo", type="primary"):
-                    if pwd_del == CLAVE_ADMIN:
-                        limpiar_historico_cierres() # Función para hacer DELETE / TRUNCATE en la BD
-                        st.success("✅ Histórico eliminado correctamente.")
-                        st.rerun()
-                    else:
-                        st.error("❌ Contraseña incorrecta.")
-                        
+                if opcion_admin == "Editar Cierre Existente":
+                    fecha_sel = st.selectbox("Selecciona la fecha a editar:", df_cierres["fecha"].tolist())
+                    nuevo_saldo_final = st.number_input("Nuevo Saldo Final (Gs.):", min_value=0, step=1000)
+                    pwd_edit = st.text_input("Contraseña de confirmación:", type="password", key="pwd_edit")
+                    
+                    if st.button("✏️ Actualizar Cierre"):
+                        if pwd_edit == CLAVE_ADMIN:
+                            actualizar_cierre_caja(fecha_sel, nuevo_saldo_final)
+                            st.success(f"✅ Cierre del {fecha_sel} actualizado correctamente.")
+                            st.rerun()
+                        else:
+                            st.error("❌ Contraseña incorrecta.")
+
+                elif opcion_admin == "Limpiar Todo el Histórico":
+                    st.warning("⚠️ Esta acción borrará permanentemente todos los cierres guardados.")
+                    pwd_del = st.text_input("Contraseña de confirmación para BORRAR:", type="password", key="pwd_del")
+                    
+                    if st.button("🗑️ Limpiar Histórico Completo", type="primary"):
+                        if pwd_del == CLAVE_ADMIN:
+                            limpiar_historico_cierres()
+                            st.success("✅ Histórico eliminado correctamente.")
+                            st.rerun()
+                        else:
+                            st.error("❌ Contraseña incorrecta.")
+
 # ==========================================
 # GESTOR DE PROVEEDORES
 # ==========================================
@@ -1358,12 +1386,10 @@ elif opcion == "🏬 Gestor de Proveedores":
                 concepto = st.text_input("Concepto / Descripción de la compra:")
                 monto = st.number_input("Monto Total (Gs.):", min_value=1, step=5000)
                 
-                # Asumimos por defecto que es una compra a crédito / deuda por pagar
                 metodo_pago = st.selectbox("Método de Pago Preferido / Cuenta:", ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"])
                 
                 if st.form_submit_button("🚚 Registrar Compra (A Crédito)", type="primary"):
                     if concepto.strip():
-                        # Guardamos automáticamente como Crédito y estado Pendiente
                         registrar_compra_proveedor(
                             proveedor=prov_sel, 
                             concepto=concepto, 
@@ -1385,6 +1411,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                 if "monto_total" in df_show.columns:
                     df_show["monto_total"] = df_show["monto_total"].apply(formatear_gs)
                 st.dataframe(df_show, use_container_width=True)
+
     with tab_deudas:
         st.subheader("📜 Deudas Pendientes con Proveedores")
         df_compras = obtener_compras_proveedores()
