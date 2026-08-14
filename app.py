@@ -459,28 +459,26 @@ def obtener_proveedores():
         conn.close()
         return df
 
-def actualizar_pago_compra_proveedor(id_compra, monto_abonado, metodo_pago):
+def actualizar_pago_compra_proveedor(id_compra, nuevo_monto_pagado, nuevo_estado, **kwargs):
     """
-    Registra/Actualiza el pago a un proveedor.
-    Ajusta los nombres de tablas/columnas según tu base de datos o DataFrame.
+    Actualiza el monto pagado y estado de la compra del proveedor.
     """
     try:
-        # Ejemplo si usas SQLite:
-        conn = obtener_conexion()  # Usa tu función de conexión
+        conn = obtener_conexion()  # Usa tu función de conexión a la BD
         cursor = conn.cursor()
         
         cursor.execute("""
-            UPDATE compras_proveedores 
-            SET monto_pagado = monto_pagado + ?, 
-                metodo_pago = ?
+            UPDATE compras
+            SET monto_pagado = ?, 
+                estado = ?
             WHERE id = ?
-        """, (monto_abonado, metodo_pago, id_compra))
+        """, (nuevo_monto_pagado, nuevo_estado, id_compra))
         
         conn.commit()
         conn.close()
         return True
     except Exception as e:
-        st.error(f"Error al registrar el pago: {e}")
+        st.error(f"Error al actualizar el pago: {e}")
         return False
         
 def registrar_producto(
