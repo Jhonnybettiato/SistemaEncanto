@@ -1404,6 +1404,117 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             )
             st.dataframe(df_salidas_show, use_container_width=True)
 
+            st.markdown("---")
+            expander_salida_admin = st.expander(
+                "🛠️ Opciones Avanzadas (Editar / Eliminar Salida)"
+            )
+            with expander_salida_admin:
+                opcion_s_admin = st.radio(
+                    "Selecciona una acción:",
+                    ["Editar Salida", "Eliminar Salida"],
+                    key="radio_salida_admin",
+                )
+
+                dict_salidas_edit = {}
+                for _, r in df_salidas.iterrows():
+                    label = (
+                        f"ID: {r['id']} | {r.get('fecha_hora', '')} | "
+                        f"{r.get('motivo', '')} - {formatear_gs(r.get('monto', 0))}"
+                    )
+                    dict_salidas_edit[label] = r["id"]
+
+                salida_sel_admin = st.selectbox(
+                    "Selecciona la salida a modificar:",
+                    options=list(dict_salidas_edit.keys()),
+                    key="select_salida_admin",
+                )
+
+                if salida_sel_admin:
+                    id_s_sel = dict_salidas_edit[salida_sel_admin]
+                    s_row = df_salidas[
+                        df_salidas["id"].astype(str) == str(id_s_sel)
+                    ].iloc[0]
+
+                    if opcion_s_admin == "Editar Salida":
+                        edit_s_motivo = st.text_input(
+                            "Nuevo Motivo:",
+                            value=str(s_row.get("motivo", "")),
+                            key="edit_s_motivo",
+                        )
+                        edit_s_monto = st.number_input(
+                            "Nuevo Monto (Gs.):",
+                            min_value=1,
+                            value=int(s_row.get("monto", 0)),
+                            step=1000,
+                            key="edit_s_monto",
+                        )
+                        metodos_pago_list = [
+                            "Efectivo",
+                            "Transferencia",
+                            "Tarjeta",
+                            "Otro",
+                        ]
+                        metodo_actual = str(
+                            s_row.get("metodo_pago", "Efectivo")
+                        )
+                        idx_metodo = (
+                            metodos_pago_list.index(metodo_actual)
+                            if metodo_actual in metodos_pago_list
+                            else 0
+                        )
+                        edit_s_metodo = st.selectbox(
+                            "Nuevo Método de Pago:",
+                            metodos_pago_list,
+                            index=idx_metodo,
+                            key="edit_s_metodo",
+                        )
+
+                        pwd_s_edit = st.text_input(
+                            "Contraseña de confirmación:",
+                            type="password",
+                            key="pwd_s_edit",
+                        )
+
+                        if st.button("✏️ Guardar Cambios en Salida"):
+                            if pwd_s_edit == CLAVE_ADMIN:
+                                actualizar_salida_caja(
+                                    id_s_sel,
+                                    edit_s_motivo,
+                                    edit_s_monto,
+                                    edit_s_metodo,
+                                )
+                                st.success(
+                                    "✅ Salida actualizada correctamente."
+                                )
+                                st.rerun()
+                            else:
+                                st.error("❌ Contraseña incorrecta.")
+
+                    elif opcion_s_admin == "Eliminar Salida":
+                        st.warning(
+                            "⚠️ Esta acción eliminará permanentemente la"
+                            " salida seleccionada."
+                        )
+                        pwd_s_del = st.text_input(
+                            "Contraseña de confirmación para BORRAR:",
+                            type="password",
+                            key="pwd_s_del",
+                        )
+
+                        if st.button(
+                            "🗑️ Eliminar Salida Definitivamente",
+                            type="primary",
+                        ):
+                            if pwd_s_del == CLAVE_ADMIN:
+                                eliminar_salida_caja(id_s_sel)
+                                st.success(
+                                    "✅ Registro de salida eliminado"
+                                    " correctamente."
+                                )
+                                st.rerun()
+                            else:
+                                st.error("❌ Contraseña incorrecta.")
+
     # --- DATOS PARA CIERRE DE CAJA ---
     fecha_hoy = date.today().strftime("%Y-%m-%d")
     saldo_inicial = obtener_saldo_inicial_dia(fecha_hoy)
