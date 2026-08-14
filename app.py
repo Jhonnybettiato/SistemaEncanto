@@ -469,11 +469,10 @@ def obtener_clientes():
         conn.close()
         return df
 
-
-def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
+def actualizar_proveedor(id_prov, nombre, ruc_ci, telefono, ciudad):
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        db_cloud.collection("proveedores").add({
+        db_cloud.collection("proveedores").document(str(id_prov)).update({
             "nombre": nombre.strip(),
             "ruc_ci": ruc_ci.strip(),
             "telefono": telefono.strip(),
@@ -483,12 +482,35 @@ def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO proveedores (nombre, ruc_ci, telefono, ciudad) VALUES (?, ?, ?, ?)",
-            (nombre.strip(), ruc_ci.strip(), telefono.strip(), ciudad.strip()),
+            """
+            UPDATE proveedores
+            SET nombre = ?, ruc_ci = ?, telefono = ?, ciudad = ?
+            WHERE id = ?
+        """,
+            (
+                nombre.strip(),
+                ruc_ci.strip(),
+                telefono.strip(),
+                ciudad.strip(),
+                int(id_prov) if str(id_prov).isdigit() else id_prov,
+            ),
         )
         conn.commit()
         conn.close()
 
+def eliminar_proveedor(id_prov):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("proveedores").document(str(id_prov)).delete()
+    else:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM proveedores WHERE id = ?",
+            (int(id_prov) if str(id_prov).isdigit() else id_prov,),
+        )
+        conn.commit()
+        conn.close()
 
 def obtener_proveedores():
     db_cloud = obtener_conexion_db()
@@ -1343,8 +1365,9 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 elif opcion == "🏬 Gestor de Proveedores":
     st.markdown('<p class="main-title">🏬 Gestor de Proveedores</p>', unsafe_allow_html=True)
     
-    tab_prov, tab_compras, tab_deudas = st.tabs([
+    tab_prov, tab_edit_p, tab_compras, tab_deudas = st.tabs([
         "👤 Registro / Proveedores", 
+        "✏️ Editar / Eliminar",
         "🚚 Registrar Compra", 
         "📜 Deudas por Pagar"
     ])
@@ -1370,22 +1393,69 @@ elif opcion == "🏬 Gestor de Proveedores":
         st.subheader("📋 Lista de Proveedores")
         df_prov = obtener_proveedores()
         if not df_prov.empty:
-            st.dataframe(df_prov, use_container_width=True)
+            cols_deseadas = ['nombre', 'ruc_ci', 'telefono', 'ciudad', 'id']
+            cols_visibles = [c for c in cols_deseadas if c in df_prov.columns]
+            st.dataframe(df_prov[cols_visibles], use_container_width=True)
         else:
             st.info("No hay proveedores registrados aún.")
+
+    with tab_edit_p:
+        st.subheader("Modificar o Eliminar Proveedor")
+        df_prov = obtener_proveedores()
+        
+        if df_prov.empty:
+            st.info("No hay proveedores registrados para modificar.")
+        else:
+            dict_prov = {}
+            for _, r in df_prov.iterrows():
+                ruc_text = f" (RUC/CI: {r['ruc_ci']})" if r.get('ruc_ci') and str(r['ruc_ci']) != '-' else ""
+                label = f"{r['nombre']}{ruc_text}"
+                dict_prov[label] = r['id']
+
+            prov_sel_label = st.selectbox(
+                "🔍 Selecciona un proveedor para modificar:",
+                options=list(dict_prov.keys()),
+                index=None,
+                key="select_edit_prov"
+            )
+
+            if prov_sel_label:
+                id_prov = dict_prov[prov_sel_label]
+                p_row = df_prov[df_prov["id"].astype(str) == str(id_prov)].iloc[0]
+
+                with st.form("form_edit_prov"):
+                    col1, col2 = st.columns(2)
+                    edit_nombre = col1.text_input("Nombre / Razón Social:", value=str(p_row.get("nombre", "")))
+                    edit_ruc_ci = col2.text_input("RUC o CI:", value=str(p_row.get("ruc_ci", "")))
+                    edit_telefono = col1.text_input("Teléfono:", value=str(p_row.get("telefono", "")))
+                    edit_ciudad = col2.text_input("Ciudad:", value=str(p_row.get("ciudad", "")))
+
+                    if st.form_submit_button("💾 Guardar Cambios", type="primary"):
+                        if edit_nombre.strip():
+                            actualizar_proveedor(id_prov, edit_nombre, edit_ruc_ci, edit_telefono, edit_ciudad)
+                            st.success("¡Datos del proveedor actualizados correctamente!")
+                            st.rerun()
+                        else:
+                            st.warning("El nombre es obligatorio.")
+
+                st.markdown("---")
+                st.subheader("⚠️ Zona de Peligro")
+                if st.button("🗑️ Eliminar Proveedor", key="btn_del_prov"):
+                    eliminar_proveedor(id_prov)
+                    st.success("¡Proveedor eliminado correctamente!")
+                    st.rerun()
 
     with tab_compras:
         st.subheader("Registrar Compra / Factura de Proveedor")
         df_prov = obtener_proveedores()
         
         if df_prov.empty:
-            st.warning("⚠️ Primero debes registrar al menos un proveedor en la pestaña anterior.")
+            st.warning("⚠️ Primero debes registrar al menos un proveedor.")
         else:
             with st.form("form_compra_prov"):
                 prov_sel = st.selectbox("Seleccionar Proveedor:", df_prov["nombre"].tolist())
                 concepto = st.text_input("Concepto / Descripción de la compra:")
                 monto = st.number_input("Monto Total (Gs.):", min_value=1, step=5000)
-                
                 metodo_pago = st.selectbox("Método de Pago Preferido / Cuenta:", ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"])
                 
                 if st.form_submit_button("🚚 Registrar Compra (A Crédito)", type="primary"):
@@ -1398,10 +1468,10 @@ elif opcion == "🏬 Gestor de Proveedores":
                             metodo_pago=metodo_pago,
                             estado_pago="Pendiente"
                         )
-                        st.success("¡Compra registrada correctamente y enviada a Deudas por Pagar!")
+                        st.success("¡Compra registrada correctamente!")
                         st.rerun()
                     else:
-                        st.warning("Por favor ingresa un concepto o descripción para la compra.")
+                        st.warning("Por favor ingresa un concepto.")
 
             st.markdown("---")
             st.subheader("📋 Historial de Compras")
@@ -1476,8 +1546,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                             min_value=1, 
                             max_value=max(1, saldo_actual), 
                             value=saldo_actual, 
-                            step=5000,
-                            help="Puedes ingresar el monto total para cancelar la deuda o un monto menor para un pago parcial."
+                            step=5000
                         )
                         metodo_pago_deuda = st.selectbox("Método de Pago:", ["Efectivo", "Transferencia", "Tarjeta", "Otro"])
 
@@ -1497,7 +1566,7 @@ elif opcion == "🏬 Gestor de Proveedores":
                                 metodo=metodo_pago_deuda
                             )
 
-                            st.success(f"¡Pago de {formatear_gs(monto_a_pagar)} registrado con éxito! Estado: {nuevo_estado}")
+                            st.success(f"¡Pago de {formatear_gs(monto_a_pagar)} registrado con éxito!")
                             st.rerun()
             else:
                 st.success("🎉 ¡No hay deudas pendientes con proveedores!")
