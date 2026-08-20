@@ -2270,25 +2270,35 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
     df_p = obtener_productos()
 
     if not df_p.empty:
-        # Buscador por texto
-        busqueda = st.text_input(
-            "🔍 Buscar por Nombre, Código de Barras, Marca o Categoría:",
-            placeholder="Escribe para filtrar productos...",
-            key="buscar_inventario",
+        # Creamos una lista de opciones para que el selectbox busque en tiempo real
+        opciones_filtro = ["-- Mostrar Todos --"]
+
+        # Agregamos nombres, marcas y categorías a las sugerencias del buscador
+        for _, r in df_p.iterrows():
+            cod = str(r.get("codigo_barras", "")).strip()
+            label = f"{r['nombre']} | Marca: {r.get('marca', '')} | Cat: {r.get('categoria', '')}"
+            if cod and cod not in ["nan", "None", ""]:
+                label = f"[{cod}] " + label
+            opciones_filtro.append(label)
+
+        seleccion = st.selectbox(
+            "🔍 Empieza a escribir el Nombre, Código, Marca o Categoría:",
+            options=opciones_filtro,
+            index=0,
+            key="buscar_instantaneo",
         )
 
-        # Filtrado dinámico en tiempo real
-        if busqueda.strip():
-            b = busqueda.strip().lower()
-            condicion = (
-                df_p["nombre"].astype(str).str.lower().str.contains(b, na=False)
-                | df_p["codigo_barras"].astype(str).str.lower().str.contains(b, na=False)
-                | df_p["marca"].astype(str).str.lower().str.contains(b, na=False)
-                | df_p["categoria"].astype(str).str.lower().str.contains(b, na=False)
-            )
-            df_p = df_p[condicion]
+        # Filtrado según la opción seleccionada
+        if seleccion != "-- Mostrar Todos --":
+            # Extraemos el nombre o código según la etiqueta seleccionada
+            if "]" in seleccion:
+                cod_extraido = seleccion.split("]")[0].replace("[", "").strip()
+                df_p = df_p[df_p["codigo_barras"].astype(str) == cod_extraido]
+            else:
+                nombre_extraido = seleccion.split(" | ")[0].strip()
+                df_p = df_p[df_p["nombre"] == nombre_extraido]
 
-        # Definimos el orden con 'stock' inmediatamente después de 'nombre'
+        # Orden de columnas con 'stock' en tercer lugar
         orden_columnas = [
             "codigo_barras",
             "nombre",
@@ -2309,10 +2319,7 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
 
         df_mostrar = df_p[columnas_finales]
 
-        if not df_mostrar.empty:
-            st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
-        else:
-            st.warning("No se encontraron productos que coincidan con la búsqueda.")
+        st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
     else:
         st.info("No hay productos registrados en el inventario.")
 
