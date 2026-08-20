@@ -2270,10 +2270,12 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
     df_p = obtener_productos()
 
     if not df_p.empty:
-        # Creamos una lista de opciones para que el selectbox busque en tiempo real
+        # Ordenar el DataFrame alfabéticamente por nombre
+        df_p = df_p.sort_values(by="nombre", ascending=True)
+
+        # Creamos la lista de opciones para el buscador
         opciones_filtro = ["-- Mostrar Todos --"]
 
-        # Agregamos nombres, marcas y categorías a las sugerencias del buscador
         for _, r in df_p.iterrows():
             cod = str(r.get("codigo_barras", "")).strip()
             label = f"{r['nombre']} | Marca: {r.get('marca', '')} | Cat: {r.get('categoria', '')}"
@@ -2290,7 +2292,6 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
 
         # Filtrado según la opción seleccionada
         if seleccion != "-- Mostrar Todos --":
-            # Extraemos el nombre o código según la etiqueta seleccionada
             if "]" in seleccion:
                 cod_extraido = seleccion.split("]")[0].replace("[", "").strip()
                 df_p = df_p[df_p["codigo_barras"].astype(str) == cod_extraido]
