@@ -2402,18 +2402,26 @@ elif opcion in [
         df_p = obtener_productos()
 
         if not df_p.empty:
-            dict_productos = {
-                str(r["nombre"]): str(r["id"]) for _, r in df_p.iterrows()
-            }
+            dict_productos = {}
+            for _, r in df_p.iterrows():
+                cod_str = str(r.get("codigo_barras", "")).strip()
+                prefix_cod = (
+                    f"[{cod_str}] "
+                    if cod_str and cod_str not in ["nan", "None", ""]
+                    else ""
+                )
+                label = f"{prefix_cod}{r['nombre']} ({r.get('marca', 'Sin Marca')})"
+                dict_productos[label] = str(r["id"])
 
-            prod_sel_nombre = st.selectbox(
-                "🔍 Selecciona un producto a modificar:",
+            prod_sel_label = st.selectbox(
+                "🔍 Selecciona o escanea un código de barras / nombre:",
                 options=list(dict_productos.keys()),
+                index=None,
                 key="select_edit_prod",
             )
 
-            if prod_sel_nombre:
-                id_p = dict_productos[prod_sel_nombre]
+            if prod_sel_label:
+                id_p = dict_productos[prod_sel_label]
                 p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
 
                 cats = obtener_categorias()
