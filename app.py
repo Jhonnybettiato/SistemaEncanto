@@ -2402,21 +2402,45 @@ elif opcion in [
         df_p = obtener_productos()
 
         if not df_p.empty:
+            # Filtros superiores opcionales
+            col_f1, col_f2 = st.columns(2)
+            cats_filtro = ["Todas"] + list(obtener_categorias())
+            marcas_filtro = ["Todas"] + list(obtener_marcas())
+
+            cat_sel = col_f1.selectbox(
+                "Filtrar por Categoría:", cats_filtro, key="filtro_cat_edit"
+            )
+            marca_sel = col_f2.selectbox(
+                "Filtrar por Marca:", marcas_filtro, key="filtro_marca_edit"
+            )
+
+            # Filtrar datos si se selecciona una categoría o marca específica
+            df_filtrado = df_p.copy()
+            if cat_sel != "Todas":
+                df_filtrado = df_filtrado[df_filtrado["categoria"] == cat_sel]
+            if marca_sel != "Todas":
+                df_filtrado = df_filtrado[df_filtrado["marca"] == marca_sel]
+
             dict_productos = {}
-            for _, r in df_p.iterrows():
+            for _, r in df_filtrado.iterrows():
                 cod_str = str(r.get("codigo_barras", "")).strip()
                 prefix_cod = (
                     f"[{cod_str}] "
                     if cod_str and cod_str not in ["nan", "None", ""]
                     else ""
                 )
-                label = f"{prefix_cod}{r['nombre']} ({r.get('marca', 'Sin Marca')})"
+                cat_str = str(r.get("categoria", "")).strip()
+                marca_str = str(r.get("marca", "")).strip()
+
+                # Etiqueta completa para que el buscador encuentre todo al escribir
+                label = f"{prefix_cod}{r['nombre']} | Cat: {cat_str} | Marca: {marca_str}"
                 dict_productos[label] = str(r["id"])
 
             prod_sel_label = st.selectbox(
-                "🔍 Selecciona o escanea un código de barras / nombre:",
+                "🔍 Busca por Nombre, Código de Barras, Categoría o Marca:",
                 options=list(dict_productos.keys()),
                 index=None,
+                placeholder="Escribe cualquier dato del producto...",
                 key="select_edit_prod",
             )
 
