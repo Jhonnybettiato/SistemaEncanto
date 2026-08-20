@@ -2270,7 +2270,25 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
     df_p = obtener_productos()
 
     if not df_p.empty:
-        # Definimos el nuevo orden con 'stock' inmediatamente después de 'nombre'
+        # Buscador por texto
+        busqueda = st.text_input(
+            "🔍 Buscar por Nombre, Código de Barras, Marca o Categoría:",
+            placeholder="Escribe para filtrar productos...",
+            key="buscar_inventario",
+        )
+
+        # Filtrado dinámico en tiempo real
+        if busqueda.strip():
+            b = busqueda.strip().lower()
+            condicion = (
+                df_p["nombre"].astype(str).str.lower().str.contains(b, na=False)
+                | df_p["codigo_barras"].astype(str).str.lower().str.contains(b, na=False)
+                | df_p["marca"].astype(str).str.lower().str.contains(b, na=False)
+                | df_p["categoria"].astype(str).str.lower().str.contains(b, na=False)
+            )
+            df_p = df_p[condicion]
+
+        # Definimos el orden con 'stock' inmediatamente después de 'nombre'
         orden_columnas = [
             "codigo_barras",
             "nombre",
@@ -2282,7 +2300,6 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
             "precio_venta",
         ]
 
-        # Incluimos cualquier otra columna restante (como descripción) al final
         resto_columnas = [
             col for col in df_p.columns if col not in orden_columnas
         ]
@@ -2292,7 +2309,10 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
 
         df_mostrar = df_p[columnas_finales]
 
-        st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
+        if not df_mostrar.empty:
+            st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
+        else:
+            st.warning("No se encontraron productos que coincidan con la búsqueda.")
     else:
         st.info("No hay productos registrados en el inventario.")
 
