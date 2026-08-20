@@ -2261,39 +2261,40 @@ elif opcion == "📈 Flujo de Caja Mensual":
 # ==========================================
 # VER STOCK / INVENTARIO
 # ==========================================
-elif opcion == "📦 Ver Stock / Inventario":
+elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
     st.markdown(
         '<p class="main-title">📦 Ver Stock / Inventario</p>',
         unsafe_allow_html=True,
     )
 
-    df_stock = obtener_productos()
+    df_p = obtener_productos()
 
-    if not df_stock.empty:
-        columnas_ordenadas = [
+    if not df_p.empty:
+        # Definimos el nuevo orden con 'stock' inmediatamente después de 'nombre'
+        orden_columnas = [
             "codigo_barras",
             "nombre",
+            "stock",
             "marca",
             "categoria",
             "precio_costo",
             "ganancia_porcentaje",
             "precio_venta",
-            "descripcion",
-            "id",
         ]
 
-        cols_existentes = [
-            col for col in columnas_ordenadas if col in df_stock.columns
+        # Incluimos cualquier otra columna restante (como descripción) al final
+        resto_columnas = [
+            col for col in df_p.columns if col not in orden_columnas
         ]
-        df_mostrar = df_stock[cols_existentes]
+        columnas_finales = [
+            col for col in orden_columnas if col in df_p.columns
+        ] + resto_columnas
 
-        st.dataframe(
-            df_mostrar,
-            use_container_width=True,
-            key="tabla_stock_reordenada",
-        )
+        df_mostrar = df_p[columnas_finales]
+
+        st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
     else:
-        st.info("No hay productos en el inventario.")
+        st.info("No hay productos registrados en el inventario.")
 
 # ==========================================
 # GESTOR DE PRODUCTOS
