@@ -2317,44 +2317,85 @@ elif opcion in [
         cats = obtener_categorias()
         marcas = obtener_marcas()
 
-        with st.form("form_reg_prod"):
-            col1, col2 = st.columns(2)
-            cod_barras = col1.text_input("Código de Barras:")
-            nombre = col2.text_input("Nombre del Producto:")
-            cat = col1.selectbox("Categoría:", cats)
-            marca = col2.selectbox("Marca:", marcas)
-            costo = col1.number_input(
-                "Precio Costo (Gs.):", min_value=0, step=1000
-            )
-            ganancia = col2.number_input("% Ganancia:", min_value=0, value=30)
+        # Inicialización de estado para el registro interactivo
+        if "reg_costo" not in st.session_state:
+            st.session_state.reg_costo = 0
+        if "reg_ganancia" not in st.session_state:
+            st.session_state.reg_ganancia = 30
+        if "reg_precio_venta" not in st.session_state:
+            st.session_state.reg_precio_venta = 0
 
-            precio_sugerido = int(costo + (costo * (ganancia / 100)))
-            precio_venta = col1.number_input(
-                "Precio Venta (Gs.):",
-                min_value=0,
-                value=precio_sugerido,
-                step=1000,
+        # Funciones callback para cálculo dinámico
+        def recalcular_por_ganancia():
+            costo = st.session_state.reg_costo
+            ganancia = st.session_state.reg_ganancia
+            st.session_state.reg_precio_venta = int(
+                costo + (costo * (ganancia / 100))
             )
-            stock = col2.number_input("Stock Inicial:", min_value=0, value=1)
-            desc = st.text_area("Descripción:")
 
-            if st.form_submit_button("Guardar Producto", type="primary"):
-                if nombre.strip():
-                    registrar_producto(
-                        cod_barras,
-                        nombre,
-                        cat,
-                        marca,
-                        costo,
-                        ganancia,
-                        precio_venta,
-                        stock,
-                        desc,
-                    )
-                    st.success("¡Producto registrado exitosamente!")
-                    st.rerun()
-                else:
-                    st.warning("El nombre del producto es obligatorio.")
+        def recalcular_por_precio():
+            costo = st.session_state.reg_costo
+            precio_v = st.session_state.reg_precio_venta
+            if costo > 0:
+                st.session_state.reg_ganancia = int(
+                    ((precio_v - costo) / costo) * 100
+                )
+            else:
+                st.session_state.reg_ganancia = 0
+
+        col1, col2 = st.columns(2)
+        cod_barras = col1.text_input("Código de Barras:")
+        nombre = col2.text_input("Nombre del Producto:")
+        cat = col1.selectbox("Categoría:", cats)
+        marca = col2.selectbox("Marca:", marcas)
+
+        costo = col1.number_input(
+            "Precio Costo (Gs.):",
+            min_value=0,
+            step=1000,
+            key="reg_costo",
+            on_change=recalcular_por_ganancia,
+        )
+
+        ganancia = col2.number_input(
+            "% Ganancia:",
+            min_value=0,
+            key="reg_ganancia",
+            on_change=recalcular_por_ganancia,
+        )
+
+        precio_venta = col1.number_input(
+            "Precio Venta (Gs.):",
+            min_value=0,
+            step=1000,
+            key="reg_precio_venta",
+            on_change=recalcular_por_precio,
+        )
+
+        stock = col2.number_input("Stock Inicial:", min_value=0, value=1)
+        desc = st.text_area("Descripción:")
+
+        if st.button("💾 Guardar Producto", type="primary"):
+            if nombre.strip():
+                registrar_producto(
+                    cod_barras,
+                    nombre,
+                    cat,
+                    marca,
+                    costo,
+                    ganancia,
+                    precio_venta,
+                    stock,
+                    desc,
+                )
+                st.success("¡Producto registrado exitosamente!")
+                # Limpiar variables de sesión tras guardar
+                st.session_state.reg_costo = 0
+                st.session_state.reg_ganancia = 30
+                st.session_state.reg_precio_venta = 0
+                st.rerun()
+            else:
+                st.warning("El nombre del producto es obligatorio.")
 
     with tab_edit_p:
         st.subheader("Modificar / Eliminar Producto")
