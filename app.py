@@ -2346,8 +2346,8 @@ elif opcion in [
         cats = obtener_categorias()
         marcas = obtener_marcas()
 
-        # Função para resetar os valores dos campos
-        def limpar_campos_registro():
+        # 1. Verifica se deve limpar os campos ANTES de renderizar os widgets
+        if st.session_state.get("debo_limpiar_form", False):
             st.session_state["reg_cod_barras"] = ""
             st.session_state["reg_nombre"] = ""
             st.session_state["reg_costo"] = 0
@@ -2355,12 +2355,25 @@ elif opcion in [
             st.session_state["reg_precio_venta"] = 0
             st.session_state["reg_stock"] = 1
             st.session_state["reg_desc"] = ""
+            st.session_state["debo_limpiar_form"] = False
 
-        # Inicialização do estado na primeira vez que a tela abre
+        # 2. Inicialização dos valores padrão na primeira vez
         if "reg_cod_barras" not in st.session_state:
-            limpar_campos_registro()
+            st.session_state["reg_cod_barras"] = ""
+        if "reg_nombre" not in st.session_state:
+            st.session_state["reg_nombre"] = ""
+        if "reg_costo" not in st.session_state:
+            st.session_state["reg_costo"] = 0
+        if "reg_ganancia" not in st.session_state:
+            st.session_state["reg_ganancia"] = 30
+        if "reg_precio_venta" not in st.session_state:
+            st.session_state["reg_precio_venta"] = 0
+        if "reg_stock" not in st.session_state:
+            st.session_state["reg_stock"] = 1
+        if "reg_desc" not in st.session_state:
+            st.session_state["reg_desc"] = ""
 
-        # Callbacks para cálculo automático
+        # 3. Callbacks de cálculo dinâmico
         def recalcular_por_ganancia():
             costo = st.session_state.reg_costo
             ganancia = st.session_state.reg_ganancia
@@ -2425,11 +2438,11 @@ elif opcion in [
                 )
                 st.success("¡Producto registrado exitosamente!")
                 
-                # Reseta limpando os valores de forma segura antes de recarregar a página
-                limpar_campos_registro()
+                # Ativa a flag para limpar na próxima execução e recarrega a página de forma limpa
+                st.session_state["debo_limpiar_form"] = True
                 st.rerun()
             else:
-                st.warning("El nombre del producto is obligatorio.")
+                st.warning("El nombre del producto es obligatorio.")
     with tab_edit_p:
         st.subheader("Modificar / Eliminar Producto")
         df_p = obtener_productos()
