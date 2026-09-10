@@ -2346,65 +2346,41 @@ elif opcion in [
         cats = obtener_categorias()
         marcas = obtener_marcas()
 
-        # Inicialización de estado para el registro interactivo
-        if "reg_costo" not in st.session_state:
-            st.session_state.reg_costo = 0
-        if "reg_ganancia" not in st.session_state:
-            st.session_state.reg_ganancia = 30
-        if "reg_precio_venta" not in st.session_state:
-            st.session_state.reg_precio_venta = 0
+        # Usamos st.form com clear_on_submit=True para resetar tudo ao salvar
+        with st.form("form_nuevo_producto", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            cod_barras = col1.text_input("Código de Barras:")
+            nombre = col2.text_input("Nombre del Producto:")
+            cat = col1.selectbox("Categoría:", cats)
+            marca = col2.selectbox("Marca:", marcas)
 
-        # Funciones callback para cálculo dinámico
-        def recalcular_por_ganancia():
-            costo = st.session_state.reg_costo
-            ganancia = st.session_state.reg_ganancia
-            st.session_state.reg_precio_venta = int(
-                costo + (costo * (ganancia / 100))
+            costo = col1.number_input(
+                "Precio Costo (Gs.):",
+                min_value=0,
+                step=1000,
+                value=0
             )
 
-        def recalcular_por_precio():
-            costo = st.session_state.reg_costo
-            precio_v = st.session_state.reg_precio_venta
-            if costo > 0:
-                st.session_state.reg_ganancia = int(
-                    ((precio_v - costo) / costo) * 100
-                )
-            else:
-                st.session_state.reg_ganancia = 0
+            ganancia = col2.number_input(
+                "% Ganancia:",
+                min_value=0,
+                value=30
+            )
 
-        col1, col2 = st.columns(2)
-        cod_barras = col1.text_input("Código de Barras:")
-        nombre = col2.text_input("Nombre del Producto:")
-        cat = col1.selectbox("Categoría:", cats)
-        marca = col2.selectbox("Marca:", marcas)
+            precio_venta = col1.number_input(
+                "Precio Venta (Gs.):",
+                min_value=0,
+                step=1000,
+                value=0
+            )
 
-        costo = col1.number_input(
-            "Precio Costo (Gs.):",
-            min_value=0,
-            step=1000,
-            key="reg_costo",
-            on_change=recalcular_por_ganancia,
-        )
+            stock = col2.number_input("Stock Inicial:", min_value=0, value=1)
+            desc = st.text_area("Descripción:")
 
-        ganancia = col2.number_input(
-            "% Ganancia:",
-            min_value=0,
-            key="reg_ganancia",
-            on_change=recalcular_por_ganancia,
-        )
+            # Botão de envio do formulário
+            btn_guardar = st.form_submit_button("💾 Guardar Producto", type="primary")
 
-        precio_venta = col1.number_input(
-            "Precio Venta (Gs.):",
-            min_value=0,
-            step=1000,
-            key="reg_precio_venta",
-            on_change=recalcular_por_precio,
-        )
-
-        stock = col2.number_input("Stock Inicial:", min_value=0, value=1)
-        desc = st.text_area("Descripción:")
-
-        if st.button("💾 Guardar Producto", type="primary"):
+        if btn_guardar:
             if nombre.strip():
                 registrar_producto(
                     cod_barras,
@@ -2418,11 +2394,6 @@ elif opcion in [
                     desc,
                 )
                 st.success("¡Producto registrado exitosamente!")
-                # Limpiar variables de sesión tras guardar
-                st.session_state.reg_costo = 0
-                st.session_state.reg_ganancia = 30
-                st.session_state.reg_precio_venta = 0
-                st.rerun()
             else:
                 st.warning("El nombre del producto es obligatorio.")
 
@@ -2461,7 +2432,6 @@ elif opcion in [
                 cat_str = str(r.get("categoria", "")).strip()
                 marca_str = str(r.get("marca", "")).strip()
 
-                # Etiqueta completa para que el buscador encuentre todo al escribir
                 label = f"{prefix_cod}{r['nombre']} | Cat: {cat_str} | Marca: {marca_str}"
                 dict_productos[label] = str(r["id"])
 
