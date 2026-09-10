@@ -2346,23 +2346,21 @@ elif opcion in [
         cats = obtener_categorias()
         marcas = obtener_marcas()
 
-        # Inicialização do estado dos campos se não existirem
-        if "reg_cod_barras" not in st.session_state:
-            st.session_state.reg_cod_barras = ""
-        if "reg_nombre" not in st.session_state:
-            st.session_state.reg_nombre = ""
-        if "reg_costo" not in st.session_state:
-            st.session_state.reg_costo = 0
-        if "reg_ganancia" not in st.session_state:
-            st.session_state.reg_ganancia = 30
-        if "reg_precio_venta" not in st.session_state:
-            st.session_state.reg_precio_venta = 0
-        if "reg_stock" not in st.session_state:
-            st.session_state.reg_stock = 1
-        if "reg_desc" not in st.session_state:
-            st.session_state.reg_desc = ""
+        # Função para resetar os valores dos campos
+        def limpar_campos_registro():
+            st.session_state["reg_cod_barras"] = ""
+            st.session_state["reg_nombre"] = ""
+            st.session_state["reg_costo"] = 0
+            st.session_state["reg_ganancia"] = 30
+            st.session_state["reg_precio_venta"] = 0
+            st.session_state["reg_stock"] = 1
+            st.session_state["reg_desc"] = ""
 
-        # Funções callback para cálculo dinâmico automático
+        # Inicialização do estado na primeira vez que a tela abre
+        if "reg_cod_barras" not in st.session_state:
+            limpar_campos_registro()
+
+        # Callbacks para cálculo automático
         def recalcular_por_ganancia():
             costo = st.session_state.reg_costo
             ganancia = st.session_state.reg_ganancia
@@ -2427,17 +2425,11 @@ elif opcion in [
                 )
                 st.success("¡Producto registrado exitosamente!")
                 
-                # Reseta todos os campos do formulário após guardar
-                st.session_state.reg_cod_barras = ""
-                st.session_state.reg_nombre = ""
-                st.session_state.reg_costo = 0
-                st.session_state.reg_ganancia = 30
-                st.session_state.reg_precio_venta = 0
-                st.session_state.reg_stock = 1
-                st.session_state.reg_desc = ""
+                # Reseta limpando os valores de forma segura antes de recarregar a página
+                limpar_campos_registro()
                 st.rerun()
             else:
-                st.warning("El nombre del producto es obligatorio.")
+                st.warning("El nombre del producto is obligatorio.")
     with tab_edit_p:
         st.subheader("Modificar / Eliminar Producto")
         df_p = obtener_productos()
