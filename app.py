@@ -2320,7 +2320,35 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
 
         df_mostrar = df_p[columnas_finales]
 
+        # Mostrar tabla
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
+
+        # --- NUBES DE MÉTRICA / CÁLCULO DE VALOR DE STOCK ---
+        st.markdown("---")
+        
+        # Asegurarse de que precio_costo y stock sean enteros/numéricos para multiplicar
+        df_p["precio_costo_num"] = pd.to_numeric(df_p["precio_costo"], errors="coerce").fillna(0)
+        df_p["stock_num"] = pd.to_numeric(df_p["stock"], errors="coerce").fillna(0)
+        
+        # Total costo considerando la cantidad acumulada (precio_costo * stock)
+        valor_total_costo = (df_p["precio_costo_num"] * df_p["stock_num"]).sum()
+        
+        # Opcional: Total valor en venta
+        df_p["precio_venta_num"] = pd.to_numeric(df_p["precio_venta"], errors="coerce").fillna(0)
+        valor_total_venta = (df_p["precio_venta_num"] * df_p["stock_num"]).sum()
+
+        col_v1, col_v2 = st.columns(2)
+        with col_v1:
+            st.metric(
+                label="💰 Valor Total de Stock (al Costo)",
+                value=formatear_gs(valor_total_costo)
+            )
+        with col_v2:
+            st.metric(
+                label="🏷️ Valor Total de Stock (a la Venta)",
+                value=formatear_gs(valor_total_venta)
+            )
+
     else:
         st.info("No hay productos registrados en el inventario.")
 
