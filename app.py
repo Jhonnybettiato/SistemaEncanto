@@ -2332,10 +2332,26 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
         # Suma directa de la columna precio_costo
         suma_precios_costo = df_p["precio_costo_num"].sum()
 
-        st.metric(
-            label="💰 Suma Total de Precios de Costo",
-            value=formatear_gs(suma_precios_costo)
-        )
+        col_metrica, col_boton = st.columns([2, 1])
+
+        with col_metrica:
+            st.metric(
+                label="💰 Suma Total de Precios de Costo",
+                value=formatear_gs(suma_precios_costo)
+            )
+
+        with col_boton:
+            st.write("") # Espaciador para alinear con la métrica
+            # Convertimos los datos a un formato CSV compatible con Excel en español
+            csv_excel = df_mostrar.to_csv(sep=';', index=False, encoding='utf-8-sig')
+            
+            st.download_button(
+                label="📥 Descargar para Excel",
+                data=csv_excel,
+                file_name=f"Inventario_Encanto_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
+            )
 
     else:
         st.info("No hay productos registrados en el inventario.")
