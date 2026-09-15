@@ -1376,23 +1376,59 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             st.info("El carrito está vacío.")
 
     with tab_salida:
-        st.subheader("Registrar Salida / Gasto de Caja")
-        with st.form("form_salida_caja"):
-            motivo = st.text_input("Motivo de la salida:")
-            monto = st.number_input("Monto (Gs.):", min_value=1, step=1000)
-            metodo = st.selectbox(
-                "Método de Pago:",
-                ["Efectivo", "Transferencia", "Tarjeta", "Otro"],
-            )
-            if st.form_submit_button("Registrar Salida", type="primary"):
-                if motivo.strip():
-                    registrar_salida_caja(
-                        motivo=motivo, monto=monto, metodo=metodo
-                    )
-                    st.success("Salida de caja registrada.")
-                    st.rerun()
-                else:
-                    st.warning("Escribe el motivo de la salida.")
+    st.subheader("Registrar Salida / Gasto de Caja")
+    with st.form("form_salida_caja"):
+        motivo = st.text_input("Motivo de la salida:")
+        monto = st.number_input("Monto (Gs.):", min_value=1, step=1000)
+        metodo = st.selectbox(
+            "Método de Pago:",
+            ["Efectivo", "Transferencia", "Tarjeta", "Otro"],
+        )
+        if st.form_submit_button("Registrar Salida", type="primary"):
+            if motivo.strip():
+                registrar_salida_caja(
+                    motivo=motivo, monto=monto, metodo=metodo
+                )
+                st.success("Salida de caja registrada.")
+                st.rerun()
+            else:
+                st.warning("Escribe el motivo de la salida.")
+```[cite: 1]
+
+---
+
+### Código Modificado (Reemplazar con este):
+
+Solo añade `, clear_on_submit=True` a `st.form("form_salida_caja")`:
+
+```python
+with tab_salida:
+    st.subheader("Registrar Salida / Gasto de Caja")
+    # Agregamos clear_on_submit=True para blanquear los campos tras enviar
+    with st.form("form_salida_caja", clear_on_submit=True):
+        motivo = st.text_input("Motivo de la salida:")
+        monto = st.number_input("Monto (Gs.):", min_value=1, step=1000)
+        metodo = st.selectbox(
+            "Método de Pago:",
+            ["Efectivo", "Transferencia", "Tarjeta", "Otro"],
+        )
+        if st.form_submit_button("Registrar Salida", type="primary"):
+            if motivo.strip():
+                registrar_salida_caja(
+                    motivo=motivo, monto=monto, metodo=metodo
+                )
+                st.success("Salida de caja registrada.")
+                st.rerun()
+            else:
+                st.warning("Escribe el motivo de la salida.")
+```[cite: 1]
+
+Con este ajuste, cada vez que hagas clic en **Registrar Salida**, la entrada se procesará y la interfaz volverá a aparecer vacía para ingresar el siguiente gasto[cite: 1].
+
+<Elicitations message="¿Te gustaría realizar algún otro ajuste en la aplicación?">
+  <Elicitation label="Limpiar otros formularios" query="¿Puedes aplicar este mismo comportamiento de limpieza automática a otros formularios del sistema?"/>
+  <Elicitation label="Validaciones adicionales" query="¿Cómo puedo agregar validaciones adicionales al registrar salidas de caja?"/>
+</Elicitations>
 
         st.markdown("---")
         st.subheader("Histórico de Salidas")
