@@ -420,7 +420,6 @@ def eliminar_marca(nombre_marca):
         conn.commit()
         conn.close()
 
-
 # --- FUNCIONES CLIENTES ---
 def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
     db_cloud = obtener_conexion_db()
@@ -482,6 +481,21 @@ def actualizar_cliente(id_cliente, nombre, apellido, ci, telefono, ciudad):
         conn.close()
 
 
+def eliminar_cliente(id_cliente):
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        db_cloud.collection("clientes").document(str(id_cliente)).delete()
+    else:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM clientes WHERE id = ?",
+            (int(id_cliente) if str(id_cliente).isdigit() else id_cliente,),
+        )
+        conn.commit()
+        conn.close()
+
+
 def obtener_clientes():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -503,7 +517,6 @@ def obtener_clientes():
         df = pd.read_sql_query("SELECT * FROM clientes", conn)
         conn.close()
         return df
-
 
 # --- FUNCIONES PROVEEDORES Y COMPRAS ---
 def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
