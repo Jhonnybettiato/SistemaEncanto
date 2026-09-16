@@ -1235,16 +1235,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         "🔍 Buscar o Escanear Código:",
                         options=list(opciones_dict.keys()),
                         index=None,
-                        key="select_v",
-                    )
-
-                col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
-                with col_a1:
-                    p_sel_label = st.selectbox(
-                        "🔍 Buscar o Escanear Código:",
-                        options=list(opciones_dict.keys()),
-                        index=None,
-                        key="select_v",
+                        key="select_v_unificado",
                     )
 
                 if p_sel_label:
