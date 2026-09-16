@@ -2144,9 +2144,9 @@ elif opcion == "👥 Gestor de Clientes":
                     st.warning("El Nombre y Apellido son obligatorios.")
 
     with tab_editar_c:
-        st.subheader("Modificar Datos de un Cliente")
+        st.subheader("Modificar / Eliminar Cliente")
         if df_clientes.empty:
-            st.info("No hay clientes registrados para editar.")
+            st.info("No hay clientes registrados para editar o eliminar.")
         else:
             dict_clientes = {}
             for _, r in df_clientes.iterrows():
@@ -2154,7 +2154,7 @@ elif opcion == "👥 Gestor de Clientes":
                 dict_clientes[label] = r["id"]
 
             cliente_sel_label = st.selectbox(
-                "🔍 Selecciona un cliente para modificar:",
+                "🔍 Selecciona un cliente para modificar o eliminar:",
                 options=list(dict_clientes.keys()),
                 index=None,
                 key="select_edit_cliente",
@@ -2184,10 +2184,7 @@ elif opcion == "👥 Gestor de Clientes":
                         "Ciudad:", value=str(c_row.get("ciudad", ""))
                     )
 
-                    col_btn1, col_btn2 = st.columns([1, 1])
-                    if col_btn1.form_submit_button(
-                        "💾 Guardar Cambios", type="primary"
-                    ):
+                    if st.form_submit_button("💾 Guardar Cambios", type="primary"):
                         if edit_nombre.strip() and edit_apellido.strip():
                             actualizar_cliente(
                                 id_cliente,
@@ -2197,14 +2194,25 @@ elif opcion == "👥 Gestor de Clientes":
                                 edit_telefono,
                                 edit_ciudad,
                             )
-                            st.success(
-                                "¡Datos del cliente actualizados correctamente!"
-                            )
+                            st.success("¡Datos del cliente actualizados correctamente!")
                             st.rerun()
                         else:
-                            st.warning(
-                                "El Nombre y Apellido no pueden quedar vacíos."
-                            )
+                            st.warning("El Nombre y Apellido no pueden quedar vacíos.")
+
+                st.markdown("---")
+                st.subheader("⚠️ Eliminar Cliente")
+                pwd_del_c = st.text_input(
+                    "Ingresa la contraseña para ELIMINAR cliente:",
+                    type="password",
+                    key="pwd_del_cliente",
+                )
+                if st.button("🗑️ Eliminar Cliente Definitivamente", type="primary"):
+                    if pwd_del_c == CLAVE_ADMIN:
+                        eliminar_cliente(id_cliente)
+                        st.success("✅ Cliente eliminado correctamente.")
+                        st.rerun()
+                    else:
+                        st.error("❌ Contraseña incorrecta.")
 
     with tab_lista_c:
         st.subheader("📋 Listado General de Clientes")
