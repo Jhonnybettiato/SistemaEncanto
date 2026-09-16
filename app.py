@@ -167,8 +167,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-
-# --- FUNCIONES CIERRES DE CAJA ---
 def obtener_saldo_inicial_dia(fecha_hoy_str):
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -183,19 +181,32 @@ def obtener_saldo_inicial_dia(fecha_hoy_str):
                 registros, key=lambda x: x["fecha"], reverse=True
             )
             return int(registros_ordenados[0].get("saldo_final", 0))
+        
+        # Si no hay registros estrictamente menores, busca si ya existe el cierre de hoy
+        cierre_hoy = db_cloud.collection("cierres_caja").document(fecha_hoy_str).get()
+        if cierre_hoy.exists:
+            return int(cierre_hoy.to_dict().get("saldo_inicial", 0))
+            
         return 0
     else:
         conn = obtener_conexion()
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT saldo_final FROM cierres_caja WHERE fecha < ? ORDER BY"
-            " fecha DESC LIMIT 1",
+            "SELECT saldo_final FROM cierres_caja WHERE fecha < ? ORDER BY fecha DESC LIMIT 1",
             (fecha_hoy_str,),
         )
         row = cursor.fetchone()
+        if row:
+            conn.close()
+            return row[0]
+        
+        cursor.execute(
+            "SELECT saldo_inicial FROM cierres_caja WHERE fecha = ?",
+            (fecha_hoy_str,),
+        )
+        row_hoy = cursor.fetchone()
         conn.close()
-        return row[0] if row else 0
-
+        return row_hoy[0] if row_hoy else 0
 
 def registrar_cierre_diario(
     fecha_str, saldo_inicial, ingresos, egresos, saldo_final
