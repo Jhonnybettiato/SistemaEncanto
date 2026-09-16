@@ -1223,12 +1223,8 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             st.info("No tienes productos registrados.")
         else:
             df_con_stock = df_productos[df_productos["stock"] > 0]
-            if df_con_stock.empty:
-                st.warning("⚠️ Todos los productos están sin stock.")
-            else:
-                st.subheader("1️⃣ Agregar productos al carrito")
-
-               opciones_dict = {}
+            if not df_con_stock.empty:
+                opciones_dict = {}
                 for _, r in df_con_stock.iterrows():
                     label = f"{r['nombre']} ({r['marca']}) - Stock: {r['stock']}"
                     opciones_dict[label] = r["id"]
