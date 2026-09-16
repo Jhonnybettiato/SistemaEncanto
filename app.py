@@ -1228,19 +1228,19 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             else:
                 st.subheader("1️⃣ Agregar productos al carrito")
 
-                opciones_dict = {}
-for _, r in df_con_stock.iterrows():
-    cod_str = str(r.get("codigo_barras", "")).strip()
-    prefix_cod = (
-        f"[{cod_str}] "
-        if cod_str and cod_str != "nan" and cod_str != ""
-        else ""
-    )
-    label = (
-        f"{prefix_cod}{r['nombre']} ({r['marca']}) - Stock:"
-        f" {r['stock']}"
-    )
-    opciones_dict[label] = r["id"]
+               opciones_dict = {}
+                for _, r in df_con_stock.iterrows():
+                    label = f"{r['nombre']} ({r['marca']}) - Stock: {r['stock']}"
+                    opciones_dict[label] = r["id"]
+
+                col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
+                with col_a1:
+                    p_sel_label = st.selectbox(
+                        "🔍 Buscar o Escanear Código:",
+                        options=list(opciones_dict.keys()),
+                        index=None,
+                        key="select_v",
+                    )
 
                 col_a1, col_a2, col_a3 = st.columns([3, 1, 1])
                 with col_a1:
