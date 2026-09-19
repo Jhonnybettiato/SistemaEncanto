@@ -1414,18 +1414,19 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 
             st.markdown("---")
 
-        # CONTINÚA CON EL DESCUENTO Y TOTAL FINAL ABAJO...
+        # 1. Calcular el subtotal primero
+        subtotal_venta = sum(item["subtotal"] for item in st.session_state.carrito)
 
-            col_des1, col_des2 = st.columns([1, 2])
-            with col_des1:
-                descuento = st.number_input(
-                    "🏷️ Descuento (Gs.):",
-                    min_value=0,
-                    max_value=subtotal_venta,
-                    value=0,
-                    step=1000,
-                    key="descuento_v",
-                )
+        # 2. Luego crear las columnas para el descuento
+        col_des1, col_des2 = st.columns([1, 2])
+        with col_des1:
+            descuento = st.number_input(
+                "💸 Descuento (Gs.):",
+                min_value=0,
+                max_value=int(subtotal_venta),
+                value=0,
+                step=1000,
+            )
 
             monto_total_venta = subtotal_venta - descuento
 
