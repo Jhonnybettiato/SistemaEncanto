@@ -1386,23 +1386,35 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         st.markdown("---")
         st.subheader("2️⃣ Carrito de Compras")
 
-        if st.session_state.carrito:
-            df_car = pd.DataFrame(st.session_state.carrito)
-            df_car_show = df_car[
-                ["nombre", "cantidad", "precio_unitario", "subtotal"]
-            ].copy()
-            df_car_show["precio_unitario"] = df_car_show[
-                "precio_unitario"
-            ].apply(formatear_gs)
-            df_car_show["subtotal"] = df_car_show["subtotal"].apply(
-                formatear_gs
-            )
+        if not st.session_state.carrito:
+            st.info("El carrito está vacío.")
+        else:
+            # Encabezados de la tabla
+            c_nom, c_cant, c_precio, c_sub, c_acc = st.columns([3, 1, 2, 2, 1])
+            c_nom.write("**Nombre**")
+            c_cant.write("**Cantidad**")
+            c_precio.write("**Precio Unitario**")
+            c_sub.write("**Subtotal**")
+            c_acc.write("**Acción**")
 
-            st.dataframe(df_car_show, use_container_width=True)
+            st.markdown("---")
 
-            subtotal_venta = sum(
-                item["subtotal"] for item in st.session_state.carrito
-            )
+            # Filas del carrito con botón para eliminar cada ítem
+            for idx, item in enumerate(st.session_state.carrito):
+                col_nom, col_cant, col_precio, col_sub, col_del = st.columns([3, 1, 2, 2, 1])
+                
+                col_nom.write(item["nombre"])
+                col_cant.write(str(item["cantidad"]))
+                col_precio.write(formatear_gs(item["precio_unitario"]))
+                col_sub.write(formatear_gs(item["subtotal"]))
+                
+                if col_del.button("❌", key=f"btn_del_{idx}"):
+                    st.session_state.carrito.pop(idx)
+                    st.rerun()
+
+            st.markdown("---")
+
+        # CONTINÚA CON EL DESCUENTO Y TOTAL FINAL ABAJO...
 
             col_des1, col_des2 = st.columns([1, 2])
             with col_des1:
