@@ -18,7 +18,7 @@ def aplicar_fundo_local(caminho_imagem):
             [data-testid="stAppViewContainer"] {{
                 background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
                                   url("data:image/png;base64,{encoded}");
-                background-size: 50%;
+                background-size: 70%;
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
