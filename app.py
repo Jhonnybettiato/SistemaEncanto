@@ -1237,7 +1237,7 @@ st.markdown(
 )
 
 # Menú Lateral
-st.sidebar.image("Logo.jpeg", width=200)
+st.sidebar.image("Logo.jpeg", width=220)
 st.sidebar.markdown("---")
 
 opcion = st.sidebar.radio(
