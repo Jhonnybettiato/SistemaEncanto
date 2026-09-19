@@ -14,9 +14,10 @@ def aplicar_fundo_local(caminho_imagem):
         st.markdown(
             f"""
             <style>
-            /* Aplicar la imagen al contenedor principal de Streamlit */
+            /* Aplicar marca de agua suave sobre el fondo */
             [data-testid="stAppViewContainer"] {{
-                background-image: url("data:image/png;base64,{encoded}");
+                background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
+                                  url("data:image/png;base64,{encoded}");
                 background-size: 50%;
                 background-position: center;
                 background-repeat: no-repeat;
@@ -28,9 +29,9 @@ def aplicar_fundo_local(caminho_imagem):
                 background-color: rgba(255, 255, 255, 0.90) !important;
             }}
 
-            /* Dar transparencia al contenedor del contenido para visibilidad */
+            /* Contenedor principal con fondo limpio */
             .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.25) !important;
+                background-color: rgba(255, 255, 255, 0.80) !important;
                 padding: 2rem;
                 border-radius: 12px;
                 margin-top: 1rem;
