@@ -1237,7 +1237,7 @@ st.markdown(
 )
 
 # Menú Lateral
-st.sidebar.title("✨ Sistema Encanto")
+st.sidebar.image("Logo.jpeg", width=180)
 st.sidebar.markdown("---")
 
 opcion = st.sidebar.radio(
