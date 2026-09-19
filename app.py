@@ -31,7 +31,7 @@ def aplicar_fundo_local(caminho_imagem):
 
             /* Contenedor principal con fondo limpio */
             .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.99) !important;
+                background-color: rgba(255, 255, 255, 0.50) !important;
                 padding: 2rem;
                 border-radius: 12px;
                 margin-top: 1rem;
