@@ -2297,7 +2297,10 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
 
         for _, r in df_p.iterrows():
             cod = str(r.get("codigo_barras", "")).strip()
-            label = f"{r['nombre']} | Marca: {r.get('marca', '')} | Cat: {r.get('categoria', '')}"
+            label = (
+                f"{r['nombre']} | Marca: {r.get('marca', '')} | Cat:"
+                f" {r.get('categoria', '')}"
+            )
             if cod and cod not in ["nan", "None", ""]:
                 label = f"[{cod}] " + label
             opciones_filtro.append(label)
@@ -2342,34 +2345,26 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
         # Mostrar tabla
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
 
-        # --- SUMA DIRECTA DE LA COLUMNA PRECIO_COSTO ---
-st.markdown("---")
+        # --- CÁLCULO DEL VALOR TOTAL DEL STOCK ---
+        st.markdown("---")
 
-# Convertir la columna a valores numéricos
-df_p["precio_costo_num"] = pd.to_numeric(
-    df_p["precio_costo"], errors="coerce"
-).fillna(0)
+        # Convertir las columnas a valores numéricos para evitar errores
+        df_p["precio_costo_num"] = pd.to_numeric(
+            df_p["precio_costo"], errors="coerce"
+        ).fillna(0)
+        df_p["stock_num"] = pd.to_numeric(
+            df_p["stock"], errors="coerce"
+        ).fillna(0)
 
-# Suma directa de la columna precio_costo
-suma_precios_costo = df_p["precio_costo_num"].sum()
+        # Multiplica el costo unitario por la cantidad en stock
+        suma_precios_costo = (
+            df_p["precio_costo_num"] * df_p["stock_num"]
+        ).sum()
 
-st.metric(
-    label="💰 Suma Total de Precios de Costo",
-    value=formatear_gs(suma_precios_costo),
-)
-
-        with col_boton:
-            st.write("") # Espaciador para alinear con la métrica
-            # Convertimos los datos a un formato CSV compatible con Excel en español
-            csv_excel = df_mostrar.to_csv(sep=';', index=False, encoding='utf-8-sig')
-            
-            st.download_button(
-                label="📥 Descargar para Excel",
-                data=csv_excel,
-                file_name=f"Inventario_Encanto_{pd.Timestamp.now().strftime('%Y-%m-%d')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+        st.metric(
+            label="💰 Valor Total del Inventario (Costo x Stock)",
+            value=formatear_gs(suma_precios_costo),
+        )
 
     else:
         st.info("No hay productos registrados en el inventario.")
