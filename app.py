@@ -2281,6 +2281,8 @@ elif opcion == "📈 Flujo de Caja Mensual":
 # VER STOCK / INVENTARIO
 # ==========================================
 elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
+    import io
+
     st.markdown(
         '<p class="main-title">📦 Ver Stock / Inventario</p>',
         unsafe_allow_html=True,
@@ -2376,9 +2378,15 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
             )
 
         with col_boton:
-            st.write("")  # Espacio para alinear verticalmente el botón
             st.write("")
-            excel_data = convertir_df_a_excel(df_mostrar)
+            st.write("")
+
+            # Conversión directa a Excel en memoria
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                df_mostrar.to_excel(writer, index=False, sheet_name="Inventario")
+            excel_data = output.getvalue()
+
             st.download_button(
                 label="📥 Descargar para Excel",
                 data=excel_data,
