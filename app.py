@@ -2339,7 +2339,7 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
         df_p = df_p.sort_values(by="nombre", ascending=True)
 
         # Creamos la lista de opciones para el buscador
-        opciones_filtro = ["-- Mostrar Todos --"]
+        opciones_filtro = ["-- Mostrar Todos --"] + df_p["nombre"].tolist()
 
         for _, r in df_p.iterrows():
             cod = str(r.get("codigo_barras", "")).strip()
