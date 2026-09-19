@@ -1413,7 +1413,6 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     st.rerun()
 
             st.markdown("---")
-            
             col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
             with col_c1:
                 tipo_venta = st.selectbox(
