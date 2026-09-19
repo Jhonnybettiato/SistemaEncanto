@@ -14,23 +14,27 @@ def aplicar_fundo_local(caminho_imagem):
         st.markdown(
             f"""
             <style>
-            /* Fundo principal com a imagem semitransparente por cima de um fundo claro */
-            .stApp {{
-                background: linear-gradient(rgba(248, 249, 250, 0.75), rgba(248, 249, 250, 0.75)), 
-                            url("data:image/png;base64,{encoded}");
-                background-attachment: fixed;
+            /* Aplicar la imagen al contenedor principal de Streamlit */
+            [data-testid="stAppViewContainer"] {{
+                background-image: url("data:image/png;base64,{encoded}");
                 background-size: cover;
                 background-position: center;
                 background-repeat: no-repeat;
+                background-attachment: fixed;
             }}
 
-            /* Caixas de conteúdo ligeiramente translúcidas para ver o fundo à volta */
+            /* Quitar fondos blancos por defecto */
+            [data-testid="stHeader"], [data-testid="stSidebar"] {{
+                background-color: rgba(255, 255, 255, 0.85) !important;
+            }}
+
+            /* Dar transparencia al contenedor del contenido para visibilidad */
             .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.85);
+                background-color: rgba(255, 255, 255, 0.85) !important;
                 padding: 2rem;
                 border-radius: 12px;
                 margin-top: 1rem;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             }}
             </style>
             """,
