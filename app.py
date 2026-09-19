@@ -1359,8 +1359,8 @@ if st.button("➕ Agregar"):
                 )
                 st.success("¡Producto agregado!")
         st.rerun()
-                        else:
-                                st.error("⚠️ Stock insuficiente disponible.")
+        else:
+            st.error("⚠️ Stock insuficiente disponible.")
 
         st.markdown("---")
         st.subheader("2️⃣ Carrito de Compras")
