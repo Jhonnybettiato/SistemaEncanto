@@ -42,8 +42,8 @@ def aplicar_fundo_local(caminho_imagem):
             button[data-baseweb="tab"] p, 
             div[data-baseweb="tab"] p,
             button[data-baseweb="tab"] div {{
-                font-size: 40px !important;    /* Tamaño del texto de las pestañas */
-                font-weight: 900 !important;   /* Grosor de la letra */
+                font-size: 10px !important;    /* Tamaño del texto de las pestañas */
+                font-weight: 800 !important;   /* Grosor de la letra */
                 color: #1e293b !important;
             }}
 
