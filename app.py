@@ -1320,42 +1320,42 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         st.write("")
                         st.write("")
                         # LÓGICA AO CLICAR NO BOTÃO AGREGAR
-if st.button("➕ Agregar"):
-    if producto_seleccionado:
-        encontrado = False
-        for item in st.session_state.carrito:
-            if item["id"] == producto_seleccionado["id"]:
-                cant_nueva = item["cantidad"] + cantidad_ingresada
-                if cant_nueva > producto_seleccionado["stock"]:
-                    st.error(
-                        f"Stock insuficiente. Máximo disponible: {producto_seleccionado['stock']}"
-                    )
-                else:
-                    item["cantidad"] = cant_nueva
-                    item["subtotal"] = item["cantidad"] * item["precio_unitario"]
-                    st.success("¡Cantidad actualizada en el carrito!")
-                encontrado = True
-                break
-
-        if not encontrado:
-            if cantidad_ingresada > producto_seleccionado["stock"]:
-                st.error("Cantidad mayor al stock disponible.")
-            else:
-                st.session_state.carrito.append(
-                    {
-                        "id": producto_seleccionado["id"],
-                        "nombre": producto_seleccionado["nombre"],
-                        "cantidad": cantidad_ingresada,
-                        "precio_unitario": producto_seleccionado[
-                            "precio_venta"
-                        ],
-                        "subtotal": cantidad_ingresada
-                        * producto_seleccionado["precio_venta"],
-                        "stock_max": producto_seleccionado["stock"],
-                    }
-                )
-                st.success("¡Producto agregado!")
-        st.rerun()
+                        if st.button("➕ Agregar"):
+                            if producto_seleccionado:
+                                encontrado = False
+                                for item in st.session_state.carrito:
+                                    if item["id"] == producto_seleccionado["id"]:
+                                        cant_nueva = item["cantidad"] + cantidad_ingresada
+                                        if cant_nueva > producto_seleccionado["stock"]:
+                                            st.error(
+                                                f"Stock insuficiente. Máximo disponible: {producto_seleccionado['stock']}"
+                                            )
+                                        else:
+                                            item["cantidad"] = cant_nueva
+                                            item["subtotal"] = item["cantidad"] * item["precio_unitario"]
+                                            st.success("¡Cantidad actualizada en el carrito!")
+                                        encontrado = True
+                                        break
+                        
+                                if not encontrado:
+                                    if cantidad_ingresada > producto_seleccionado["stock"]:
+                                        st.error("Cantidad mayor al stock disponible.")
+                                    else:
+                                        st.session_state.carrito.append(
+                                            {
+                                                "id": producto_seleccionado["id"],
+                                                "nombre": producto_seleccionado["nombre"],
+                                                "cantidad": cantidad_ingresada,
+                                                "precio_unitario": producto_seleccionado[
+                                                    "precio_venta"
+                                                ],
+                                                "subtotal": cantidad_ingresada
+                                                * producto_seleccionado["precio_venta"],
+                                                "stock_max": producto_seleccionado["stock"],
+                                            }
+                                        )
+                                        st.success("¡Producto agregado!")
+                                st.rerun()
 
         st.markdown("---")
         st.subheader("2️⃣ Carrito de Compras")
