@@ -1263,7 +1263,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         unsafe_allow_html=True,
     )
     tab_venta, tab_salida, tab_cierre, tab_historico = st.tabs([
-        "<h2 style='font-size: 28px; font-weight: 900; '>🛍️ Nueva Venta"
+        "<h2 style='font-size: 28px; font-weight: 900; '>🛍️ Nueva Venta>"
         "💸 Salidas de Caja",
         "📊 Cierre de Caja (Hoy)",
         "📅 Histórico de Cierres",
