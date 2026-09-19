@@ -2,6 +2,42 @@ from datetime import date, datetime
 import pandas as pd
 import sqlite3
 import streamlit as st
+import base64
+
+
+def aplicar_fundo_local(caminho_imagem):
+    try:
+        with open(caminho_imagem, "rb") as f:
+            data = f.read()
+        encoded = base64.b64encode(data).decode()
+
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/png;base64,{encoded}");
+                background-attachment: fixed;
+                background-size: cover;
+                background-position: center;
+            }}
+            
+            /* Fondo blanco suave translúcido para mantener legibles los textos y tablas */
+            .main .block-container {{
+                background-color: rgba(255, 255, 255, 0.92);
+                padding: 2rem;
+                border-radius: 12px;
+                margin-top: 1rem;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+    except Exception:
+        pass
+
+
+# Aplicar la imagen cargada como fondo
+aplicar_fundo_local("logo.png")
 
 # Importación segura de Firestore
 try:
