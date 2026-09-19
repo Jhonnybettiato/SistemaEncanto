@@ -30,9 +30,9 @@ def aplicar_fundo_local(caminho_imagem):
 
             /* Dar transparencia al contenedor del contenido para visibilidad */
             .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.10) !important;
+                background-color: rgba(255, 255, 255, 0.85) !important;
                 padding: 2rem;
-                border-radius: 12px;
+                border-radius: 10px;
                 margin-top: 1rem;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             }}
