@@ -25,7 +25,7 @@ def aplicar_fundo_local(caminho_imagem):
 
             /* Quitar fondos blancos por defecto */
             [data-testid="stHeader"], [data-testid="stSidebar"] {{
-                background-color: rgba(255, 255, 255, 0.45) !important;
+                background-color: rgba(255, 255, 255, 0.85) !important;
             }}
 
             /* Dar transparencia al contenedor del contenido para visibilidad */
