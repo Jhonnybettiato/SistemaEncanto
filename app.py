@@ -1474,8 +1474,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
             if st.button("🗑️ Vaciar Carrito"):
                 st.session_state.carrito = []
                 st.rerun()
-        else:
-            st.info("El carrito está vacío.")
+        
 
     with tab_salida:
         st.subheader("Registrar Salida / Gasto de Caja")
