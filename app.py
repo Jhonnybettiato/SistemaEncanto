@@ -17,7 +17,7 @@ def aplicar_fundo_local(caminho_imagem):
             /* Aplicar la imagen al contenedor principal de Streamlit */
             [data-testid="stAppViewContainer"] {{
                 background-image: url("data:image/png;base64,{encoded}");
-                background-size: cover;
+                background-size: 50%;
                 background-position: center;
                 background-repeat: no-repeat;
                 background-attachment: fixed;
