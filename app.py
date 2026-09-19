@@ -2361,16 +2361,32 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
             df_inventario_real["stock"], errors="coerce"
         ).fillna(0)
 
-        # Multiplica el costo unitario por la cantidad en stock de los productos reales
+        # Multiplica el costo unitario por la cantidad en stock de productos reales
         suma_precios_costo = (
             df_inventario_real["precio_costo_num"]
             * df_inventario_real["stock_num"]
         ).sum()
 
-        st.metric(
-            label="💰 Valor Total del Inventario (Costo x Stock)",
-            value=formatear_gs(suma_precios_costo),
-        )
+        col_metric, col_boton = st.columns([2, 1])
+
+        with col_metric:
+            st.metric(
+                label="💰 Valor Total del Inventario (Costo x Stock)",
+                value=formatear_gs(suma_precios_costo),
+            )
+
+        with col_boton:
+            st.write("")  # Espacio para alinear verticalmente el botón
+            st.write("")
+            excel_data = convertir_df_a_excel(df_mostrar)
+            st.download_button(
+                label="📥 Descargar para Excel",
+                data=excel_data,
+                file_name="inventario_productos.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+
     else:
         st.info("No hay productos registrados en el inventario.")
 
