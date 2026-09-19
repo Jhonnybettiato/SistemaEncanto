@@ -14,34 +14,23 @@ def aplicar_fundo_local(caminho_imagem):
         st.markdown(
             f"""
             <style>
-            /* Cria uma camada pseudo-elemento para ajustar a opacidade do fundo */
-            .stApp::before {{
-                content: "";
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                background-image: url("data:image/png;base64,{encoded}");
-                background-repeat: no-repeat;
-                background-position: center;
-                background-size: contain; /* Ajusta a imagem inteira sem cortar */
-                opacity: 0.15; /* Deixa a imagem bem suave/apagada (ajuste entre 0.1 e 0.3) */
-                z-index: -1;
-            }}
-
-            /* Fundo principal transparente */
+            /* Fundo principal com a imagem semitransparente por cima de um fundo claro */
             .stApp {{
-                background-color: #f8f9fa;
+                background: linear-gradient(rgba(248, 249, 250, 0.75), rgba(248, 249, 250, 0.75)), 
+                            url("data:image/png;base64,{encoded}");
+                background-attachment: fixed;
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
             }}
 
-            /* Caixas de conteúdo limpas e legíveis */
+            /* Caixas de conteúdo ligeiramente translúcidas para ver o fundo à volta */
             .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.90);
+                background-color: rgba(255, 255, 255, 0.85);
                 padding: 2rem;
                 border-radius: 12px;
                 margin-top: 1rem;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             }}
             </style>
             """,
@@ -52,6 +41,7 @@ def aplicar_fundo_local(caminho_imagem):
 
 
 aplicar_fundo_local("logo.png")
+
 # Importación segura de Firestore
 try:
     from google.cloud import firestore
