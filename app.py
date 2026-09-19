@@ -1322,11 +1322,9 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         # LÓGICA AO CLICAR NO BOTÃO AGREGAR
 if st.button("➕ Agregar"):
     if producto_seleccionado:
-        # Verifica se o produto já está no carrinho
         encontrado = False
         for item in st.session_state.carrito:
             if item["id"] == producto_seleccionado["id"]:
-                # Se a quantidade total ultrapassar o estoque, avisa o usuário
                 cant_nueva = item["cantidad"] + cantidad_ingresada
                 if cant_nueva > producto_seleccionado["stock"]:
                     st.error(
@@ -1339,7 +1337,6 @@ if st.button("➕ Agregar"):
                 encontrado = True
                 break
 
-        # Se não estava no carrinho, adiciona como novo item
         if not encontrado:
             if cantidad_ingresada > producto_seleccionado["stock"]:
                 st.error("Cantidad mayor al stock disponible.")
@@ -1359,8 +1356,6 @@ if st.button("➕ Agregar"):
                 )
                 st.success("¡Producto agregado!")
         st.rerun()
-        else:
-            st.error("⚠️ Stock insuficiente disponible.")
 
         st.markdown("---")
         st.subheader("2️⃣ Carrito de Compras")
