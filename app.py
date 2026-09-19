@@ -16,7 +16,7 @@ def aplicar_fundo_local(caminho_imagem):
             <style>
             /* Aplicar marca de agua suave sobre el fondo */
             [data-testid="stAppViewContainer"] {{
-                background-image: linear-gradient(rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), 
+                background-image: linear-gradient(rgba(255, 150, 255, 0.75), rgba(255, 255, 255, 0.75)), 
                                   url("data:image/png;base64,{encoded}");
                 background-size: contain;
                 background-position: center;
@@ -1237,7 +1237,7 @@ st.markdown(
 )
 
 # Menú Lateral
-st.sidebar.image("LogoC.png", width=220)
+st.sidebar.image("LogoC.png", width=200)
 st.sidebar.markdown("---")
 
 opcion = st.sidebar.radio(
