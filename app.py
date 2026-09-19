@@ -12,40 +12,49 @@ def aplicar_fundo_local(caminho_imagem):
         encoded = base64.b64encode(data).decode()
 
         st.markdown(
-            f"""
-            <style>
-            /* Aplicar marca de agua suave sobre el fondo */
-            [data-testid="stAppViewContainer"] {{
-                background-image: linear-gradient(rgba(155, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), 
-                                  url("data:image/png;base64,{encoded}");
-                background-size: contain;
-                background-position: center;
-                background-repeat: no-repeat;
-                background-attachment: fixed;
-            }}
+    f"""
+    <style>
+    /* Aplicar marca de agua suave sobre el fondo */
+    [data-testid="stAppViewContainer"] {{
+        background-image: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92)), 
+                          url("data:image/png;base64,{encoded}");
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+    }}
 
-            /* Quitar fondos blancos por defecto */
-            [data-testid="stHeader"], [data-testid="stSidebar"] {{
-                background-color: rgba(255, 255, 255, 0.10) !important;
-            }}
+    /* Quitar fondos blancos por defecto */
+    [data-testid="stHeader"], [data-testid="stSidebar"] {{
+        background-color: rgba(255, 255, 255, 0.10) !important;
+    }}
 
-            /* Contenedor principal con fondo limpio */
-            .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.10) !important;
-                padding: 2rem;
-                border-radius: 12px;
-                margin-top: 1rem;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            }}
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-    except Exception:
-        pass
+    /* Contenedor principal con fondo limpio */
+    .main .block-container {{
+        background-color: rgba(255, 255, 255, 0.10) !important;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-top: 1rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }}
 
+    /* --- TAMAÑO Y GROSOR DE LAS PESTAÑAS (TABS) --- */
+    button[data-baseweb="tab"] p, 
+    div[data-baseweb="tab"] p,
+    button[data-baseweb="tab"] div {{
+        font-size: 20px !important;    /* Tamaño del texto de las pestañas */
+        font-weight: 800 !important;   /* Grosor de la letra (Bold/Negrita) */
+        color: #1e293b !important;     /* Color oscuro para destacar */
+    }}
 
-aplicar_fundo_local("LogoC.png")
+    /* Ajustar espaciado de los botones de las pestañas */
+    button[data-baseweb="tab"] {{
+        padding: 10px 16px !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 # Importación segura de Firestore
 try:
