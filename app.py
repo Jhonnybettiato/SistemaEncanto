@@ -45,7 +45,7 @@ def aplicar_fundo_local(caminho_imagem):
         pass
 
 
-aplicar_fundo_local("logo.jpeg")
+aplicar_fundo_local("Logo.jpeg")
 
 # Importación segura de Firestore
 try:
