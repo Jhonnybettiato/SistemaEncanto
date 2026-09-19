@@ -1413,56 +1413,8 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     st.rerun()
 
             st.markdown("---")
-            col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
-            with col_c1:
-                tipo_venta = st.selectbox(
-                    "Tipo de Venta:", ["Contado", "Crédito"]
-                )
 
-                lista_clientes = ["Cliente Ocasional"]
-                if not df_clientes.empty:
-                    lista_clientes += [
-                        f"{r['nombre']} {r['apellido']} (CI: {r['ci']})"
-                        for _, r in df_clientes.iterrows()
-                    ]
-                cliente_sel = st.selectbox("Cliente:", lista_clientes)
-
-            with col_c2:
-                metodo_pago = st.selectbox(
-                    "Método de Pago:",
-                    ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"],
-                )
-
-            with col_c3:
-                st.write("")
-                st.write("")
-                if st.button("✅ Finalizar Venta", type="primary"):
-                    for item in st.session_state.carrito:
-                        desc_item = (
-                            int(descuento * (item["subtotal"] / subtotal_venta))
-                            if subtotal_venta > 0
-                            else 0
-                        )
-                        registrar_venta(
-                            producto_id=item["id"],
-                            producto_nombre=item["nombre"],
-                            cantidad=item["cantidad"],
-                            precio_unitario=item["precio_unitario"],
-                            total=item["subtotal"] - desc_item,
-                            tipo_venta=tipo_venta,
-                            metodo_pago=metodo_pago,
-                            cliente_nombre=cliente_sel,
-                        )
-                    st.session_state.carrito = []
-                    st.success("🎉 ¡Venta registrada con éxito!")
-                    st.rerun()
-
-            if st.button("🗑️ Vaciar Carrito"):
-                st.session_state.carrito = []
-                st.rerun()
-        else:
-            st.info("El carrito está vacío.")
-
+        # CONTINÚA CON EL DESCUENTO Y TOTAL FINAL ABAJO...
     with tab_salida:
         st.subheader("Registrar Salida / Gasto de Caja")
         with st.form("form_salida_caja", clear_on_submit=True):
