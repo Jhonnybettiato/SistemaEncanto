@@ -1386,46 +1386,34 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         st.markdown("---")
         st.subheader("2️⃣ Carrito de Compras")
 
-        if st.session_state.carrito:
-            df_car = pd.DataFrame(st.session_state.carrito)
-            df_car_show = df_car[
-                ["nombre", "cantidad", "precio_unitario", "subtotal"]
-            ].copy()
-            df_car_show["precio_unitario"] = df_car_show[
-                "precio_unitario"
-            ].apply(formatear_gs)
-            df_car_show["subtotal"] = df_car_show["subtotal"].apply(
-                formatear_gs
-            )
+        if not st.session_state.carrito:
+            st.info("El carrito está vacío.")
+        else:
+            # Encabezados de la tabla
+            c_nom, c_cant, c_precio, c_sub, c_acc = st.columns([3, 1, 2, 2, 1])
+            c_nom.write("**Nombre**")
+            c_cant.write("**Cantidad**")
+            c_precio.write("**Precio Unitario**")
+            c_sub.write("**Subtotal**")
+            c_acc.write("**Acción**")
 
-            st.dataframe(df_car_show, use_container_width=True)
+            st.markdown("---")
 
-            subtotal_venta = sum(
-                item["subtotal"] for item in st.session_state.carrito
-            )
+            # Mostrar cada producto en una fila con su botón para eliminar
+            for idx, item in enumerate(st.session_state.carrito):
+                col_nom, col_cant, col_precio, col_sub, col_del = st.columns([3, 1, 2, 2, 1])
+                
+                col_nom.write(item["nombre"])
+                col_cant.write(str(item["cantidad"]))
+                col_precio.write(formatear_gs(item["precio_unitario"]))
+                col_sub.write(formatear_gs(item["subtotal"]))
+                
+                # Botón de eliminar con X
+                if col_del.button("❌", key=f"btn_del_{idx}"):
+                    st.session_state.carrito.pop(idx)
+                    st.rerun()
 
-            col_des1, col_des2 = st.columns([1, 2])
-            with col_des1:
-                descuento = st.number_input(
-                    "🏷️ Descuento (Gs.):",
-                    min_value=0,
-                    max_value=subtotal_venta,
-                    value=0,
-                    step=1000,
-                    key="descuento_v",
-                )
-
-            monto_total_venta = subtotal_venta - descuento
-
-            if descuento > 0:
-                st.markdown(
-                    f"Subtotal: ~~{formatear_gs(subtotal_venta)}~~ | Descuento:"
-                    f" -{formatear_gs(descuento)}"
-                )
-
-            st.markdown(
-                f"### Total Final: **{formatear_gs(monto_total_venta)}**"
-            )
+            st.markdown("---")
 
             col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
             with col_c1:
