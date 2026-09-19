@@ -1389,28 +1389,43 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         if not st.session_state.carrito:
             st.info("El carrito está vacío.")
         else:
-            # Cuadro con borde encuadrado para los productos agregados
-            with st.container(border=True):
-                # Encabezados de la tabla dentro del cuadro
-                c_nom, c_cant, c_precio, c_sub, c_acc = st.columns([3, 1, 2, 2, 1])
-                c_nom.write("**Nombre**")
-                c_cant.write("**Cantidad**")
-                c_precio.write("**Precio Unitario**")
-                c_sub.write("**Subtotal**")
-                c_acc.write("**Acción**")
+            # 1. Creamos un DataFrame con los datos del carrito
+            df_carrito = pd.DataFrame(st.session_state.carrito)
 
-                st.markdown("---")
+            # 2. Formateamos y renombramos las columnas para mostrar en la tabla
+            df_mostrar = pd.DataFrame(
+                {
+                    "Nombre": df_carrito["nombre"],
+                    "Cantidad": df_carrito["cantidad"],
+                    "Precio Unitario": df_carrito["precio_unitario"].apply(
+                        formatear_gs
+                    ),
+                    "Subtotal": df_carrito["subtotal"].apply(formatear_gs),
+                }
+            )
 
-                # Lista de filas dentro del cuadro
-                for idx, item in enumerate(st.session_state.carrito):
-                    col_nom, col_cant, col_precio, col_sub, col_del = st.columns([3, 1, 2, 2, 1])
-                    
-                    col_nom.write(item["nombre"])
-                    col_cant.write(str(item["cantidad"]))
-                    col_precio.write(formatear_gs(item["precio_unitario"]))
-                    col_sub.write(formatear_gs(item["subtotal"]))
-                    
-                    if col_del.button("❌", key=f"btn_del_{idx}"):
+            # 3. Mostramos la tabla cuadriculada exactamente como la de Inventario
+            st.dataframe(
+                df_mostrar, use_container_width=True, hide_index=True
+            )
+
+            # 4. Selector para eliminar un producto del carrito de forma limpia
+            col_del1, col_del2 = st.columns([2, 1])
+            with col_del1:
+                item_a_eliminar = st.selectbox(
+                    "❌ Selecciona un producto para quitar del carrito:",
+                    ["-- Seleccionar --"]
+                    + [
+                        f"{i+1}. {item['nombre']}"
+                        for i, item in enumerate(st.session_state.carrito)
+                    ],
+                )
+            with col_del2:
+                st.write("")  # Espaciado vertical para alinear con el selectbox
+                st.write("")
+                if st.button("🗑️ Quitar Producto"):
+                    if item_a_eliminar != "-- Seleccionar --":
+                        idx = int(item_a_eliminar.split(".")[0]) - 1
                         st.session_state.carrito.pop(idx)
                         st.rerun()
 
