@@ -14,6 +14,18 @@ def aplicar_fundo_local(caminho_imagem):
         st.markdown(
             f"""
             <style>
+            /* Estilo para los textos de las pestañas (Tabs superiores) */
+    button[data-baseweb="tab"] div p {
+        font-size: 20px !important;    /* Cambia el tamaño de la letra (ej: 18px, 20px, 22px) */
+        font-weight: 800 !important;   /* Cambia el grosor (700 = negrita, 800/900 = más grueso) */
+        color: #1e293b !important;     /* OPCIONAL: Cambia el color del texto */
+    }
+
+    /* Aumenta la altura y espacio del botón de la pestaña para que encaje bien el texto más grande */
+    button[data-baseweb="tab"] {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
             /* Aplicar marca de agua suave sobre el fondo */
             [data-testid="stAppViewContainer"] {{
                 background-image: linear-gradient(rgba(155, 255, 255, 0.95), rgba(255, 255, 255, 0.95)), 
