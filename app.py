@@ -1399,7 +1399,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
 
             st.markdown("---")
 
-            # Mostrar cada producto en una fila con su botón para eliminar
+            # Filas del carrito con botón para eliminar cada ítem
             for idx, item in enumerate(st.session_state.carrito):
                 col_nom, col_cant, col_precio, col_sub, col_del = st.columns([3, 1, 2, 2, 1])
                 
@@ -1408,13 +1408,12 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 col_precio.write(formatear_gs(item["precio_unitario"]))
                 col_sub.write(formatear_gs(item["subtotal"]))
                 
-                # Botón de eliminar con X
                 if col_del.button("❌", key=f"btn_del_{idx}"):
                     st.session_state.carrito.pop(idx)
                     st.rerun()
 
             st.markdown("---")
-
+            
             col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
             with col_c1:
                 tipo_venta = st.selectbox(
