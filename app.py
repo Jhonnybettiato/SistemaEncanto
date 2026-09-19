@@ -16,7 +16,7 @@ def aplicar_fundo_local(caminho_imagem):
             <style>
             /* Aplicar marca de agua suave sobre el fondo */
             [data-testid="stAppViewContainer"] {{
-                background-image: linear-gradient(rgba(155, 255, 255, 0.75), rgba(255, 255, 255, 0.75)), 
+                background-image: linear-gradient(rgba(155, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
                                   url("data:image/png;base64,{encoded}");
                 background-size: contain;
                 background-position: center;
