@@ -16,7 +16,7 @@ def aplicar_fundo_local(caminho_imagem):
             <style>
             /* Aplicar marca de agua suave sobre el fondo */
             [data-testid="stAppViewContainer"] {{
-                background-image: linear-gradient(rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.92)), 
+                background-image: linear-gradient(rgba(155, 255, 255, 0.92), rgba(255, 255, 255, 0.92)), 
                                   url("data:image/png;base64,{encoded}");
                 background-size: contain;
                 background-position: center;
@@ -42,8 +42,8 @@ def aplicar_fundo_local(caminho_imagem):
             button[data-baseweb="tab"] p, 
             div[data-baseweb="tab"] p,
             button[data-baseweb="tab"] div {{
-                font-size: 20px !important;    /* Tamaño del texto de las pestañas */
-                font-weight: 800 !important;   /* Grosor de la letra */
+                font-size: 40px !important;    /* Tamaño del texto de las pestañas */
+                font-weight: 900 !important;   /* Grosor de la letra */
                 color: #1e293b !important;
             }}
 
