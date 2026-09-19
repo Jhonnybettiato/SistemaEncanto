@@ -2343,21 +2343,20 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
         st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
 
         # --- SUMA DIRECTA DE LA COLUMNA PRECIO_COSTO ---
-        st.markdown("---")
-        
-        # Convertir la columna a valores numéricos
-        df_p["precio_costo_num"] = pd.to_numeric(df_p["precio_costo"], errors="coerce").fillna(0)
-        
-        # Suma directa de la columna precio_costo
-        suma_precios_costo = df_p["precio_costo_num"].sum()
+st.markdown("---")
 
-        col_metrica, col_boton = st.columns([2, 1])
+# Convertir la columna a valores numéricos
+df_p["precio_costo_num"] = pd.to_numeric(
+    df_p["precio_costo"], errors="coerce"
+).fillna(0)
 
-        with col_metrica:
-            st.metric(
-                label="💰 Suma Total de Precios de Costo",
-                value=formatear_gs(suma_precios_costo)
-            )
+# Suma directa de la columna precio_costo
+suma_precios_costo = df_p["precio_costo_num"].sum()
+
+st.metric(
+    label="💰 Suma Total de Precios de Costo",
+    value=formatear_gs(suma_precios_costo),
+)
 
         with col_boton:
             st.write("") # Espaciador para alinear con la métrica
