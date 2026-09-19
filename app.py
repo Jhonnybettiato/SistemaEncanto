@@ -1386,35 +1386,97 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         st.markdown("---")
         st.subheader("2️⃣ Carrito de Compras")
 
-        if not st.session_state.carrito:
-            st.info("El carrito está vacío.")
-        else:
-            # Encabezados de la tabla
-            c_nom, c_cant, c_precio, c_sub, c_acc = st.columns([3, 1, 2, 2, 1])
-            c_nom.write("**Nombre**")
-            c_cant.write("**Cantidad**")
-            c_precio.write("**Precio Unitario**")
-            c_sub.write("**Subtotal**")
-            c_acc.write("**Acción**")
+        if st.session_state.carrito:
+            df_car = pd.DataFrame(st.session_state.carrito)
+            df_car_show = df_car[
+                ["nombre", "cantidad", "precio_unitario", "subtotal"]
+            ].copy()
+            df_car_show["precio_unitario"] = df_car_show[
+                "precio_unitario"
+            ].apply(formatear_gs)
+            df_car_show["subtotal"] = df_car_show["subtotal"].apply(
+                formatear_gs
+            )
 
-            st.markdown("---")
+            st.dataframe(df_car_show, use_container_width=True)
 
-            # Filas del carrito con botón para eliminar cada ítem
-            for idx, item in enumerate(st.session_state.carrito):
-                col_nom, col_cant, col_precio, col_sub, col_del = st.columns([3, 1, 2, 2, 1])
-                
-                col_nom.write(item["nombre"])
-                col_cant.write(str(item["cantidad"]))
-                col_precio.write(formatear_gs(item["precio_unitario"]))
-                col_sub.write(formatear_gs(item["subtotal"]))
-                
-                if col_del.button("❌", key=f"btn_del_{idx}"):
-                    st.session_state.carrito.pop(idx)
+            subtotal_venta = sum(
+                item["subtotal"] for item in st.session_state.carrito
+            )
+
+            col_des1, col_des2 = st.columns([1, 2])
+            with col_des1:
+                descuento = st.number_input(
+                    "🏷️ Descuento (Gs.):",
+                    min_value=0,
+                    max_value=subtotal_venta,
+                    value=0,
+                    step=1000,
+                    key="descuento_v",
+                )
+
+            monto_total_venta = subtotal_venta - descuento
+
+            if descuento > 0:
+                st.markdown(
+                    f"Subtotal: ~~{formatear_gs(subtotal_venta)}~~ | Descuento:"
+                    f" -{formatear_gs(descuento)}"
+                )
+
+            st.markdown(
+                f"### Total Final: **{formatear_gs(monto_total_venta)}**"
+            )
+
+            col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
+            with col_c1:
+                tipo_venta = st.selectbox(
+                    "Tipo de Venta:", ["Contado", "Crédito"]
+                )
+
+                lista_clientes = ["Cliente Ocasional"]
+                if not df_clientes.empty:
+                    lista_clientes += [
+                        f"{r['nombre']} {r['apellido']} (CI: {r['ci']})"
+                        for _, r in df_clientes.iterrows()
+                    ]
+                cliente_sel = st.selectbox("Cliente:", lista_clientes)
+
+            with col_c2:
+                metodo_pago = st.selectbox(
+                    "Método de Pago:",
+                    ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"],
+                )
+
+            with col_c3:
+                st.write("")
+                st.write("")
+                if st.button("✅ Finalizar Venta", type="primary"):
+                    for item in st.session_state.carrito:
+                        desc_item = (
+                            int(descuento * (item["subtotal"] / subtotal_venta))
+                            if subtotal_venta > 0
+                            else 0
+                        )
+                        registrar_venta(
+                            producto_id=item["id"],
+                            producto_nombre=item["nombre"],
+                            cantidad=item["cantidad"],
+                            precio_unitario=item["precio_unitario"],
+                            total=item["subtotal"] - desc_item,
+                            tipo_venta=tipo_venta,
+                            metodo_pago=metodo_pago,
+                            cliente_nombre=cliente_sel,
+                        )
+                    st.session_state.carrito = []
+                    st.success("🎉 ¡Venta registrada con éxito!")
                     st.rerun()
 
-            st.markdown("---")
+            if st.button("🗑️ Vaciar Carrito"):
+                st.session_state.carrito = []
+                st.rerun()
+        else:
+            st.info("El carrito está vacío.")
 
-        # CONTINÚA CON EL DESCUENTO Y TOTAL FINAL ABAJO...
     with tab_salida:
         st.subheader("Registrar Salida / Gasto de Caja")
         with st.form("form_salida_caja", clear_on_submit=True):
