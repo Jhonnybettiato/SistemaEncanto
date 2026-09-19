@@ -1389,32 +1389,32 @@ if opcion == "🛒 Ventas y Cierre de Caja":
         if not st.session_state.carrito:
             st.info("El carrito está vacío.")
         else:
-            # Encabezados de la tabla
-            c_nom, c_cant, c_precio, c_sub, c_acc = st.columns([3, 1, 2, 2, 1])
-            c_nom.write("**Nombre**")
-            c_cant.write("**Cantidad**")
-            c_precio.write("**Precio Unitario**")
-            c_sub.write("**Subtotal**")
-            c_acc.write("**Acción**")
+            # Cuadro con borde encuadrado para los productos agregados
+            with st.container(border=True):
+                # Encabezados de la tabla dentro del cuadro
+                c_nom, c_cant, c_precio, c_sub, c_acc = st.columns([3, 1, 2, 2, 1])
+                c_nom.write("**Nombre**")
+                c_cant.write("**Cantidad**")
+                c_precio.write("**Precio Unitario**")
+                c_sub.write("**Subtotal**")
+                c_acc.write("**Acción**")
 
-            st.markdown("---")
+                st.markdown("---")
 
-            # Filas del carrito con botón para eliminar cada ítem
-            for idx, item in enumerate(st.session_state.carrito):
-                col_nom, col_cant, col_precio, col_sub, col_del = st.columns([3, 1, 2, 2, 1])
-                
-                col_nom.write(item["nombre"])
-                col_cant.write(str(item["cantidad"]))
-                col_precio.write(formatear_gs(item["precio_unitario"]))
-                col_sub.write(formatear_gs(item["subtotal"]))
-                
-                if col_del.button("❌", key=f"btn_del_{idx}"):
-                    st.session_state.carrito.pop(idx)
-                    st.rerun()
+                # Lista de filas dentro del cuadro
+                for idx, item in enumerate(st.session_state.carrito):
+                    col_nom, col_cant, col_precio, col_sub, col_del = st.columns([3, 1, 2, 2, 1])
+                    
+                    col_nom.write(item["nombre"])
+                    col_cant.write(str(item["cantidad"]))
+                    col_precio.write(formatear_gs(item["precio_unitario"]))
+                    col_sub.write(formatear_gs(item["subtotal"]))
+                    
+                    if col_del.button("❌", key=f"btn_del_{idx}"):
+                        st.session_state.carrito.pop(idx)
+                        st.rerun()
 
-            st.markdown("---")
-
-        # 1. Calcular el subtotal primero
+        # Cálculo de subtotal e interfaz de descuento fuera del cuadro
         subtotal_venta = sum(item["subtotal"] for item in st.session_state.carrito)
 
         # 2. Luego crear las columnas para el descuento
