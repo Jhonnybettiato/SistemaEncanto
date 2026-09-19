@@ -25,12 +25,12 @@ def aplicar_fundo_local(caminho_imagem):
 
             /* Quitar fondos blancos por defecto */
             [data-testid="stHeader"], [data-testid="stSidebar"] {{
-                background-color: rgba(255, 255, 255, 0.65) !important;
+                background-color: rgba(255, 255, 255, 0.45) !important;
             }}
 
             /* Dar transparencia al contenedor del contenido para visibilidad */
             .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.65) !important;
+                background-color: rgba(255, 255, 255, 0.45) !important;
                 padding: 2rem;
                 border-radius: 12px;
                 margin-top: 1rem;
