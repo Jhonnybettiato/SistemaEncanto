@@ -4,7 +4,6 @@ import sqlite3
 import streamlit as st
 import base64
 
-
 def aplicar_fundo_local(caminho_imagem):
     try:
         with open(caminho_imagem, "rb") as f:
@@ -14,19 +13,34 @@ def aplicar_fundo_local(caminho_imagem):
         st.markdown(
             f"""
             <style>
-            .stApp {{
+            /* Cria uma camada pseudo-elemento para ajustar a opacidade do fundo */
+            .stApp::before {{
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
                 background-image: url("data:image/png;base64,{encoded}");
-                background-attachment: fixed;
-                background-size: cover;
+                background-repeat: no-repeat;
                 background-position: center;
+                background-size: contain; /* Ajusta a imagem inteira sem cortar */
+                opacity: 0.15; /* Deixa a imagem bem suave/apagada (ajuste entre 0.1 e 0.3) */
+                z-index: -1;
             }}
-            
-            /* Fondo blanco suave translúcido para mantener legibles los textos y tablas */
+
+            /* Fundo principal transparente */
+            .stApp {{
+                background-color: #f8f9fa;
+            }}
+
+            /* Caixas de conteúdo limpas e legíveis */
             .main .block-container {{
-                background-color: rgba(255, 255, 255, 0.92);
+                background-color: rgba(255, 255, 255, 0.90);
                 padding: 2rem;
                 border-radius: 12px;
                 margin-top: 1rem;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             }}
             </style>
             """,
@@ -35,8 +49,6 @@ def aplicar_fundo_local(caminho_imagem):
     except Exception:
         pass
 
-
-# Aplicar la imagen cargada como fondo
 aplicar_fundo_local("logo.png")
 
 # Importación segura de Firestore
