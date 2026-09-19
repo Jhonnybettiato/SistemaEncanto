@@ -4,6 +4,7 @@ import sqlite3
 import streamlit as st
 import base64
 
+
 def aplicar_fundo_local(caminho_imagem):
     try:
         with open(caminho_imagem, "rb") as f:
@@ -49,8 +50,8 @@ def aplicar_fundo_local(caminho_imagem):
     except Exception:
         pass
 
-aplicar_fundo_local("logo.png")
 
+aplicar_fundo_local("logo.png")
 # Importación segura de Firestore
 try:
     from google.cloud import firestore
