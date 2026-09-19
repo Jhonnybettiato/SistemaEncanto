@@ -2348,24 +2348,29 @@ elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
         # --- CÁLCULO DEL VALOR TOTAL DEL STOCK ---
         st.markdown("---")
 
-        # Convertir las columnas a valores numéricos para evitar errores
-        df_p["precio_costo_num"] = pd.to_numeric(
-            df_p["precio_costo"], errors="coerce"
+        # Excluir registros de ajuste antes del cálculo
+        df_inventario_real = df_p[
+            df_p["nombre"].str.upper() != "AJUSTE DE CAJA"
+        ].copy()
+
+        # Convertir las columnas a valores numéricos
+        df_inventario_real["precio_costo_num"] = pd.to_numeric(
+            df_inventario_real["precio_costo"], errors="coerce"
         ).fillna(0)
-        df_p["stock_num"] = pd.to_numeric(
-            df_p["stock"], errors="coerce"
+        df_inventario_real["stock_num"] = pd.to_numeric(
+            df_inventario_real["stock"], errors="coerce"
         ).fillna(0)
 
-        # Multiplica el costo unitario por la cantidad en stock
+        # Multiplica el costo unitario por la cantidad en stock de los productos reales
         suma_precios_costo = (
-            df_p["precio_costo_num"] * df_p["stock_num"]
+            df_inventario_real["precio_costo_num"]
+            * df_inventario_real["stock_num"]
         ).sum()
 
         st.metric(
             label="💰 Valor Total del Inventario (Costo x Stock)",
             value=formatear_gs(suma_precios_costo),
         )
-
     else:
         st.info("No hay productos registrados en el inventario.")
 
