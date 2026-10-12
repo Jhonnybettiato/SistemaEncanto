@@ -2272,18 +2272,43 @@ elif opcion == "👥 Gestor de Clientes":
 
     with tab_nuevo_c:
         st.subheader("Registrar Nuevo Cliente")
+
+        # 1. Limpiar campos si la bandera está activada
+        if st.session_state.get("debo_limpiar_cliente", False):
+            st.session_state["cli_nombre"] = ""
+            st.session_state["cli_apellido"] = ""
+            st.session_state["cli_ci"] = ""
+            st.session_state["cli_telefono"] = ""
+            st.session_state["cli_ciudad"] = ""
+            st.session_state["debo_limpiar_cliente"] = False
+
+        # 2. Inicializar valores en el session_state si no existen
+        if "cli_nombre" not in st.session_state:
+            st.session_state["cli_nombre"] = ""
+        if "cli_apellido" not in st.session_state:
+            st.session_state["cli_apellido"] = ""
+        if "cli_ci" not in st.session_state:
+            st.session_state["cli_ci"] = ""
+        if "cli_telefono" not in st.session_state:
+            st.session_state["cli_telefono"] = ""
+        if "cli_ciudad" not in st.session_state:
+            st.session_state["cli_ciudad"] = ""
+
         with st.form("form_cliente"):
             col1, col2 = st.columns(2)
-            nombre = col1.text_input("Nombre:")
-            apellido = col2.text_input("Apellido:")
-            ci = col1.text_input("N° Documento / CI:")
-            telefono = col2.text_input("Teléfono:")
-            ciudad = st.text_input("Ciudad:")
+            nombre = col1.text_input("Nombre:", key="cli_nombre")
+            apellido = col2.text_input("Apellido:", key="cli_apellido")
+            ci = col1.text_input("N° Documento / CI:", key="cli_ci")
+            telefono = col2.text_input("Teléfono:", key="cli_telefono")
+            ciudad = st.text_input("Ciudad:", key="cli_ciudad")
 
             if st.form_submit_button("Guardar Cliente", type="primary"):
                 if nombre.strip() and apellido.strip():
                     registrar_cliente(nombre, apellido, ci, telefono, ciudad)
                     st.success("¡Cliente guardado con éxito!")
+                    
+                    # Activar bandera para limpiar los campos y recargar
+                    st.session_state["debo_limpiar_cliente"] = True
                     st.rerun()
                 else:
                     st.warning("El Nombre y Apellido son obligatorios.")
