@@ -2262,7 +2262,6 @@ elif opcion == "💳 Deudas de Clientes":
             deudas_activas = deudas[deudas["saldo_pendiente"] > 0]
             
             if not deudas_activas.empty:
-                # Obtenemos la lista única de nombres de clientes con deuda
                 clientes_con_deuda = sorted(deudas_activas["cliente_nombre"].dropna().unique().tolist())
                 
                 st.subheader("🔍 Seleccionar Cliente para Ver Deuda y Registrar Pagos")
@@ -2279,7 +2278,7 @@ elif opcion == "💳 Deudas de Clientes":
                     st.markdown("---")
                     st.write(f"### Detalle de Compras a Crédito: {cliente_seleccionado}")
                     
-                    # Mostramos las compras pendientes en la tabla (sin ID Venta y con Fecha al final)
+                    # Mostramos las compras pendientes (sin ID Venta y con Fecha al final)
                     df_detalle_show = pd.DataFrame({
                         "Producto": compras_cliente["producto_nombre"],
                         "Cantidad": compras_cliente["cantidad"],
@@ -2296,7 +2295,6 @@ elif opcion == "💳 Deudas de Clientes":
                     st.markdown("---")
                     st.subheader("💵 Registrar Pago o Abono")
                     
-                    # Selector de compras sin mostrar el ID
                     dict_compras_cli = {}
                     for _, row_c in compras_cliente.iterrows():
                         label_c = f"{row_c['producto_nombre']} | Saldo: {formatear_gs(row_c['saldo_pendiente'])} | Fecha: {row_c['fecha_hora']}"
@@ -2332,12 +2330,20 @@ elif opcion == "💳 Deudas de Clientes":
                             if st.form_submit_button("✅ Confirmar y Registrar Abono", type="primary"):
                                 nuevo_monto_pagado = monto_pagado_actual + monto_abono
                                 nuevo_estado = "Pagado" if nuevo_monto_pagado >= total_venta_original else "Parcial"
+                                fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 
                                 db_cloud = obtener_conexion_db()
                                 if db_cloud is not None:
+                                    # Actualizar venta
                                     db_cloud.collection("ventas").document(str(id_venta_sel)).update({
                                         "monto_pagado": int(nuevo_monto_pagado),
-                                        "estado_pago": str(nuevo_estado),
+                                        "estado_pago": str(nuevo_estado)
+                                    })
+                                    # Registrar pago del cliente para la caja
+                                    db_cloud.collection("pagos_clientes").add({
+                                        "fecha_hora": fecha_ahora,
+                                        "cliente_nombre": str(cliente_seleccionado),
+                                        "monto": int(monto_abono),
                                         "metodo_pago": str(metodo_pago_abono)
                                     })
                                 else:
@@ -2345,13 +2351,21 @@ elif opcion == "💳 Deudas de Clientes":
                                     cursor = conn.cursor()
                                     cursor.execute("""
                                         UPDATE ventas 
-                                        SET monto_pagado = ?, estado_pago = ?, metodo_pago = ? 
+                                        SET monto_pagado = ?, estado_pago = ? 
                                         WHERE id = ?
                                     """, (
                                         int(nuevo_monto_pagado),
                                         str(nuevo_estado),
-                                        str(metodo_pago_abono),
                                         int(id_venta_sel) if str(id_venta_sel).isdigit() else id_venta_sel
+                                    ))
+                                    cursor.execute("""
+                                        INSERT INTO pagos_clientes (fecha_hora, cliente_nombre, monto, metodo_pago)
+                                        VALUES (?, ?, ?, ?)
+                                    """, (
+                                        fecha_ahora,
+                                        str(cliente_seleccionado),
+                                        int(monto_abono),
+                                        str(metodo_pago_abono)
                                     ))
                                     conn.commit()
                                     conn.close()
