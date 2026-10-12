@@ -2249,7 +2249,7 @@ elif opcion == "💳 Deudas de Clientes":
         deudas = df_ventas[df_ventas["estado_pago"].isin(["Pendiente", "Parcial"])].copy()
         
         if not deudas.empty:
-            # Aseguramos que la columna total y monto_pagado sean numéricas
+            # Aseguramos que las columnas total y monto_pagado sean numéricas
             deudas["total"] = pd.to_numeric(deudas["total"], errors="coerce").fillna(0)
             if "monto_pagado" not in deudas.columns:
                 deudas["monto_pagado"] = 0
@@ -2279,15 +2279,14 @@ elif opcion == "💳 Deudas de Clientes":
                     st.markdown("---")
                     st.write(f"### Detalle de Compras a Crédito: {cliente_seleccionado}")
                     
-                    # Mostramos las compras pendientes de este cliente en formato de tabla limpia
+                    # Mostramos las compras pendientes en la tabla (sin ID Venta y con Fecha al final)
                     df_detalle_show = pd.DataFrame({
-                        "ID Venta": compras_cliente["id"],
-                        "Fecha": compras_cliente["fecha_hora"],
                         "Producto": compras_cliente["producto_nombre"],
                         "Cantidad": compras_cliente["cantidad"],
                         "Total Venta": compras_cliente["total"].apply(formatear_gs),
                         "Pagado": compras_cliente["monto_pagado"].apply(formatear_gs),
-                        "Saldo Pendiente": compras_cliente["saldo_pendiente"].apply(formatear_gs)
+                        "Saldo Pendiente": compras_cliente["saldo_pendiente"].apply(formatear_gs),
+                        "Fecha": compras_cliente["fecha_hora"]
                     })
                     st.dataframe(df_detalle_show, use_container_width=True, hide_index=True)
                     
@@ -2297,10 +2296,10 @@ elif opcion == "💳 Deudas de Clientes":
                     st.markdown("---")
                     st.subheader("💵 Registrar Pago o Abono")
                     
-                    # Opción para elegir si paga una venta específica o un abono general/por venta
+                    # Selector de compras sin mostrar el ID
                     dict_compras_cli = {}
                     for _, row_c in compras_cliente.iterrows():
-                        label_c = f"ID: {row_c['id']} | {row_c['fecha_hora']} | {row_c['producto_nombre']} - Saldo: {formatear_gs(row_c['saldo_pendiente'])}"
+                        label_c = f"{row_c['producto_nombre']} | Saldo: {formatear_gs(row_c['saldo_pendiente'])} | Fecha: {row_c['fecha_hora']}"
                         dict_compras_cli[label_c] = row_c["id"]
                     
                     compra_a_abonar_label = st.selectbox(
@@ -2356,10 +2355,6 @@ elif opcion == "💳 Deudas de Clientes":
                                     ))
                                     conn.commit()
                                     conn.close()
-                                
-                                # Registrar también el ingreso en caja (salida de caja inversa o se suma a ingresos)
-                                # Aquí puedes registrar el cobro como una entrada o salida según la lógica de tu caja, 
-                                # el sistema registrará el éxito del pago.
                                 
                                 st.success(f"¡Abono de {formatear_gs(monto_abono)} registrado con éxito!")
                                 st.rerun()
