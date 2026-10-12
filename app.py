@@ -1662,15 +1662,35 @@ if opcion == "🛒 Ventas y Cierre de Caja":
     fecha_hoy = date.today().strftime("%Y-%m-%d")
     saldo_inicial = obtener_saldo_inicial_dia(fecha_hoy)
 
+    # 1. Ingresos por ventas de contado realizadas HOY
     df_v = obtener_ventas()
     if not df_v.empty and "fecha_hora" in df_v.columns:
         df_v_hoy = df_v[
             (df_v["fecha_hora"].str.startswith(fecha_hoy))
-            & (df_v["estado_pago"] == "Pagado")
+            & (df_v["tipo_venta"] == "Contado")
         ]
-        ingresos_hoy = int(df_v_hoy["total"].sum()) if not df_v_hoy.empty else 0
+        ingresos_ventas_hoy = int(df_v_hoy["total"].sum()) if not df_v_hoy.empty else 0
     else:
-        ingresos_hoy = 0
+        ingresos_ventas_hoy = 0
+
+    # 2. Ingresos por abonos / pagos de deudas de clientes recibidos HOY
+    ingresos_cobros_hoy = 0
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs_pagos = db_cloud.collection("pagos_clientes").stream()
+        list_pagos = [doc.to_dict() for doc in docs_pagos if doc.to_dict().get("fecha_hora", "").startswith(fecha_hoy)]
+        if list_pagos:
+            ingresos_cobros_hoy = sum(int(p.get("monto", 0)) for p in list_pagos)
+    else:
+        conn = obtener_conexion()
+        cursor = conn.cursor()
+        cursor.execute("SELECT SUM(monto) FROM pagos_clientes WHERE fecha_hora LIKE ?", (f"{fecha_hoy}%",))
+        row_pago = cursor.fetchone()
+        conn.close()
+        if row_pago and row_pago[0]:
+            ingresos_cobros_hoy = int(row_pago[0])
+
+    ingresos_hoy = ingresos_ventas_hoy + ingresos_cobros_hoy
 
     df_s = obtener_salidas_caja()
     if not df_s.empty and "fecha_hora" in df_s.columns:
