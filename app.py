@@ -2244,14 +2244,76 @@ elif opcion == "💳 Deudas de Clientes":
         unsafe_allow_html=True,
     )
     df_ventas = obtener_ventas()
-    if not df_ventas.empty:
-        deudas = df_ventas[df_ventas["estado_pago"] == "Pendiente"]
+    
+    if not df_ventas.empty and "estado_pago" in df_ventas.columns:
+        deudas = df_ventas[df_ventas["estado_pago"] == "Pendiente"].copy()
+        
         if not deudas.empty:
-            df_show = deudas.copy()
-            df_show["total"] = df_show["total"].apply(formatear_gs)
-            st.dataframe(df_show, use_container_width=True)
+            # Aseguramos que la columna total sea numérica
+            deudas["total"] = pd.to_numeric(deudas["total"], errors="coerce").fillna(0)
+            
+            # Agrupamos por cliente sumando sus deudas y contando la cantidad de compras pendientes
+            df_resumen = deudas.groupby("cliente_nombre").agg(
+                total_deuda=("total", "sum"),
+                cantidad_compras=("id", "count")
+            ).reset_index()
+            
+            # Formateamos el total a Guaraníes
+            df_show = df_resumen.copy()
+            df_show["total_deuda"] = df_show["total_deuda"].apply(formatear_gs)
+            df_show.columns = ["Cliente", "Deuda Total Pendiente", "N° de Compras a Crédito"]
+            
+            st.subheader("📋 Resumen de Deudas por Cliente")
+            st.dataframe(df_show, use_container_width=True, hide_index=True)
+            
+            st.markdown("---")
+            st.subheader("🔍 Detalle o Gestión por Cliente")
+            
+            # Selector para ver el detalle o abonar de un cliente específico
+            cliente_seleccionado = st.selectbox(
+                "Selecciona un cliente para ver sus compras pendientes o registrar pagos:",
+                options=df_resumen["cliente_nombre"].tolist()
+            )
+            
+            if cliente_seleccionado:
+                compras_cliente = deudas[deudas["cliente_nombre"] == cliente_seleccionado]
+                
+                st.write(f"**Compras pendientes de: {cliente_seleccionado}**")
+                
+                # Mostramos las compras individuales de ese cliente
+                df_detalle_show = pd.DataFrame({
+                    "Producto": compras_cliente["producto_nombre"],
+                    "Cantidad": compras_cliente["cantidad"],
+                    "Precio Unitario": compras_cliente["precio_unitario"].apply(formatear_gs),
+                    "Subtotal": compras_cliente["total"].apply(formatear_gs),
+                    "Fecha": compras_cliente["fecha_hora"]
+                })
+                st.dataframe(df_detalle_show, use_container_width=True, hide_index=True)
+                
+                total_cli = compras_cliente["total"].sum()
+                st.info(f"Deuda total acumulada de {cliente_seleccionado}: **{formatear_gs(total_cli)}**")
+                
+                # Opción para registrar pago total o parcial (cambiar estado a Pagado)
+                if st.button(f"✅ Marcar deudas de {cliente_seleccionado} como Pagado", type="primary"):
+                    db_cloud = obtener_conexion_db()
+                    for _, row_v in compras_cliente.iterrows():
+                        id_v = row_v["id"]
+                        if db_cloud is not None:
+                            db_cloud.collection("ventas").document(str(id_v)).update({"estado_pago": "Pagado"})
+                        else:
+                            conn = obtener_conexion()
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE ventas SET estado_pago = 'Pagado' WHERE id = ?", (int(id_v) if str(id_v).isdigit() else id_v,))
+                            conn.commit()
+                            conn.close()
+                    
+                    # Registramos también el ingreso como salida de caja / cobro recibido si deseas, o solo actualizamos
+                    st.success(f"¡Se han saldado las deudas de {cliente_seleccionado} correctamente!")
+                    st.rerun()
         else:
             st.success("🎉 ¡No hay deudas pendientes de clientes!")
+    else:
+        st.success("🎉 ¡No hay deudas pendientes de clientes!")
 
 # ==========================================
 # GESTOR DE CLIENTES
