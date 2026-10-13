@@ -2603,17 +2603,46 @@ elif opcion == "📈 Flujo de Caja Mensual":
         mask_s = df_salidas["fecha_hora"].astype(str).str.slice(0, 10).between(f_desde_str, f_hasta_str)
         df_s_filtrado = df_salidas[mask_s].copy()
 
+    # --- OBTENER COBROS / ABONOS DE CLIENTES EN EL PERÍODO ---
+    list_pagos_periodo = []
+    db_cloud = obtener_conexion_db()
+    if db_cloud is not None:
+        docs_pagos = db_cloud.collection("pagos_clientes").stream()
+        for doc in docs_pagos:
+            d = doc.to_dict()
+            d["id"] = doc.id
+            f_pago = str(d.get("fecha_hora", ""))[0:10]
+            if f_desde_str <= f_pago <= f_hasta_str:
+                list_pagos_periodo.append(d)
+        df_cobros_periodo = pd.DataFrame(list_pagos_periodo)
+    else:
+        conn = obtener_conexion()
+        df_cobros_all = pd.read_sql_query("SELECT * FROM pagos_clientes", conn)
+        conn.close()
+        if not df_cobros_all.empty and "fecha_hora" in df_cobros_all.columns:
+            mask_p = df_cobros_all["fecha_hora"].astype(str).str.slice(0, 10).between(f_desde_str, f_hasta_str)
+            df_cobros_periodo = df_cobros_all[mask_p].copy()
+        else:
+            df_cobros_periodo = pd.DataFrame()
+
     # --- CÁLCULOS DE INGRESOS, EGRESOS Y GANANCIAS ---
-    ingresos_periodo = (
-        df_v_filtrado[df_v_filtrado["estado_pago"].isin(["Pagado", "Parcial"])]["total"].sum()
+    ingresos_ventas_contado = (
+        df_v_filtrado[df_v_filtrado["tipo_venta"] == "Contado"]["total"].sum()
         if not df_v_filtrado.empty else 0
     )
     
+    ingresos_cobros_credito = (
+        pd.to_numeric(df_cobros_periodo["monto"], errors="coerce").fillna(0).sum()
+        if not df_cobros_periodo.empty else 0
+    )
+
+    ingresos_periodo = ingresos_ventas_contado + ingresos_cobros_credito
+
     egresos_periodo = (
         df_s_filtrado["monto"].sum() if not df_s_filtrado.empty else 0
     )
 
-    # --- CRUCE CON PRODUCTOS PARA COSTOS Y GANANCIAS ---
+    # --- CRUCE CON PRODUCTOS PARA COSTOS Y GANANCIAS DE VENTAS REALIZADAS ---
     df_merged = pd.DataFrame()
     ganancia_periodo = 0
     
@@ -2647,7 +2676,6 @@ elif opcion == "📈 Flujo de Caja Mensual":
         df_merged["total"] = pd.to_numeric(df_merged["total"], errors="coerce").fillna(0)
         df_merged["precio_unitario"] = pd.to_numeric(df_merged["precio_unitario"], errors="coerce").fillna(0)
 
-        # CORRECCIÓN DE CÁLCULO DE GANANCIA:
         # Ganancia real = Total Venta Cobrado (con descuento) - (Precio Costo * Cantidad)
         df_merged["costo_total"] = df_merged["precio_costo"] * df_merged["cantidad"]
         df_merged["ganancia_total"] = df_merged["total"] - df_merged["costo_total"]
@@ -2658,34 +2686,52 @@ elif opcion == "📈 Flujo de Caja Mensual":
     
     # --- MÉTRICAS EN PANTALLA ---
     col1, col2, col3 = st.columns(3)
-    col1.metric("📥 Ingresos del Período", formatear_gs(ingresos_periodo))
+    col1.metric("📥 Ingresos Totales (Contado + Abonos)", formatear_gs(ingresos_periodo))
     col2.metric("📤 Egresos del Período", formatear_gs(egresos_periodo))
-    col3.metric("💎 Ganancias Netas", formatear_gs(ganancia_periodo))
+    col3.metric("💎 Ganancias Netas de Ventas", formatear_gs(ganancia_periodo))
 
     balance_periodo = ingresos_periodo - egresos_periodo
     st.markdown("---")
-    st.info(f"📊 **Balance Neto del Período (Ingresos - Egresos):** {formatear_gs(balance_periodo)}")
+    st.info(f"📊 **Balance Neto en Caja (Ingresos Totales - Egresos):** {formatear_gs(balance_periodo)}")
 
-    # --- REPORTE DETALLADO DE PRODUCTOS VENDIDOS ---
+    # --- DETALLES DE LAS OPERACIONES EN EL PERÍODO ---
     st.markdown("---")
-    st.subheader("📦 Detalle de Productos Vendidos en el Período")
+    tab_rep_ventas, tab_rep_cobros = st.tabs([
+        "📦 Productos Vendidos en el Período",
+        "💳 Cobros / Abonos Recibidos de Créditos"
+    ])
 
-    if not df_merged.empty:
-        df_reporte = pd.DataFrame({
-            "Fecha / Hora": df_merged["fecha_hora"],
-            "Producto": df_merged["producto_nombre"],
-            "Cliente": df_merged.get("cliente_nombre", "Cliente Ocasional"),
-            "Cantidad": df_merged["cantidad"],
-            "Precio Costo Unit.": df_merged["precio_costo"].apply(formatear_gs),
-            "Precio Lista Unit.": df_merged["precio_unitario"].apply(formatear_gs),
-            "Total Venta (Cobrado)": df_merged["total"].apply(formatear_gs),
-            "Ganancia Obtenida": df_merged["ganancia_total"].apply(formatear_gs),
-            "Tipo de Venta": df_merged.get("tipo_venta", "Contado")
-        })
+    with tab_rep_ventas:
+        st.subheader("📦 Detalle de Productos Vendidos")
+        if not df_merged.empty:
+            df_reporte = pd.DataFrame({
+                "Fecha / Hora": df_merged["fecha_hora"],
+                "Producto": df_merged["producto_nombre"],
+                "Cliente": df_merged.get("cliente_nombre", "Cliente Ocasional"),
+                "Cantidad": df_merged["cantidad"],
+                "Precio Costo Unit.": df_merged["precio_costo"].apply(formatear_gs),
+                "Precio Lista Unit.": df_merged["precio_unitario"].apply(formatear_gs),
+                "Total Venta (Cobrado)": df_merged["total"].apply(formatear_gs),
+                "Ganancia Obtenida": df_merged["ganancia_total"].apply(formatear_gs),
+                "Tipo de Venta": df_merged.get("tipo_venta", "Contado")
+            })
+            st.dataframe(df_reporte, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay registros de ventas en el rango de fechas seleccionado.")
 
-        st.dataframe(df_reporte, use_container_width=True, hide_index=True)
-    else:
-        st.info("No hay registros de ventas en el rango de fechas seleccionado.")
+    with tab_rep_cobros:
+        st.subheader("💳 Detalle de Cobros y Abonos Recibidos")
+        if not df_cobros_periodo.empty:
+            df_cobros_show = pd.DataFrame({
+                "Fecha / Hora": df_cobros_periodo["fecha_hora"],
+                "Cliente": df_cobros_periodo["cliente_nombre"],
+                "Monto Abonado": pd.to_numeric(df_cobros_periodo["monto"], errors="coerce").fillna(0).apply(formatear_gs),
+                "Método de Pago": df_cobros_periodo["metodo_pago"]
+            })
+            st.dataframe(df_cobros_show, use_container_width=True, hide_index=True)
+            st.success(f"💰 **Total Cobrado de Créditos en el Período:** {formatear_gs(ingresos_cobros_credito)}")
+        else:
+            st.info("No se registraron cobros o abonos de clientes a crédito en el rango de fechas seleccionado.")
 # ==========================================
 # VER STOCK / INVENTARIO
 # ==========================================
