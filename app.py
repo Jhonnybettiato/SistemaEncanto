@@ -2573,7 +2573,7 @@ elif opcion == "📈 Flujo de Caja Mensual":
     st.subheader("📅 Filtrar por Rango de Fechas")
     
     col_f1, col_f2 = st.columns(2)
-    fecha_minima = date.today().replace(day=1) # Por defecto el 1 del mes actual
+    fecha_minima = date.today().replace(day=1)
     fecha_actual = date.today()
 
     if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
@@ -2644,11 +2644,13 @@ elif opcion == "📈 Flujo de Caja Mensual":
 
         df_merged["precio_costo"] = pd.to_numeric(df_merged["precio_costo"], errors="coerce").fillna(0)
         df_merged["cantidad"] = pd.to_numeric(df_merged["cantidad"], errors="coerce").fillna(0)
+        df_merged["total"] = pd.to_numeric(df_merged["total"], errors="coerce").fillna(0)
         df_merged["precio_unitario"] = pd.to_numeric(df_merged["precio_unitario"], errors="coerce").fillna(0)
 
-        # Cálculo de costo total y ganancia por ítem
+        # CORRECCIÓN DE CÁLCULO DE GANANCIA:
+        # Ganancia real = Total Venta Cobrado (con descuento) - (Precio Costo * Cantidad)
         df_merged["costo_total"] = df_merged["precio_costo"] * df_merged["cantidad"]
-        df_merged["ganancia_total"] = (df_merged["precio_unitario"] - df_merged["precio_costo"]) * df_merged["cantidad"]
+        df_merged["ganancia_total"] = df_merged["total"] - df_merged["costo_total"]
         
         ganancia_periodo = int(df_merged["ganancia_total"].sum())
 
@@ -2669,15 +2671,14 @@ elif opcion == "📈 Flujo de Caja Mensual":
     st.subheader("📦 Detalle de Productos Vendidos en el Período")
 
     if not df_merged.empty:
-        # Preparamos el DataFrame para mostrar al usuario de manera ordenada y limpia
         df_reporte = pd.DataFrame({
             "Fecha / Hora": df_merged["fecha_hora"],
             "Producto": df_merged["producto_nombre"],
             "Cliente": df_merged.get("cliente_nombre", "Cliente Ocasional"),
             "Cantidad": df_merged["cantidad"],
             "Precio Costo Unit.": df_merged["precio_costo"].apply(formatear_gs),
-            "Precio Venta Unit.": df_merged["precio_unitario"].apply(formatear_gs),
-            "Total Venta": df_merged["total"].apply(formatear_gs),
+            "Precio Lista Unit.": df_merged["precio_unitario"].apply(formatear_gs),
+            "Total Venta (Cobrado)": df_merged["total"].apply(formatear_gs),
             "Ganancia Obtenida": df_merged["ganancia_total"].apply(formatear_gs),
             "Tipo de Venta": df_merged.get("tipo_venta", "Contado")
         })
