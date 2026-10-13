@@ -2561,25 +2561,113 @@ elif opcion == "👥 Gestor de Clientes":
 # ==========================================
 elif opcion == "📈 Flujo de Caja Mensual":
     st.markdown(
-        '<p class="main-title">📈 Flujo de Caja Mensual</p>',
+        '<p class="main-title">📈 Flujo de Caja y Ganancias</p>',
         unsafe_allow_html=True,
     )
+    
     df_ventas = obtener_ventas()
     df_salidas = obtener_salidas_caja()
+    df_productos = obtener_productos()
 
-    col1, col2 = st.columns(2)
-    ingresos_totales = (
-        df_ventas[df_ventas["estado_pago"] == "Pagado"]["total"].sum()
-        if not df_ventas.empty
-        else 0
+    # --- FILTRO POR FECHAS ---
+    st.subheader("📅 Filtrar por Rango de Fechas")
+    
+    col_f1, col_f2 = st.columns(2)
+    fecha_minima = date.today().replace(day=1) # Por defecto el 1 del mes actual
+    fecha_actual = date.today()
+
+    # Si hay ventas, podemos buscar la fecha más antigua registrada para orientar el selector
+    if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
+        try:
+            fechas_parseadas = pd.to_datetime(df_ventas["fecha_hora"], errors="coerce")
+            if not fechas_parseadas.isna().all():
+                fecha_minima = fechas_parseadas.min().date()
+        except Exception:
+            pass
+
+    with col_f1:
+        f_desde = st.date_input("Desde:", value=fecha_minima)
+    with col_f2:
+        f_hasta = st.date_input("Hasta:", value=fecha_actual)
+
+    # Convertir fechas a string para comparar con formato "YYYY-MM-DD"
+    f_desde_str = f_desde.strftime("%Y-%m-%d")
+    f_hasta_str = f_hasta.strftime("%Y-%m-%d")
+
+    # --- FILTRADO DE DATOS ---
+    df_v_filtrado = pd.DataFrame()
+    if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
+        # Filtrar ventas cuyo string de fecha comience dentro del rango o coincida
+        mask_v = df_ventas["fecha_hora"].astype(str).str.slice(0, 10).between(f_desde_str, f_hasta_str)
+        df_v_filtrado = df_ventas[mask_v].copy()
+
+    df_s_filtrado = pd.DataFrame()
+    if not df_salidas.empty and "fecha_hora" in df_salidas.columns:
+        mask_s = df_salidas["fecha_hora"].astype(str).str.slice(0, 10).between(f_desde_str, f_hasta_str)
+        df_s_filtrado = df_salidas[mask_s].copy()
+
+    # --- CÁLCULOS DE INGRESOS, EGRESOS Y GANANCIAS ---
+    # Consideramos ingresos las ventas pagadas (o de contado/abonos dentro del rango)
+    ingresos_periodo = (
+        df_v_filtrado[df_v_filtrado["estado_pago"].isin(["Pagado", "Parcial"])]["total"].sum()
+        if not df_v_filtrado.empty else 0
     )
-    egresos_totales = (
-        df_salidas["monto"].sum() if not df_salidas.empty else 0
+    
+    egresos_periodo = (
+        df_s_filtrado["monto"].sum() if not df_s_filtrado.empty else 0
     )
 
-    col1.metric("Ingresos Históricos Totales", formatear_gs(ingresos_totales))
-    col2.metric("Egresos Históricos Totales", formatear_gs(egresos_totales))
+    # --- CÁLCULO DE GANANCIAS ---
+    ganancia_periodo = 0
+    if not df_v_filtrado.empty and not df_productos.empty:
+        # Unimos las ventas filtradas con los productos para obtener el precio de costo original
+        # Intentamos cruzar por producto_id o nombre de producto
+        df_v_filtrado["producto_id"] = df_v_filtrado["producto_id"].astype(str)
+        df_productos["id"] = df_productos["id"].astype(str)
+        
+        # Merge para traer el precio_costo
+        df_merged = pd.merge(
+            df_v_filtrado,
+            df_productos[["id", "precio_costo"]],
+            left_on="producto_id",
+            right_on="id",
+            how="left"
+        )
+        
+        # Si algún producto no hizo match por ID, intentamos por nombre
+        if "precio_costo" in df_merged.columns and df_merged["precio_costo"].isna().any():
+            df_productos_nom = df_productos.drop_duplicates(subset=["nombre"])
+            df_merged = pd.merge(
+                df_v_filtrado,
+                df_productos_nom[["nombre", "precio_costo"]],
+                left_on="producto_nombre",
+                right_on="nombre",
+                how="left",
+                suffixes=('', '_prod')
+            )
+            if "precio_costo_prod" in df_merged.columns:
+                df_merged["precio_costo"] = df_merged["precio_costo"].fillna(df_merged["precio_costo_prod"])
 
+        df_merged["precio_costo"] = pd.to_numeric(df_merged["precio_costo"], errors="coerce").fillna(0)
+        df_merged["cantidad"] = pd.to_numeric(df_merged["cantidad"], errors="coerce").fillna(0)
+        df_merged["precio_unitario"] = pd.to_numeric(df_merged["precio_unitario"], errors="coerce").fillna(0)
+
+        # Ganancia por ítem = (Precio Unitario - Precio Costo) * Cantidad
+        df_merged["ganancia_item"] = (df_merged["precio_unitario"] - df_merged["precio_costo"]) * df_merged["cantidad"]
+        ganancia_periodo = int(df_merged["ganancia_item"].sum())
+
+    st.markdown("---")
+    
+    # --- MÉTRICAS EN PANTALLA ---
+    col1, col2, col3 = st.columns(3)
+    col1.metric("📥 Ingresos del Período", formatear_gs(ingresos_periodo))
+    col2.metric("📤 Egresos del Período", formatear_gs(egresos_periodo))
+    col3.metric("💎 Ganancias Netas", formatear_gs(ganancia_periodo))
+
+    # Balance del periodo
+    balance_periodo = ingresos_periodo - egresos_periodo
+    st.markdown("---")
+    st.info(f"📊 **Balance Neto del Período (Ingresos - Egresos):** {formatear_gs(balance_periodo)}")
 # ==========================================
 # VER STOCK / INVENTARIO
 # ==========================================
