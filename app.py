@@ -84,8 +84,9 @@ def obtener_conexion_db():
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
             return firestore.Client.from_service_account_info(
-                dict(st.secrets["gcp_service_account"])
-            )
+    dict(st.secrets["gcp_service_account"]),
+    database="sistema1encanto"  # <--- Adicione apenas isto!
+)
         except Exception:
             return None
     return None
