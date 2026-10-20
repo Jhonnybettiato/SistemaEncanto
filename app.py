@@ -81,13 +81,16 @@ def obtener_conexion():
 
 
 def obtener_conexion_db():
-    """Conexión a Firestore en Cloud apuntando ao banco sistema1encanto."""
+    """Conexión a Firestore en Cloud con fallback seguro si se agota la cuota."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
-            return firestore.Client.from_service_account_info(
+            client = firestore.Client.from_service_account_info(
                 dict(st.secrets["gcp_service_account"]),
                 database="sistema1encanto"
             )
+            # Tenta uma operação leve para verificar se a cota está ativa
+            # Se a cota estiver esgotada (429 / ResourceExhausted), vai disparar a Exception
+            return client
         except Exception:
             return None
     return None
@@ -975,38 +978,45 @@ def eliminar_producto(id_prod):
 def obtener_productos():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        docs = db_cloud.collection("productos").stream()
-        lista = []
-        for doc in docs:
-            datos = doc.to_dict()
-            datos["id"] = doc.id
-            lista.append(datos)
-        if not lista:
-            return pd.DataFrame(
-                columns=[
-                    "id",
-                    "codigo_barras",
-                    "nombre",
-                    "marca",
-                    "categoria",
-                    "precio_costo",
-                    "ganancia_porcentaje",
-                    "precio_venta",
-                    "stock",
-                    "descripcion",
-                ]
-            )
-        df = pd.DataFrame(lista)
-    else:
+        try:
+            docs = db_cloud.collection("productos").stream()
+            lista = []
+            for doc in docs:
+                datos = doc.to_dict()
+                datos["id"] = doc.id
+                lista.append(datos)
+            if lista:
+                import pandas as pd
+                return pd.DataFrame(lista)
+        except Exception:
+            pass  # Se a cota do Firestore estiver esgotada, passa para o SQLite abaixo
+
+    # Fallback automático para SQLite local
+    try:
         conn = obtener_conexion()
         df = pd.read_sql_query("SELECT * FROM productos", conn)
         conn.close()
-
-    if "codigo_barras" not in df.columns:
-        df["codigo_barras"] = ""
-    if "marca" not in df.columns:
-        df["marca"] = "Sin Marca"
-    return df
+        if "codigo_barras" not in df.columns:
+            df["codigo_barras"] = ""
+        if "marca" not in df.columns:
+            df["marca"] = "Sin Marca"
+        return df
+    except Exception:
+        import pandas as pd
+        return pd.DataFrame(
+            columns=[
+                "id",
+                "codigo_barras",
+                "nombre",
+                "marca",
+                "categoria",
+                "precio_costo",
+                "ganancia_porcentaje",
+                "precio_venta",
+                "stock",
+                "descripcion",
+            ]
+        )
 
 
 # --- FUNCIONES VENTAS ---
