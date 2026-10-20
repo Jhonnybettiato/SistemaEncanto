@@ -976,39 +976,21 @@ def eliminar_producto(id_prod):
 def obtener_productos():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        docs = db_cloud.collection("productos").stream()
-        lista = []
-        for doc in docs:
-            datos = doc.to_dict()
-            datos["id"] = doc.id
-            lista.append(datos)
-        if not lista:
-            return pd.DataFrame(
-                columns=[
-                    "id",
-                    "codigo_barras",
-                    "nombre",
-                    "marca",
-                    "categoria",
-                    "precio_costo",
-                    "ganancia_porcentaje",
-                    "precio_venta",
-                    "stock",
-                    "descripcion",
-                ]
-            )
-        df = pd.DataFrame(lista)
-    else:
-        conn = obtener_conexion()
-        df = pd.read_sql_query("SELECT * FROM productos", conn)
-        conn.close()
-
-    if "codigo_barras" not in df.columns:
-        df["codigo_barras"] = ""
-    if "marca" not in df.columns:
-        df["marca"] = "Sin Marca"
-    return df
-
+        try:
+            docs = db_cloud.collection("productos").stream()
+            lista = []
+            for doc in docs:
+                datos = doc.to_dict()
+                datos["id"] = doc.id
+                lista.append(datos)
+            if lista:
+                import pandas as pd
+                return pd.DataFrame(lista)
+        except Exception:
+            pass
+    
+    # Fallback seguro para o SQLite local caso o Firestore falhe ou a coleção esteja vazia/não exista
+    return obtener_productos_sqlite()
 
 # --- FUNCIONES VENTAS ---
 def registrar_venta(
