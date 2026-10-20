@@ -79,7 +79,6 @@ def obtener_conexion():
     """Conexión estándar a SQLite local."""
     return sqlite3.connect("inventario.db")
 
-
 def obtener_conexion_db():
     """Conexión a Firestore en Cloud (si está configurado)."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
@@ -90,7 +89,6 @@ def obtener_conexion_db():
         except Exception:
             return None
     return None
-
 
 # ==========================================
 # 1. CONTROL DE BASE DE DATOS Y PERSISTENCIA
