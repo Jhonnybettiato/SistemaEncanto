@@ -79,6 +79,18 @@ def obtener_conexion():
     """Conexión estándar a SQLite local."""
     return sqlite3.connect("inventario.db")
 
+# --- TESTE RÁPIDO DE CONEXÃO COM O FIRESTORE ---
+db_teste = obtener_conexion_db()
+if db_teste is not None:
+    try:
+        # Tenta listar as coleções da nuvem para ver se responde
+        colecoes = [col.id for col in db_teste.collections()]
+        st.sidebar.success("☁️ Conectado ao Firestore com sucesso!")
+    except Exception as e:
+        st.sidebar.error(f"⚠️ Erro ao acessar coleções: {e}")
+else:
+    st.sidebar.warning("⚠️ Usando SQLite local (Cloud desconectado).")
+    
 def obtener_conexion_db():
     """Conexión estándar a Firestore en Cloud."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
