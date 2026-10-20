@@ -989,8 +989,17 @@ def obtener_productos():
         except Exception:
             pass
     
-    # Fallback seguro para o SQLite local caso o Firestore falhe ou a coleção esteja vazia/não exista
-    return obtener_productos_sqlite()
+    # Fallback direto para o SQLite local caso a nuvem falhe
+    try:
+        import sqlite3
+        import pandas as pd
+        conn = sqlite3.connect("inventario.db")
+        df = pd.read_sql("SELECT * FROM productos", conn)
+        conn.close()
+        return df
+    except Exception:
+        import pandas as pd
+        return pd.DataFrame(columns=["id", "codigo_barras", "nombre", "marca", "categoria", "precio_costo"])
 
 # --- FUNCIONES VENTAS ---
 def registrar_venta(
