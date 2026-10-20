@@ -80,26 +80,18 @@ def obtener_conexion():
     return sqlite3.connect("inventario.db")
     
 def obtener_conexion_db():
-    """Conexión estándar a Firestore en Cloud."""
+    """Conecta ao Firestore na nuvem ou retorna None para usar SQLite se atingir cota."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
-            return firestore.Client.from_service_account_info(
+            client = firestore.Client.from_service_account_info(
                 dict(st.secrets["gcp_service_account"])
             )
-        except Exception:
+            return client
+        except Exception as e:
+            # Se der erro de cota (429), ele silencia e usa o SQLite local automaticamente
             return None
     return None
     
-# --- TESTE RÁPIDO DE CONEXÃO COM O FIRESTORE ---
-db_teste = obtener_conexion_db()
-if db_teste is not None:
-    try:
-        colecoes = [col.id for col in db_teste.collections()]
-        st.sidebar.success("☁️ Conectado ao Firestore com sucesso!")
-    except Exception as e:
-        st.sidebar.error(f"⚠️ Erro ao acessar coleções: {e}")
-else:
-    st.sidebar.warning("⚠️ Usando SQLite local (Cloud desconectado).")
 
 # ==========================================
 # 1. CONTROL DE BASE DE DATOS Y PERSISTENCIA
