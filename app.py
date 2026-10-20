@@ -78,21 +78,19 @@ CLAVE_ADMIN = "12345amor"  # Clave global para acciones sensibles
 def obtener_conexion():
     """Conexión estándar a SQLite local."""
     return sqlite3.connect("inventario.db")
-    
+
+
 def obtener_conexion_db():
-    """Conexión segura al nuevo Firestore o fallback a SQLite."""
+    """Conexión a Firestore en Cloud (si está configurado)."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
-            # Especifica explicitamente o banco 'sistema1encanto' que criamos
-            client = firestore.Client.from_service_account_info(
-                dict(st.secrets["gcp_service_account"]),
-                database="sistema1encanto"
+            return firestore.Client.from_service_account_info(
+                dict(st.secrets["gcp_service_account"])
             )
-            return client
         except Exception:
             return None
     return None
-    
+
 
 # ==========================================
 # 1. CONTROL DE BASE DE DATOS Y PERSISTENCIA
@@ -976,30 +974,39 @@ def eliminar_producto(id_prod):
 def obtener_productos():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        try:
-            docs = db_cloud.collection("productos").stream()
-            lista = []
-            for doc in docs:
-                datos = doc.to_dict()
-                datos["id"] = doc.id
-                lista.append(datos)
-            if lista:
-                import pandas as pd
-                return pd.DataFrame(lista)
-        except Exception:
-            pass
-    
-    # Fallback direto para o SQLite local caso a nuvem falhe
-    try:
-        import sqlite3
-        import pandas as pd
-        conn = sqlite3.connect("inventario.db")
-        df = pd.read_sql("SELECT * FROM productos", conn)
+        docs = db_cloud.collection("productos").stream()
+        lista = []
+        for doc in docs:
+            datos = doc.to_dict()
+            datos["id"] = doc.id
+            lista.append(datos)
+        if not lista:
+            return pd.DataFrame(
+                columns=[
+                    "id",
+                    "codigo_barras",
+                    "nombre",
+                    "marca",
+                    "categoria",
+                    "precio_costo",
+                    "ganancia_porcentaje",
+                    "precio_venta",
+                    "stock",
+                    "descripcion",
+                ]
+            )
+        df = pd.DataFrame(lista)
+    else:
+        conn = obtener_conexion()
+        df = pd.read_sql_query("SELECT * FROM productos", conn)
         conn.close()
-        return df
-    except Exception:
-        import pandas as pd
-        return pd.DataFrame(columns=["id", "codigo_barras", "nombre", "marca", "categoria", "precio_costo"])
+
+    if "codigo_barras" not in df.columns:
+        df["codigo_barras"] = ""
+    if "marca" not in df.columns:
+        df["marca"] = "Sin Marca"
+    return df
+
 
 # --- FUNCIONES VENTAS ---
 def registrar_venta(
