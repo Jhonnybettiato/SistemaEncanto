@@ -80,15 +80,15 @@ def obtener_conexion():
     return sqlite3.connect("inventario.db")
     
 def obtener_conexion_db():
-    """Conecta ao Firestore na nuvem ou retorna None para usar SQLite se atingir cota."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
+            # Aponta diretamente para o banco novo que criamos hoje
             client = firestore.Client.from_service_account_info(
-                dict(st.secrets["gcp_service_account"])
+                dict(st.secrets["gcp_service_account"]),
+                database="sistema1encanto"
             )
             return client
-        except Exception as e:
-            # Se der erro de cota (429), ele silencia e usa o SQLite local automaticamente
+        except Exception:
             return None
     return None
     
