@@ -1379,3 +1379,49 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     st.write("")
                     st.write("")
                     if st.button("➕ Agregar"):
+                        if p_row is None:
+                            st.warning(
+                                "Por favor, selecciona un producto válido."
+                            )
+                        else:
+                            id_p = p_row["id"]
+                            encontrado = False
+
+                            for item in st.session_state.carrito:
+                                if item["id"] == id_p:
+                                    cant_nueva = item["cantidad"] + cant
+                                    if cant_nueva > p_row["stock"]:
+                                        st.error(
+                                            f"Stock insuficiente. Máximo disponible: {p_row['stock']}"
+                                        )
+                                    else:
+                                        item["cantidad"] = cant_nueva
+                                        item["subtotal"] = (
+                                            item["cantidad"]
+                                            * item["precio_unitario"]
+                                        )
+                                        st.success(
+                                            "¡Cantidad actualizada en el carrito!"
+                                        )
+                                    encontrado = True
+                                    break
+
+                            if not encontrado:
+                                if cant > p_row["stock"]:
+                                    st.error(
+                                        "Cantidad mayor al stock disponible."
+                                    )
+                                else:
+                                    st.session_state.carrito.append({
+                                        "id": p_row["id"],
+                                        "nombre": p_row["nombre"],
+                                        "cantidad": cant,
+                                        "precio_unitario": p_row[
+                                            "precio_venta"
+                                        ],
+                                        "subtotal": cant
+                                        * p_row["precio_venta"],
+                                        "stock_max": p_row["stock"],
+                                    })
+                                    st.success("¡Producto agregado!")
+                            st.rerun()
