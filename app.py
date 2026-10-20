@@ -240,7 +240,6 @@ def obtener_saldo_inicial_dia(fecha_hoy_str):
             )
             return int(registros_ordenados[0].get("saldo_final", 0))
         
-        # Si no hay registros estrictamente menores, busca si ya existe el cierre de hoy
         cierre_hoy = db_cloud.collection("cierres_caja").document(fecha_hoy_str).get()
         if cierre_hoy.exists:
             return int(cierre_hoy.to_dict().get("saldo_inicial", 0))
@@ -299,8 +298,10 @@ def registrar_cierre_diario(
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=30)
 def obtener_historico_cierres():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -342,6 +343,7 @@ def actualizar_cierre_caja(fecha_str, nuevo_saldo_final):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def limpiar_historico_cierres():
@@ -356,9 +358,11 @@ def limpiar_historico_cierres():
         cursor.execute("DELETE FROM cierres_caja")
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 # --- FUNCIONES CATEGORÍAS Y MARCAS ---
+@st.cache_data(ttl=30)
 def obtener_categorias():
     db_cloud = obtener_conexion_db()
     cat_default = [
@@ -402,6 +406,7 @@ def registrar_categoria(nombre_cat):
         except sqlite3.IntegrityError:
             pass
         conn.close()
+    st.cache_data.clear()
 
 
 def eliminar_categoria(nombre_cat):
@@ -420,8 +425,10 @@ def eliminar_categoria(nombre_cat):
         cursor.execute("DELETE FROM categorias WHERE nombre = ?", (nombre_cat,))
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=30)
 def obtener_marcas():
     db_cloud = obtener_conexion_db()
     marcas_default = ["Natura", "O Boticário", "Eudora", "Artesanal / Sin Marca"]
@@ -459,6 +466,7 @@ def registrar_marca(nombre_marca):
         except sqlite3.IntegrityError:
             pass
         conn.close()
+    st.cache_data.clear()
 
 
 def eliminar_marca(nombre_marca):
@@ -477,6 +485,7 @@ def eliminar_marca(nombre_marca):
         cursor.execute("DELETE FROM marcas WHERE nombre = ?", (nombre_marca,))
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 # --- FUNCIONES CLIENTES ---
 def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
@@ -505,6 +514,7 @@ def registrar_cliente(nombre, apellido, ci, telefono, ciudad):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def actualizar_cliente(id_cliente, nombre, apellido, ci, telefono, ciudad):
@@ -537,6 +547,7 @@ def actualizar_cliente(id_cliente, nombre, apellido, ci, telefono, ciudad):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def eliminar_cliente(id_cliente):
@@ -552,8 +563,10 @@ def eliminar_cliente(id_cliente):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=30)
 def obtener_clientes():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -596,8 +609,10 @@ def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=30)
 def obtener_proveedores():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -649,6 +664,7 @@ def actualizar_proveedor(id_prov, nombre, ruc_ci, telefono, ciudad):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def eliminar_proveedor(id_prov):
@@ -664,6 +680,7 @@ def eliminar_proveedor(id_prov):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def registrar_compra_proveedor(
@@ -727,8 +744,10 @@ def registrar_compra_proveedor(
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=30)
 def obtener_compras_proveedores():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -773,6 +792,7 @@ def actualizar_pago_compra_proveedor(
             "monto_pagado": int(nuevo_monto_pagado),
             "estado_pago": str(nuevo_estado),
         })
+        st.cache_data.clear()
         return True
     else:
         try:
@@ -797,6 +817,7 @@ def actualizar_pago_compra_proveedor(
             )
             conn.commit()
             conn.close()
+            st.cache_data.clear()
             return True
         except Exception as e:
             st.error(f"Error al actualizar el pago: {e}")
@@ -835,6 +856,7 @@ def actualizar_compra_proveedor(
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def eliminar_compra_proveedor(id_compra):
@@ -852,6 +874,7 @@ def eliminar_compra_proveedor(id_compra):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 # --- FUNCIONES PRODUCTOS ---
@@ -902,6 +925,7 @@ def registrar_producto(
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def actualizar_producto(
@@ -954,6 +978,7 @@ def actualizar_producto(
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def eliminar_producto(id_prod):
@@ -969,8 +994,10 @@ def eliminar_producto(id_prod):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=30)
 def obtener_productos():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -1075,8 +1102,10 @@ def registrar_venta(
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
+@st.cache_data(ttl=30)
 def obtener_ventas():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -1130,6 +1159,7 @@ def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
             "monto": int(monto),
             "metodo_pago": metodo_pago,
         })
+        st.cache_data.clear()
         return True
     else:
         try:
@@ -1142,12 +1172,14 @@ def registrar_salida_caja(motivo="", monto=0, metodo="Efectivo", **kwargs):
             )
             conn.commit()
             conn.close()
+            st.cache_data.clear()
             return True
         except Exception as e:
             st.error(f"Error al registrar salida de caja: {e}")
             return False
 
 
+@st.cache_data(ttl=30)
 def obtener_salidas_caja():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
@@ -1198,6 +1230,7 @@ def actualizar_salida_caja(id_salida, motivo, monto, metodo_pago):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 def eliminar_salida_caja(id_salida):
@@ -1213,6 +1246,7 @@ def eliminar_salida_caja(id_salida):
         )
         conn.commit()
         conn.close()
+    st.cache_data.clear()
 
 
 # Inicializar DB local
@@ -1314,11 +1348,9 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                         key="select_v_unificado",
                     )
 
-                # Variables por defecto
                 p_row = None
                 stock_disp = 1
 
-                # Si se selecciona un producto, obtenemos la fila y calculamos el stock disponible real
                 if p_sel_label:
                     id_p = str(opciones_dict[p_sel_label])
                     coincidencias = df_con_stock[
@@ -1347,1822 +1379,3 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                     st.write("")
                     st.write("")
                     if st.button("➕ Agregar"):
-                        if p_row is None:
-                            st.warning(
-                                "Por favor, selecciona un producto válido."
-                            )
-                        else:
-                            id_p = p_row["id"]
-                            encontrado = False
-
-                            # Revisar si el producto ya está en el carrito
-                            for item in st.session_state.carrito:
-                                if item["id"] == id_p:
-                                    cant_nueva = item["cantidad"] + cant
-                                    if cant_nueva > p_row["stock"]:
-                                        st.error(
-                                            f"Stock insuficiente. Máximo disponible: {p_row['stock']}"
-                                        )
-                                    else:
-                                        item["cantidad"] = cant_nueva
-                                        item["subtotal"] = (
-                                            item["cantidad"]
-                                            * item["precio_unitario"]
-                                        )
-                                        st.success(
-                                            "¡Cantidad actualizada en el"
-                                            " carrito!"
-                                        )
-                                    encontrado = True
-                                    break
-
-                            # Si no está en el carrito, se agrega
-                            if not encontrado:
-                                if cant > p_row["stock"]:
-                                    st.error(
-                                        "Cantidad mayor al stock disponible."
-                                    )
-                                else:
-                                    st.session_state.carrito.append({
-                                        "id": p_row["id"],
-                                        "nombre": p_row["nombre"],
-                                        "cantidad": cant,
-                                        "precio_unitario": p_row[
-                                            "precio_venta"
-                                        ],
-                                        "subtotal": cant
-                                        * p_row["precio_venta"],
-                                        "stock_max": p_row["stock"],
-                                    })
-                                    st.success("¡Producto agregado!")
-                            st.rerun()
-
-        st.markdown("---")
-        st.subheader("2️⃣ Carrito de Compras")
-
-        if not st.session_state.carrito:
-            st.info("El carrito está vacío.")
-        else:
-            # 1. Creamos un DataFrame con los datos del carrito
-            df_carrito = pd.DataFrame(st.session_state.carrito)
-
-            # 2. Formateamos y renombramos las columnas para mostrar en la tabla
-            df_mostrar = pd.DataFrame(
-                {
-                    "Nombre": df_carrito["nombre"],
-                    "Cantidad": df_carrito["cantidad"],
-                    "Precio Unitario": df_carrito["precio_unitario"].apply(
-                        formatear_gs
-                    ),
-                    "Subtotal": df_carrito["subtotal"].apply(formatear_gs),
-                }
-            )
-
-            # 3. Mostramos la tabla cuadriculada exactamente como la de Inventario
-            st.dataframe(
-                df_mostrar, use_container_width=True, hide_index=True
-            )
-
-            # 4. Selector para eliminar un producto del carrito de forma limpia
-            col_del1, col_del2 = st.columns([2, 1])
-            with col_del1:
-                item_a_eliminar = st.selectbox(
-                    "❌ Selecciona un producto para quitar del carrito:",
-                    ["-- Seleccionar --"]
-                    + [
-                        f"{i+1}. {item['nombre']}"
-                        for i, item in enumerate(st.session_state.carrito)
-                    ],
-                )
-            with col_del2:
-                st.write("")  # Espaciado vertical para alinear con el selectbox
-                st.write("")
-                if st.button("🗑️ Quitar Producto"):
-                    if item_a_eliminar != "-- Seleccionar --":
-                        idx = int(item_a_eliminar.split(".")[0]) - 1
-                        st.session_state.carrito.pop(idx)
-                        st.rerun()
-
-        # Cálculo de subtotal e interfaz de descuento fuera del cuadro
-        subtotal_venta = sum(item["subtotal"] for item in st.session_state.carrito)
-
-        # 2. Luego crear las columnas para el descuento
-        col_des1, col_des2 = st.columns([1, 2])
-        with col_des1:
-            descuento = st.number_input(
-                "💸 Descuento (Gs.):",
-                min_value=0,
-                max_value=int(subtotal_venta),
-                value=0,
-                step=1000,
-            )
-
-            monto_total_venta = subtotal_venta - descuento
-
-            if descuento > 0:
-                st.markdown(
-                    f"Subtotal: ~~{formatear_gs(subtotal_venta)}~~ | Descuento:"
-                    f" -{formatear_gs(descuento)}"
-                )
-
-            st.markdown(
-                f"### Total Final: **{formatear_gs(monto_total_venta)}**"
-            )
-
-            col_c1, col_c2, col_c3 = st.columns([2, 2, 1])
-            with col_c1:
-                tipo_venta = st.selectbox(
-                    "Tipo de Venta:", ["Contado", "Crédito"]
-                )
-
-                lista_clientes = ["Cliente Ocasional"]
-                if not df_clientes.empty:
-                    lista_clientes += [
-                        f"{r['nombre']} {r['apellido']} (CI: {r['ci']})"
-                        for _, r in df_clientes.iterrows()
-                    ]
-                cliente_sel = st.selectbox("Cliente:", lista_clientes)
-
-            with col_c2:
-                metodo_pago = st.selectbox(
-                    "Método de Pago:",
-                    ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"],
-                )
-
-            with col_c3:
-                st.write("")
-                st.write("")
-                if st.button("✅ Finalizar Venta", type="primary"):
-                    for item in st.session_state.carrito:
-                        desc_item = (
-                            int(descuento * (item["subtotal"] / subtotal_venta))
-                            if subtotal_venta > 0
-                            else 0
-                        )
-                        registrar_venta(
-                            producto_id=item["id"],
-                            producto_nombre=item["nombre"],
-                            cantidad=item["cantidad"],
-                            precio_unitario=item["precio_unitario"],
-                            total=item["subtotal"] - desc_item,
-                            tipo_venta=tipo_venta,
-                            metodo_pago=metodo_pago,
-                            cliente_nombre=cliente_sel,
-                        )
-                    st.session_state.carrito = []
-                    st.success("🎉 ¡Venta registrada con éxito!")
-                    st.rerun()
-
-            if st.button("🗑️ Vaciar Carrito"):
-                st.session_state.carrito = []
-                st.rerun()
-        
-
-    with tab_salida:
-        st.subheader("Registrar Salida / Gasto de Caja")
-        with st.form("form_salida_caja", clear_on_submit=True):
-            motivo = st.text_input("Motivo de la salida:")
-            monto = st.number_input("Monto (Gs.):", min_value=1, step=1000)
-            metodo = st.selectbox(
-                "Método de Pago:",
-                ["Efectivo", "Transferencia", "Tarjeta", "Otro"],
-            )
-            if st.form_submit_button("Registrar Salida", type="primary"):
-                if motivo.strip():
-                    registrar_salida_caja(
-                        motivo=motivo, monto=monto, metodo=metodo
-                    )
-                    st.success("Salida de caja registrada.")
-                    st.rerun()
-                else:
-                    st.warning("Escribe el motivo de la salida.")
-
-        st.markdown("---")
-        st.subheader("Histórico de Salidas")
-        df_salidas = obtener_salidas_caja()
-        if not df_salidas.empty:
-            df_salidas_show = df_salidas.copy()
-            df_salidas_show["monto"] = df_salidas_show["monto"].apply(
-                formatear_gs
-            )
-            st.dataframe(df_salidas_show, use_container_width=True)
-
-            st.markdown("---")
-            expander_salida_admin = st.expander(
-                "🛠️ Opciones Avanzadas (Editar / Eliminar Salida)"
-            )
-            with expander_salida_admin:
-                opcion_s_admin = st.radio(
-                    "Selecciona una acción:",
-                    ["Editar Salida", "Eliminar Salida"],
-                    key="radio_salida_admin",
-                )
-
-                dict_salidas_edit = {}
-                for _, r in df_salidas.iterrows():
-                    label = (
-                        f"ID: {r['id']} | {r.get('fecha_hora', '')} | "
-                        f"{r.get('motivo', '')} - {formatear_gs(r.get('monto', 0))}"
-                    )
-                    dict_salidas_edit[label] = r["id"]
-
-                salida_sel_admin = st.selectbox(
-                    "Selecciona la salida a modificar:",
-                    options=list(dict_salidas_edit.keys()),
-                    key="select_salida_admin",
-                )
-
-                if salida_sel_admin:
-                    id_s_sel = dict_salidas_edit[salida_sel_admin]
-                    s_row = df_salidas[
-                        df_salidas["id"].astype(str) == str(id_s_sel)
-                    ].iloc[0]
-
-                    if opcion_s_admin == "Editar Salida":
-                        edit_s_motivo = st.text_input(
-                            "Nuevo Motivo:",
-                            value=str(s_row.get("motivo", "")),
-                            key="edit_s_motivo",
-                        )
-                        edit_s_monto = st.number_input(
-                            "Nuevo Monto (Gs.):",
-                            min_value=1,
-                            value=int(s_row.get("monto", 0)),
-                            step=1000,
-                            key="edit_s_monto",
-                        )
-                        metodos_pago_list = [
-                            "Efectivo",
-                            "Transferencia",
-                            "Tarjeta",
-                            "Otro",
-                        ]
-                        metodo_actual = str(
-                            s_row.get("metodo_pago", "Efectivo")
-                        )
-                        idx_metodo = (
-                            metodos_pago_list.index(metodo_actual)
-                            if metodo_actual in metodos_pago_list
-                            else 0
-                        )
-                        edit_s_metodo = st.selectbox(
-                            "Nuevo Método de Pago:",
-                            metodos_pago_list,
-                            index=idx_metodo,
-                            key="edit_s_metodo",
-                        )
-
-                        pwd_s_edit = st.text_input(
-                            "Contraseña de confirmación:",
-                            type="password",
-                            key="pwd_s_edit",
-                        )
-
-                        if st.button("✏️ Guardar Cambios en Salida"):
-                            if pwd_s_edit == CLAVE_ADMIN:
-                                actualizar_salida_caja(
-                                    id_s_sel,
-                                    edit_s_motivo,
-                                    edit_s_monto,
-                                    edit_s_metodo,
-                                )
-                                st.success(
-                                    "✅ Salida actualizada correctamente."
-                                )
-                                st.rerun()
-                            else:
-                                st.error("❌ Contraseña incorrecta.")
-
-                    elif opcion_s_admin == "Eliminar Salida":
-                        st.warning(
-                            "⚠️ Esta acción eliminará permanentemente la"
-                            " salida seleccionada."
-                        )
-                        pwd_s_del = st.text_input(
-                            "Contraseña de confirmación para BORRAR:",
-                            type="password",
-                            key="pwd_s_del",
-                        )
-
-                        if st.button(
-                            "🗑️ Eliminar Salida Definitivamente",
-                            type="primary",
-                        ):
-                            if pwd_s_del == CLAVE_ADMIN:
-                                eliminar_salida_caja(id_s_sel)
-                                st.success(
-                                    "✅ Registro de salida eliminado"
-                                    " correctamente."
-                                )
-                                st.rerun()
-                            else:
-                                st.error("❌ Contraseña incorrecta.")
-
-    # --- DATOS PARA CIERRE DE CAJA ---
-    fecha_hoy = date.today().strftime("%Y-%m-%d")
-    saldo_inicial = obtener_saldo_inicial_dia(fecha_hoy)
-
-    # 1. Ingresos por ventas de contado realizadas HOY
-    df_v = obtener_ventas()
-    if not df_v.empty and "fecha_hora" in df_v.columns:
-        df_v_hoy = df_v[
-            (df_v["fecha_hora"].str.startswith(fecha_hoy))
-            & (df_v["tipo_venta"] == "Contado")
-        ]
-        ingresos_ventas_hoy = int(df_v_hoy["total"].sum()) if not df_v_hoy.empty else 0
-    else:
-        ingresos_ventas_hoy = 0
-
-    # 2. Ingresos por abonos / pagos de deudas de clientes recibidos HOY
-    ingresos_cobros_hoy = 0
-    db_cloud = obtener_conexion_db()
-    if db_cloud is not None:
-        docs_pagos = db_cloud.collection("pagos_clientes").stream()
-        list_pagos = [doc.to_dict() for doc in docs_pagos if doc.to_dict().get("fecha_hora", "").startswith(fecha_hoy)]
-        if list_pagos:
-            ingresos_cobros_hoy = sum(int(p.get("monto", 0)) for p in list_pagos)
-    else:
-        conn = obtener_conexion()
-        cursor = conn.cursor()
-        cursor.execute("SELECT SUM(monto) FROM pagos_clientes WHERE fecha_hora LIKE ?", (f"{fecha_hoy}%",))
-        row_pago = cursor.fetchone()
-        conn.close()
-        if row_pago and row_pago[0]:
-            ingresos_cobros_hoy = int(row_pago[0])
-
-    ingresos_hoy = ingresos_ventas_hoy + ingresos_cobros_hoy
-
-    df_s = obtener_salidas_caja()
-    if not df_s.empty and "fecha_hora" in df_s.columns:
-        df_s_hoy = df_s[df_s["fecha_hora"].str.startswith(fecha_hoy)]
-        egresos_hoy = int(df_s_hoy["monto"].sum()) if not df_s_hoy.empty else 0
-    else:
-        egresos_hoy = 0
-
-    saldo_final = saldo_inicial + ingresos_hoy - egresos_hoy
-
-    # --- TAB 3: CIERRE DE CAJA (HOY) ---
-    with tab_cierre:
-        st.subheader(f"Cierre de Caja - Fecha: {fecha_hoy}")
-
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Saldo Inicial", formatear_gs(saldo_inicial))
-        col2.metric("Ingresos (Hoy)", formatear_gs(ingresos_hoy))
-        col3.metric("Egresos (Hoy)", formatear_gs(egresos_hoy))
-        col4.metric("Saldo Final Calculado", formatear_gs(saldo_final))
-
-        st.markdown("---")
-        st.subheader("🔒 Confirmar Cierre")
-
-        pwd_guardar = st.text_input(
-            "Ingresa la contraseña para guardar el cierre:",
-            type="password",
-            key="pwd_cierre_hoy",
-        )
-
-        if st.button("🔒 Confirmar y Guardar Cierre de Hoy", type="primary"):
-            if pwd_guardar == CLAVE_ADMIN:
-                registrar_cierre_diario(
-                    fecha_hoy,
-                    saldo_inicial,
-                    ingresos_hoy,
-                    egresos_hoy,
-                    saldo_final,
-                )
-                st.success("✅ ¡Cierre de caja guardado con éxito!")
-                st.rerun()
-            else:
-                st.error(
-                    "❌ Contraseña incorrecta. No se pudo guardar el cierre."
-                )
-
-    # --- TAB 4: HISTÓRICO DE CIERRES ---
-    with tab_historico:
-        st.subheader("🗓️ Histórico de Cierres de Caja")
-        df_cierres = obtener_historico_cierres()
-
-        if df_cierres.empty:
-            st.info("No hay cierres guardados aún.")
-        else:
-            df_show = df_cierres.copy()
-            for col in ["saldo_inicial", "ingresos", "egresos", "saldo_final"]:
-                if col in df_show.columns:
-                    df_show[col] = df_show[col].apply(formatear_gs)
-
-            st.dataframe(df_show, use_container_width=True)
-
-            st.markdown("---")
-
-            expander_admin = st.expander(
-                "🛠️ Opciones Avanzadas (Editar / Limpiar Histórico)"
-            )
-            with expander_admin:
-                opcion_admin = st.radio(
-                    "Selecciona una acción:",
-                    ["Editar Cierre Existente", "Limpiar Todo el Histórico"],
-                )
-
-                if opcion_admin == "Editar Cierre Existente":
-                    fecha_sel = st.selectbox(
-                        "Selecciona la fecha a editar:",
-                        df_cierres["fecha"].tolist(),
-                    )
-                    nuevo_saldo_final = st.number_input(
-                        "Nuevo Saldo Final (Gs.):", min_value=0, step=1000
-                    )
-                    pwd_edit = st.text_input(
-                        "Contraseña de confirmación:",
-                        type="password",
-                        key="pwd_edit",
-                    )
-
-                    if st.button("✏️ Actualizar Cierre"):
-                        if pwd_edit == CLAVE_ADMIN:
-                            actualizar_cierre_caja(
-                                fecha_sel, nuevo_saldo_final
-                            )
-                            st.success(
-                                f"✅ Cierre del {fecha_sel} actualizado"
-                                " correctamente."
-                            )
-                            st.rerun()
-                        else:
-                            st.error("❌ Contraseña incorrecta.")
-
-                elif opcion_admin == "Limpiar Todo el Histórico":
-                    st.warning(
-                        "⚠️ Esta acción borrará permanentemente todos los"
-                        " cierres guardados."
-                    )
-                    pwd_del = st.text_input(
-                        "Contraseña de confirmación para BORRAR:",
-                        type="password",
-                        key="pwd_del",
-                    )
-
-                    if st.button(
-                        "🗑️ Limpiar Histórico Completo", type="primary"
-                    ):
-                        if pwd_del == CLAVE_ADMIN:
-                            limpiar_historico_cierres()
-                            st.success("✅ Histórico eliminado correctamente.")
-                            st.rerun()
-                        else:
-                            st.error("❌ Contraseña incorrecta.")
-
-# ==========================================
-# GESTOR DE PROVEEDORES
-# ==========================================
-elif opcion == "🏬 Gestor de Proveedores":
-    st.markdown(
-        '<p class="main-title">🏬 Gestor de Proveedores</p>',
-        unsafe_allow_html=True,
-    )
-
-    tab_prov, tab_edit_p, tab_compras, tab_deudas = st.tabs([
-        "👤 Registro / Proveedores",
-        "✏️ Editar / Eliminar",
-        "🚚 Registrar Compra",
-        "📜 Deudas por Pagar",
-    ])
-
-    with tab_prov:
-        st.subheader("Registrar Nuevo Proveedor")
-        with st.form("form_proveedor"):
-            col1, col2 = st.columns(2)
-            nombre = col1.text_input("Nombre / Razón Social:")
-            ruc_ci = col2.text_input("RUC o CI:")
-            telefono = col1.text_input("Teléfono:")
-            ciudad = col2.text_input("Ciudad:")
-
-            if st.form_submit_button("💾 Guardar Proveedor", type="primary"):
-                if nombre.strip():
-                    registrar_proveedor(nombre, ruc_ci, telefono, ciudad)
-                    st.success("¡Proveedor registrado correctamente!")
-                    st.rerun()
-                else:
-                    st.warning("El Nombre / Razón Social es obligatorio.")
-
-        st.markdown("---")
-        st.subheader("📋 Lista de Proveedores")
-        df_prov = obtener_proveedores()
-        if not df_prov.empty:
-            cols_deseadas = ["nombre", "ruc_ci", "telefono", "ciudad", "id"]
-            cols_visibles = [c for c in cols_deseadas if c in df_prov.columns]
-            st.dataframe(df_prov[cols_visibles], use_container_width=True)
-        else:
-            st.info("No hay proveedores registrados aún.")
-
-    with tab_edit_p:
-        st.subheader("Modificar o Eliminar Proveedor")
-        df_prov = obtener_proveedores()
-
-        if df_prov.empty:
-            st.info("No hay proveedores registrados para modificar.")
-        else:
-            dict_prov = {}
-            for _, r in df_prov.iterrows():
-                ruc_text = (
-                    f" (RUC/CI: {r['ruc_ci']})"
-                    if r.get("ruc_ci") and str(r["ruc_ci"]) != "-"
-                    else ""
-                )
-                label = f"{r['nombre']}{ruc_text}"
-                dict_prov[label] = r["id"]
-
-            prov_sel_label = st.selectbox(
-                "🔍 Selecciona un proveedor para modificar:",
-                options=list(dict_prov.keys()),
-                index=None,
-                key="select_edit_prov",
-            )
-
-            if prov_sel_label:
-                id_prov = dict_prov[prov_sel_label]
-                p_row = df_prov[
-                    df_prov["id"].astype(str) == str(id_prov)
-                ].iloc[0]
-
-                with st.form("form_edit_prov"):
-                    col1, col2 = st.columns(2)
-                    edit_nombre = col1.text_input(
-                        "Nombre / Razón Social:",
-                        value=str(p_row.get("nombre", "")),
-                    )
-                    edit_ruc_ci = col2.text_input(
-                        "RUC o CI:", value=str(p_row.get("ruc_ci", ""))
-                    )
-                    edit_telefono = col1.text_input(
-                        "Teléfono:", value=str(p_row.get("telefono", ""))
-                    )
-                    edit_ciudad = col2.text_input(
-                        "Ciudad:", value=str(p_row.get("ciudad", ""))
-                    )
-
-                    if st.form_submit_button(
-                        "💾 Guardar Cambios", type="primary"
-                    ):
-                        if edit_nombre.strip():
-                            actualizar_proveedor(
-                                id_prov,
-                                edit_nombre,
-                                edit_ruc_ci,
-                                edit_telefono,
-                                edit_ciudad,
-                            )
-                            st.success(
-                                "¡Datos del proveedor actualizados"
-                                " correctamente!"
-                            )
-                            st.rerun()
-                        else:
-                            st.warning("El nombre es obligatorio.")
-
-                st.markdown("---")
-                st.subheader("⚠️ Zona de Peligro")
-                if st.button("🗑️ Eliminar Proveedor", key="btn_del_prov"):
-                    eliminar_proveedor(id_prov)
-                    st.success("¡Proveedor eliminado correctamente!")
-                    st.rerun()
-
-    with tab_compras:
-        st.subheader("Registrar Compra / Factura de Proveedor")
-        df_prov = obtener_proveedores()
-
-        if df_prov.empty:
-            st.warning("⚠️ Primero debes registrar al menos un proveedor.")
-        else:
-            with st.form("form_compra_prov"):
-                prov_sel = st.selectbox(
-                    "Seleccionar Proveedor:", df_prov["nombre"].tolist()
-                )
-                concepto = st.text_input(
-                    "Concepto / Descripción de la compra:"
-                )
-                monto = st.number_input(
-                    "Monto Total (Gs.):", min_value=1, step=5000
-                )
-                metodo_pago = st.selectbox(
-                    "Método de Pago Preferido / Cuenta:",
-                    ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"],
-                )
-
-                if st.form_submit_button(
-                    "🚚 Registrar Compra (A Crédito)", type="primary"
-                ):
-                    if concepto.strip():
-                        registrar_compra_proveedor(
-                            proveedor=prov_sel,
-                            concepto=concepto,
-                            monto_total=monto,
-                            tipo_compra="Crédito",
-                            metodo_pago=metodo_pago,
-                            estado_pago="Pendiente",
-                        )
-                        st.success("¡Compra registrada correctamente!")
-                        st.rerun()
-                    else:
-                        st.warning("Por favor ingresa un concepto.")
-
-            st.markdown("---")
-            st.subheader("📋 Historial de Compras")
-            df_compras = obtener_compras_proveedores()
-
-            if not df_compras.empty:
-                df_show = df_compras.copy()
-                if "monto_total" in df_show.columns:
-                    df_show["monto_total"] = df_show["monto_total"].apply(
-                        formatear_gs
-                    )
-                if "monto_pagado" in df_show.columns:
-                    df_show["monto_pagado"] = df_show["monto_pagado"].apply(
-                        lambda x: (
-                            formatear_gs(x) if pd.notnull(x) else "Gs. 0"
-                        )
-                    )
-
-                st.dataframe(df_show, use_container_width=True)
-
-                st.markdown("---")
-                expander_compra_admin = st.expander(
-                    "🛠️ Opciones Avanzadas (Editar / Eliminar Compra)"
-                )
-
-                with expander_compra_admin:
-                    opcion_c_admin = st.radio(
-                        "Selecciona una acción:",
-                        ["Editar Compra", "Eliminar Compra"],
-                        key="radio_compra_admin",
-                    )
-
-                    dict_compras_edit = {}
-                    for _, r in df_compras.iterrows():
-                        label = (
-                            f"ID: {r['id']} |"
-                            f" {r.get('proveedor_nombre', 'Proveedor')} |"
-                            f" {r.get('concepto', '')} - Total:"
-                            f" {formatear_gs(r.get('monto_total', 0))}"
-                        )
-                        dict_compras_edit[label] = r["id"]
-
-                    compra_sel_admin = st.selectbox(
-                        "Selecciona la compra a modificar:",
-                        options=list(dict_compras_edit.keys()),
-                        key="select_compra_admin",
-                    )
-
-                    if compra_sel_admin:
-                        id_c_sel = dict_compras_edit[compra_sel_admin]
-                        c_row = df_compras[
-                            df_compras["id"].astype(str) == str(id_c_sel)
-                        ].iloc[0]
-
-                        if opcion_c_admin == "Editar Compra":
-                            m_total_orig = int(c_row.get("monto_total", 0))
-                            m_pagado_orig = int(
-                                c_row.get("monto_pagado", 0)
-                                if pd.notnull(c_row.get("monto_pagado"))
-                                else 0
-                            )
-
-                            edit_concepto = st.text_input(
-                                "Nuevo Concepto:",
-                                value=str(c_row.get("concepto", "")),
-                                key="edit_c_concepto",
-                            )
-                            edit_monto_total = st.number_input(
-                                "Nuevo Monto Total (Gs.):",
-                                min_value=0,
-                                value=m_total_orig,
-                                step=5000,
-                                key="edit_c_monto_total",
-                            )
-                            edit_monto_pagado = st.number_input(
-                                "Nuevo Monto Pagado (Gs.):",
-                                min_value=0,
-                                value=m_pagado_orig,
-                                step=5000,
-                                key="edit_c_monto_pagado",
-                            )
-
-                            pwd_c_edit = st.text_input(
-                                "Contraseña de confirmación:",
-                                type="password",
-                                key="pwd_c_edit",
-                            )
-
-                            if st.button("✏️ Guardar Cambios en Compra"):
-                                if pwd_c_edit == CLAVE_ADMIN:
-                                    if edit_monto_pagado >= edit_monto_total:
-                                        nuevo_est = "Pagado"
-                                    elif edit_monto_pagado > 0:
-                                        nuevo_est = "Parcial"
-                                    else:
-                                        nuevo_est = "Pendiente"
-
-                                    actualizar_compra_proveedor(
-                                        id_c_sel,
-                                        edit_concepto,
-                                        edit_monto_total,
-                                        edit_monto_pagado,
-                                        nuevo_est,
-                                    )
-                                    st.success(
-                                        "✅ Compra actualizada correctamente."
-                                    )
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Contraseña incorrecta.")
-
-                        elif opcion_c_admin == "Eliminar Compra":
-                            st.warning(
-                                "⚠️ Esta acción eliminará permanentemente la"
-                                " compra del historial."
-                            )
-                            pwd_c_del = st.text_input(
-                                "Contraseña de confirmación para BORRAR:",
-                                type="password",
-                                key="pwd_c_del",
-                            )
-
-                            if st.button(
-                                "🗑️ Eliminar Compra Definitivamente",
-                                type="primary",
-                            ):
-                                if pwd_c_del == CLAVE_ADMIN:
-                                    eliminar_compra_proveedor(id_c_sel)
-                                    st.success(
-                                        "✅ Registro de compra eliminado"
-                                        " correctamente."
-                                    )
-                                    st.rerun()
-                                else:
-                                    st.error("❌ Contraseña incorrecta.")
-            else:
-                st.info("No hay registro de compras aún.")
-
-    with tab_deudas:
-        st.subheader("📜 Deudas Pendientes con Proveedores")
-        df_compras = obtener_compras_proveedores()
-
-        if not df_compras.empty:
-            if "estado_pago" in df_compras.columns:
-                deudas = df_compras[
-                    df_compras["estado_pago"].isin(["Pendiente", "Parcial"])
-                ].copy()
-            else:
-                deudas = pd.DataFrame()
-
-            if not deudas.empty:
-                deudas["monto_total"] = (
-                    deudas["monto_total"].fillna(0).astype(int)
-                )
-                if "monto_pagado" not in deudas.columns:
-                    deudas["monto_pagado"] = 0
-                else:
-                    deudas["monto_pagado"] = (
-                        deudas["monto_pagado"].fillna(0).astype(int)
-                    )
-
-                deudas["saldo_pendiente"] = (
-                    deudas["monto_total"] - deudas["monto_pagado"]
-                )
-
-                df_show_deudas = deudas.copy()
-                df_show_deudas["monto_total"] = df_show_deudas[
-                    "monto_total"
-                ].apply(formatear_gs)
-                df_show_deudas["monto_pagado"] = df_show_deudas[
-                    "monto_pagado"
-                ].apply(formatear_gs)
-                df_show_deudas["saldo_pendiente"] = df_show_deudas[
-                    "saldo_pendiente"
-                ].apply(formatear_gs)
-
-                columnas_deseadas = [
-                    "fecha_hora",
-                    "fecha",
-                    "proveedor_nombre",
-                    "proveedor",
-                    "nombre_proveedor",
-                    "concepto",
-                    "monto_total",
-                    "monto_pagado",
-                    "saldo_pendiente",
-                    "tipo_compra",
-                    "metodo_pago",
-                    "id",
-                ]
-
-                cols_existentes = [
-                    c for c in columnas_deseadas if c in df_show_deudas.columns
-                ]
-                st.dataframe(
-                    df_show_deudas[cols_existentes], use_container_width=True
-                )
-
-                st.markdown("---")
-                st.subheader("💵 Registrar Pago / Entrega")
-
-                dict_deudas = {}
-                for _, r in deudas.iterrows():
-                    nombre_prov = r.get(
-                        "proveedor",
-                        r.get(
-                            "proveedor_nombre",
-                            r.get("nombre_proveedor", "Proveedor"),
-                        ),
-                    )
-                    label = (
-                        f"ID: {r['id']} | {nombre_prov} | Saldo:"
-                        f" {formatear_gs(r['saldo_pendiente'])}"
-                    )
-                    dict_deudas[label] = r["id"]
-
-                compra_sel_label = st.selectbox(
-                    "Selecciona la compra a pagar:",
-                    options=list(dict_deudas.keys()),
-                )
-
-                if compra_sel_label:
-                    id_compra_sel = dict_deudas[compra_sel_label]
-                    compra_row = deudas[deudas["id"] == id_compra_sel].iloc[0]
-
-                    saldo_actual = int(compra_row["saldo_pendiente"])
-                    monto_pagado_actual = int(compra_row["monto_pagado"])
-                    monto_total_original = int(compra_row["monto_total"])
-                    prov_nombre_final = compra_row.get(
-                        "proveedor",
-                        compra_row.get("proveedor_nombre", "Proveedor"),
-                    )
-
-                    col_p1, col_p2 = st.columns(2)
-                    col_p1.metric(
-                        "Monto Total Compra",
-                        formatear_gs(monto_total_original),
-                    )
-                    col_p2.metric(
-                        "Saldo Pendiente Actual", formatear_gs(saldo_actual)
-                    )
-
-                    with st.form("form_pago_proveedor"):
-                        monto_a_pagar = st.number_input(
-                            "Monto a Abonar (Gs.):",
-                            min_value=1,
-                            max_value=max(1, saldo_actual),
-                            value=saldo_actual,
-                            step=5000,
-                        )
-                        metodo_pago_deuda = st.selectbox(
-                            "Método de Pago:",
-                            ["Efectivo", "Transferencia", "Tarjeta", "Otro"],
-                        )
-
-                        if st.form_submit_button(
-                            "✅ Confirmar Pago", type="primary"
-                        ):
-                            nuevo_monto_pagado = (
-                                monto_pagado_actual + monto_a_pagar
-                            )
-                            nuevo_estado = (
-                                "Pagado"
-                                if nuevo_monto_pagado >= monto_total_original
-                                else "Parcial"
-                            )
-
-                            actualizar_pago_compra_proveedor(
-                                id_compra=id_compra_sel,
-                                nuevo_monto_pagado=nuevo_monto_pagado,
-                                nuevo_estado=nuevo_estado,
-                            )
-
-                            registrar_salida_caja(
-                                motivo=(
-                                    f"Pago deuda proveedor {prov_nombre_final}"
-                                    f" (ID Compra: {id_compra_sel})"
-                                ),
-                                monto=monto_a_pagar,
-                                metodo=metodo_pago_deuda,
-                            )
-
-                            st.success(
-                                f"¡Pago de {formatear_gs(monto_a_pagar)}"
-                                " registrado con éxito!"
-                            )
-                            st.rerun()
-            else:
-                st.success("🎉 ¡No hay deudas pendientes con proveedores!")
-        else:
-            st.info("No hay registro de compras aún.")
-
-# ==========================================
-# DEUDAS DE CLIENTES
-# ==========================================
-elif opcion == "💳 Deudas de Clientes":
-    st.markdown(
-        '<p class="main-title">💳 Deudas de Clientes</p>',
-        unsafe_allow_html=True,
-    )
-    df_ventas = obtener_ventas()
-    
-    if not df_ventas.empty and "estado_pago" in df_ventas.columns:
-        deudas = df_ventas[df_ventas["estado_pago"].isin(["Pendiente", "Parcial"])].copy()
-        
-        if not deudas.empty:
-            # Aseguramos que las columnas total y monto_pagado sean numéricas
-            deudas["total"] = pd.to_numeric(deudas["total"], errors="coerce").fillna(0)
-            if "monto_pagado" not in deudas.columns:
-                deudas["monto_pagado"] = 0
-            else:
-                deudas["monto_pagado"] = pd.to_numeric(deudas["monto_pagado"], errors="coerce").fillna(0)
-            
-            deudas["saldo_pendiente"] = deudas["total"] - deudas["monto_pagado"]
-            
-            # Filtramos solo las deudas con saldo pendiente mayor a 0
-            deudas_activas = deudas[deudas["saldo_pendiente"] > 0]
-            
-            if not deudas_activas.empty:
-                clientes_con_deuda = sorted(deudas_activas["cliente_nombre"].dropna().unique().tolist())
-                
-                st.subheader("🔍 Seleccionar Cliente para Ver Deuda y Registrar Pagos")
-                
-                cliente_seleccionado = st.selectbox(
-                    "Selecciona un cliente:",
-                    options=["-- Seleccionar Cliente --"] + clientes_con_deuda,
-                    key="select_cliente_deuda"
-                )
-                
-                if cliente_seleccionado and cliente_seleccionado != "-- Seleccionar Cliente --":
-                    compras_cliente = deudas_activas[deudas_activas["cliente_nombre"] == cliente_seleccionado]
-                    
-                    st.markdown("---")
-                    st.write(f"### Detalle de Compras a Crédito: {cliente_seleccionado}")
-                    
-                    # Mostramos las compras pendientes (sin ID Venta y con Fecha al final)
-                    df_detalle_show = pd.DataFrame({
-                        "Producto": compras_cliente["producto_nombre"],
-                        "Cantidad": compras_cliente["cantidad"],
-                        "Total Venta": compras_cliente["total"].apply(formatear_gs),
-                        "Pagado": compras_cliente["monto_pagado"].apply(formatear_gs),
-                        "Saldo Pendiente": compras_cliente["saldo_pendiente"].apply(formatear_gs),
-                        "Fecha": compras_cliente["fecha_hora"]
-                    })
-                    st.dataframe(df_detalle_show, use_container_width=True, hide_index=True)
-                    
-                    deuda_total_cliente = compras_cliente["saldo_pendiente"].sum()
-                    st.info(f"💰 **Saldo Total Pendiente del Cliente:** {formatear_gs(deuda_total_cliente)}")
-                    
-                    st.markdown("---")
-                    st.subheader("💵 Registrar Pago o Abono")
-                    
-                    dict_compras_cli = {}
-                    for _, row_c in compras_cliente.iterrows():
-                        label_c = f"{row_c['producto_nombre']} | Saldo: {formatear_gs(row_c['saldo_pendiente'])} | Fecha: {row_c['fecha_hora']}"
-                        dict_compras_cli[label_c] = row_c["id"]
-                    
-                    compra_a_abonar_label = st.selectbox(
-                        "Selecciona la compra específica a abonar:",
-                        options=list(dict_compras_cli.keys()),
-                        key="select_compra_abonar"
-                    )
-                    
-                    if compra_a_abonar_label:
-                        id_venta_sel = dict_compras_cli[compra_a_abonar_label]
-                        venta_row = compras_cliente[compras_cliente["id"].astype(str) == str(id_venta_sel)].iloc[0]
-                        
-                        max_saldo_venta = int(venta_row["saldo_pendiente"])
-                        monto_pagado_actual = int(venta_row["monto_pagado"])
-                        total_venta_original = int(venta_row["total"])
-                        
-                        with st.form("form_abono_cliente"):
-                            monto_abono = st.number_input(
-                                "Monto que entrega el cliente (Gs.):",
-                                min_value=1,
-                                max_value=max(1, max_saldo_venta),
-                                value=max_saldo_venta,
-                                step=1000
-                            )
-                            metodo_pago_abono = st.selectbox(
-                                "Método de Pago:",
-                                ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"]
-                            )
-                            
-                            if st.form_submit_button("✅ Confirmar y Registrar Abono", type="primary"):
-                                nuevo_monto_pagado = monto_pagado_actual + monto_abono
-                                nuevo_estado = "Pagado" if nuevo_monto_pagado >= total_venta_original else "Parcial"
-                                fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                
-                                db_cloud = obtener_conexion_db()
-                                if db_cloud is not None:
-                                    # Actualizar venta
-                                    db_cloud.collection("ventas").document(str(id_venta_sel)).update({
-                                        "monto_pagado": int(nuevo_monto_pagado),
-                                        "estado_pago": str(nuevo_estado)
-                                    })
-                                    # Registrar pago del cliente para la caja
-                                    db_cloud.collection("pagos_clientes").add({
-                                        "fecha_hora": fecha_ahora,
-                                        "cliente_nombre": str(cliente_seleccionado),
-                                        "monto": int(monto_abono),
-                                        "metodo_pago": str(metodo_pago_abono)
-                                    })
-                                else:
-                                    conn = obtener_conexion()
-                                    cursor = conn.cursor()
-                                    cursor.execute("""
-                                        UPDATE ventas 
-                                        SET monto_pagado = ?, estado_pago = ? 
-                                        WHERE id = ?
-                                    """, (
-                                        int(nuevo_monto_pagado),
-                                        str(nuevo_estado),
-                                        int(id_venta_sel) if str(id_venta_sel).isdigit() else id_venta_sel
-                                    ))
-                                    cursor.execute("""
-                                        INSERT INTO pagos_clientes (fecha_hora, cliente_nombre, monto, metodo_pago)
-                                        VALUES (?, ?, ?, ?)
-                                    """, (
-                                        fecha_ahora,
-                                        str(cliente_seleccionado),
-                                        int(monto_abono),
-                                        str(metodo_pago_abono)
-                                    ))
-                                    conn.commit()
-                                    conn.close()
-                                
-                                st.success(f"¡Abono de {formatear_gs(monto_abono)} registrado con éxito!")
-                                st.rerun()
-            else:
-                st.success("🎉 ¡No hay saldos pendientes de clientes!")
-        else:
-            st.success("🎉 ¡No hay deudas pendientes de clientes!")
-    else:
-        st.success("🎉 ¡No hay deudas pendientes de clientes!")
-
-# ==========================================
-# GESTOR DE CLIENTES
-# ==========================================
-elif opcion == "👥 Gestor de Clientes":
-    st.markdown(
-        '<p class="main-title">👥 Gestor de Clientes</p>',
-        unsafe_allow_html=True,
-    )
-
-    tab_nuevo_c, tab_editar_c, tab_lista_c = st.tabs([
-        "➕ Registrar Cliente",
-        "✏️ Editar / Modificar Cliente",
-        "📋 Ver Lista de Clientes",
-    ])
-
-    df_clientes = obtener_clientes()
-
-    with tab_nuevo_c:
-        st.subheader("Registrar Nuevo Cliente")
-
-        # 1. Limpiar campos si la bandera está activada
-        if st.session_state.get("debo_limpiar_cliente", False):
-            st.session_state["cli_nombre"] = ""
-            st.session_state["cli_apellido"] = ""
-            st.session_state["cli_ci"] = ""
-            st.session_state["cli_telefono"] = ""
-            st.session_state["cli_ciudad"] = ""
-            st.session_state["debo_limpiar_cliente"] = False
-
-        # 2. Inicializar valores en el session_state si no existen
-        if "cli_nombre" not in st.session_state:
-            st.session_state["cli_nombre"] = ""
-        if "cli_apellido" not in st.session_state:
-            st.session_state["cli_apellido"] = ""
-        if "cli_ci" not in st.session_state:
-            st.session_state["cli_ci"] = ""
-        if "cli_telefono" not in st.session_state:
-            st.session_state["cli_telefono"] = ""
-        if "cli_ciudad" not in st.session_state:
-            st.session_state["cli_ciudad"] = ""
-
-        with st.form("form_cliente"):
-            col1, col2 = st.columns(2)
-            nombre = col1.text_input("Nombre:", key="cli_nombre")
-            apellido = col2.text_input("Apellido:", key="cli_apellido")
-            ci = col1.text_input("N° Documento / CI:", key="cli_ci")
-            telefono = col2.text_input("Teléfono:", key="cli_telefono")
-            ciudad = st.text_input("Ciudad:", key="cli_ciudad")
-
-            if st.form_submit_button("Guardar Cliente", type="primary"):
-                if nombre.strip() and apellido.strip():
-                    registrar_cliente(nombre, apellido, ci, telefono, ciudad)
-                    st.success("¡Cliente guardado con éxito!")
-                    
-                    # Activar bandera para limpiar los campos y recargar
-                    st.session_state["debo_limpiar_cliente"] = True
-                    st.rerun()
-                else:
-                    st.warning("El Nombre y Apellido son obligatorios.")
-
-    with tab_editar_c:
-        st.subheader("Modificar / Eliminar Cliente")
-        if df_clientes.empty:
-            st.info("No hay clientes registrados para editar o eliminar.")
-        else:
-            dict_clientes = {}
-            for _, r in df_clientes.iterrows():
-                label = f"{r['nombre']} {r['apellido']} (CI: {r['ci']})"
-                dict_clientes[label] = r["id"]
-
-            cliente_sel_label = st.selectbox(
-                "🔍 Selecciona un cliente para modificar o eliminar:",
-                options=list(dict_clientes.keys()),
-                index=None,
-                key="select_edit_cliente",
-            )
-
-            if cliente_sel_label:
-                id_cliente = dict_clientes[cliente_sel_label]
-                c_row = df_clientes[
-                    df_clientes["id"].astype(str) == str(id_cliente)
-                ].iloc[0]
-
-                with st.form("form_edit_cliente"):
-                    col1, col2 = st.columns(2)
-                    edit_nombre = col1.text_input(
-                        "Nombre:", value=str(c_row.get("nombre", ""))
-                    )
-                    edit_apellido = col2.text_input(
-                        "Apellido:", value=str(c_row.get("apellido", ""))
-                    )
-                    edit_ci = col1.text_input(
-                        "N° Documento / CI:", value=str(c_row.get("ci", ""))
-                    )
-                    edit_telefono = col2.text_input(
-                        "Teléfono:", value=str(c_row.get("telefono", ""))
-                    )
-                    edit_ciudad = st.text_input(
-                        "Ciudad:", value=str(c_row.get("ciudad", ""))
-                    )
-
-                    if st.form_submit_button("💾 Guardar Cambios", type="primary"):
-                        if edit_nombre.strip() and edit_apellido.strip():
-                            actualizar_cliente(
-                                id_cliente,
-                                edit_nombre,
-                                edit_apellido,
-                                edit_ci,
-                                edit_telefono,
-                                edit_ciudad,
-                            )
-                            st.success("¡Datos del cliente actualizados correctamente!")
-                            st.rerun()
-                        else:
-                            st.warning("El Nombre y Apellido no pueden quedar vacíos.")
-
-                st.markdown("---")
-                st.subheader("⚠️ Eliminar Cliente")
-                pwd_del_c = st.text_input(
-                    "Ingresa la contraseña para ELIMINAR cliente:",
-                    type="password",
-                    key="pwd_del_cliente",
-                )
-                if st.button("🗑️ Eliminar Cliente Definitivamente", type="primary"):
-                    if pwd_del_c == CLAVE_ADMIN:
-                        eliminar_cliente(id_cliente)
-                        st.success("✅ Cliente eliminado correctamente.")
-                        st.rerun()
-                    else:
-                        st.error("❌ Contraseña incorrecta.")
-
-    with tab_lista_c:
-        st.subheader("📋 Listado General de Clientes")
-
-        if not df_clientes.empty:
-            columnas_ordenadas = [
-                "nombre",
-                "apellido",
-                "ci",
-                "cedula",
-                "telefono",
-                "ciudad",
-                "direccion",
-                "deuda",
-                "deuda_pendiente",
-                "id",
-            ]
-
-            cols_existentes = [
-                col for col in columnas_ordenadas if col in df_clientes.columns
-            ]
-            st.dataframe(
-                df_clientes[cols_existentes], use_container_width=True
-            )
-        else:
-            st.info("No hay clientes registrados en el sistema.")
-
-# ==========================================
-# FLUJO DE CAJA MENSUAL
-# ==========================================
-elif opcion == "📈 Flujo de Caja Mensual":
-    st.markdown(
-        '<p class="main-title">📈 Flujo de Caja y Ganancias</p>',
-        unsafe_allow_html=True,
-    )
-    
-    df_ventas = obtener_ventas()
-    df_salidas = obtener_salidas_caja()
-    df_productos = obtener_productos()
-
-    # --- FILTRO POR FECHAS ---
-    st.subheader("📅 Filtrar por Rango de Fechas")
-    
-    col_f1, col_f2 = st.columns(2)
-    fecha_minima = date.today().replace(day=1)
-    fecha_actual = date.today()
-
-    if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
-        try:
-            fechas_parseadas = pd.to_datetime(df_ventas["fecha_hora"], errors="coerce")
-            if not fechas_parseadas.isna().all():
-                fecha_minima = fechas_parseadas.min().date()
-        except Exception:
-            pass
-
-    with col_f1:
-        f_desde = st.date_input("Desde:", value=fecha_minima, key="flujo_desde")
-    with col_f2:
-        f_hasta = st.date_input("Hasta:", value=fecha_actual, key="flujo_hasta")
-
-    f_desde_str = f_desde.strftime("%Y-%m-%d")
-    f_hasta_str = f_hasta.strftime("%Y-%m-%d")
-
-    # --- FILTRADO DE DATOS ---
-    df_v_filtrado = pd.DataFrame()
-    if not df_ventas.empty and "fecha_hora" in df_ventas.columns:
-        mask_v = df_ventas["fecha_hora"].astype(str).str.slice(0, 10).between(f_desde_str, f_hasta_str)
-        df_v_filtrado = df_ventas[mask_v].copy()
-
-    df_s_filtrado = pd.DataFrame()
-    if not df_salidas.empty and "fecha_hora" in df_salidas.columns:
-        mask_s = df_salidas["fecha_hora"].astype(str).str.slice(0, 10).between(f_desde_str, f_hasta_str)
-        df_s_filtrado = df_salidas[mask_s].copy()
-
-    # --- OBTENER COBROS / ABONOS DE CLIENTES EN EL PERÍODO ---
-    list_pagos_periodo = []
-    db_cloud = obtener_conexion_db()
-    if db_cloud is not None:
-        docs_pagos = db_cloud.collection("pagos_clientes").stream()
-        for doc in docs_pagos:
-            d = doc.to_dict()
-            d["id"] = doc.id
-            f_pago = str(d.get("fecha_hora", ""))[0:10]
-            if f_desde_str <= f_pago <= f_hasta_str:
-                list_pagos_periodo.append(d)
-        df_cobros_periodo = pd.DataFrame(list_pagos_periodo)
-    else:
-        conn = obtener_conexion()
-        df_cobros_all = pd.read_sql_query("SELECT * FROM pagos_clientes", conn)
-        conn.close()
-        if not df_cobros_all.empty and "fecha_hora" in df_cobros_all.columns:
-            mask_p = df_cobros_all["fecha_hora"].astype(str).str.slice(0, 10).between(f_desde_str, f_hasta_str)
-            df_cobros_periodo = df_cobros_all[mask_p].copy()
-        else:
-            df_cobros_periodo = pd.DataFrame()
-
-    # --- CÁLCULOS DE INGRESOS, EGRESOS Y GANANCIAS ---
-    ingresos_ventas_contado = (
-        df_v_filtrado[df_v_filtrado["tipo_venta"] == "Contado"]["total"].sum()
-        if not df_v_filtrado.empty else 0
-    )
-    
-    ingresos_cobros_credito = (
-        pd.to_numeric(df_cobros_periodo["monto"], errors="coerce").fillna(0).sum()
-        if not df_cobros_periodo.empty else 0
-    )
-
-    ingresos_periodo = ingresos_ventas_contado + ingresos_cobros_credito
-
-    egresos_periodo = (
-        df_s_filtrado["monto"].sum() if not df_s_filtrado.empty else 0
-    )
-
-    # --- CRUCE CON PRODUCTOS PARA COSTOS Y GANANCIAS DE VENTAS REALIZADAS ---
-    df_merged = pd.DataFrame()
-    ganancia_periodo = 0
-    
-    if not df_v_filtrado.empty and not df_productos.empty:
-        df_v_filtrado["producto_id"] = df_v_filtrado["producto_id"].astype(str)
-        df_productos["id"] = df_productos["id"].astype(str)
-        
-        df_merged = pd.merge(
-            df_v_filtrado,
-            df_productos[["id", "precio_costo"]],
-            left_on="producto_id",
-            right_on="id",
-            how="left"
-        )
-        
-        if "precio_costo" in df_merged.columns and df_merged["precio_costo"].isna().any():
-            df_productos_nom = df_productos.drop_duplicates(subset=["nombre"])
-            df_merged = pd.merge(
-                df_v_filtrado,
-                df_productos_nom[["nombre", "precio_costo"]],
-                left_on="producto_nombre",
-                right_on="nombre",
-                how="left",
-                suffixes=('', '_prod')
-            )
-            if "precio_costo_prod" in df_merged.columns:
-                df_merged["precio_costo"] = df_merged["precio_costo"].fillna(df_merged["precio_costo_prod"])
-
-        df_merged["precio_costo"] = pd.to_numeric(df_merged["precio_costo"], errors="coerce").fillna(0)
-        df_merged["cantidad"] = pd.to_numeric(df_merged["cantidad"], errors="coerce").fillna(0)
-        df_merged["total"] = pd.to_numeric(df_merged["total"], errors="coerce").fillna(0)
-        df_merged["precio_unitario"] = pd.to_numeric(df_merged["precio_unitario"], errors="coerce").fillna(0)
-
-        # Ganancia real = Total Venta Cobrado (con descuento) - (Precio Costo * Cantidad)
-        df_merged["costo_total"] = df_merged["precio_costo"] * df_merged["cantidad"]
-        df_merged["ganancia_total"] = df_merged["total"] - df_merged["costo_total"]
-        
-        ganancia_periodo = int(df_merged["ganancia_total"].sum())
-
-    st.markdown("---")
-    
-    # --- MÉTRICAS EN PANTALLA ---
-    col1, col2, col3 = st.columns(3)
-    col1.metric("📥 Ingresos Totales (Contado + Abonos)", formatear_gs(ingresos_periodo))
-    col2.metric("📤 Egresos del Período", formatear_gs(egresos_periodo))
-    col3.metric("💎 Ganancias Netas de Ventas", formatear_gs(ganancia_periodo))
-
-    balance_periodo = ingresos_periodo - egresos_periodo
-    st.markdown("---")
-    st.info(f"📊 **Balance Neto en Caja (Ingresos Totales - Egresos):** {formatear_gs(balance_periodo)}")
-
-    # --- DETALLES DE LAS OPERACIONES EN EL PERÍODO ---
-    st.markdown("---")
-    tab_rep_ventas, tab_rep_cobros = st.tabs([
-        "📦 Productos Vendidos en el Período",
-        "💳 Cobros / Abonos Recibidos de Créditos"
-    ])
-
-    with tab_rep_ventas:
-        st.subheader("📦 Detalle de Productos Vendidos")
-        if not df_merged.empty:
-            df_reporte = pd.DataFrame({
-                "Fecha / Hora": df_merged["fecha_hora"],
-                "Producto": df_merged["producto_nombre"],
-                "Cliente": df_merged.get("cliente_nombre", "Cliente Ocasional"),
-                "Cantidad": df_merged["cantidad"],
-                "Precio Costo Unit.": df_merged["precio_costo"].apply(formatear_gs),
-                "Precio Lista Unit.": df_merged["precio_unitario"].apply(formatear_gs),
-                "Total Venta (Cobrado)": df_merged["total"].apply(formatear_gs),
-                "Ganancia Obtenida": df_merged["ganancia_total"].apply(formatear_gs),
-                "Tipo de Venta": df_merged.get("tipo_venta", "Contado")
-            })
-            st.dataframe(df_reporte, use_container_width=True, hide_index=True)
-        else:
-            st.info("No hay registros de ventas en el rango de fechas seleccionado.")
-
-    with tab_rep_cobros:
-        st.subheader("💳 Detalle de Cobros y Abonos Recibidos")
-        if not df_cobros_periodo.empty:
-            df_cobros_show = pd.DataFrame({
-                "Fecha / Hora": df_cobros_periodo["fecha_hora"],
-                "Cliente": df_cobros_periodo["cliente_nombre"],
-                "Monto Abonado": pd.to_numeric(df_cobros_periodo["monto"], errors="coerce").fillna(0).apply(formatear_gs),
-                "Método de Pago": df_cobros_periodo["metodo_pago"]
-            })
-            st.dataframe(df_cobros_show, use_container_width=True, hide_index=True)
-            st.success(f"💰 **Total Cobrado de Créditos en el Período:** {formatear_gs(ingresos_cobros_credito)}")
-        else:
-            st.info("No se registraron cobros o abonos de clientes a crédito en el rango de fechas seleccionado.")
-# ==========================================
-# VER STOCK / INVENTARIO
-# ==========================================
-elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
-    import io
-
-    st.markdown(
-        '<p class="main-title">📦 Ver Stock / Inventario</p>',
-        unsafe_allow_html=True,
-    )
-
-    df_p = obtener_productos()
-
-    if not df_p.empty:
-        # Ordenar el DataFrame alfabéticamente por nombre
-        df_p = df_p.sort_values(by="nombre", ascending=True)
-
-        # Creamos la lista de opciones para el buscador
-        opciones_filtro = ["-- Mostrar Todos --"] + df_p["nombre"].tolist()
-
-        for _, r in df_p.iterrows():
-            cod = str(r.get("codigo_barras", "")).strip()
-            label = (
-                f"{r['nombre']} | Marca: {r.get('marca', '')} | Cat:"
-                f" {r.get('categoria', '')}"
-            )
-            if cod and cod not in ["nan", "None", ""]:
-                label = f"[{cod}] " + label
-            opciones_filtro.append(label)
-
-        seleccion = st.selectbox(
-            "🔍 Empieza a escribir el Nombre, Código, Marca o Categoría:",
-            options=opciones_filtro,
-            index=0,
-            key="buscar_instantaneo",
-        )
-
-        # Filtrado según la opción seleccionada
-        if seleccion != "-- Mostrar Todos --":
-            if "]" in seleccion:
-                cod_extraido = seleccion.split("]")[0].replace("[", "").strip()
-                df_p = df_p[df_p["codigo_barras"].astype(str) == cod_extraido]
-            else:
-                nombre_extraido = seleccion.split(" | ")[0].strip()
-                df_p = df_p[df_p["nombre"] == nombre_extraido]
-
-        # Orden de columnas con 'stock' en tercer lugar
-        orden_columnas = [
-            "codigo_barras",
-            "nombre",
-            "stock",
-            "marca",
-            "categoria",
-            "precio_costo",
-            "ganancia_porcentaje",
-            "precio_venta",
-        ]
-
-        resto_columnas = [
-            col for col in df_p.columns if col not in orden_columnas
-        ]
-        columnas_finales = [
-            col for col in orden_columnas if col in df_p.columns
-        ] + resto_columnas
-
-        df_mostrar = df_p[columnas_finales]
-
-        # Mostrar tabla
-        st.dataframe(df_mostrar, use_container_width=True, hide_index=True)
-
-        # --- CÁLCULO DEL VALOR TOTAL DEL STOCK ---
-        st.markdown("---")
-
-        # Excluir registros de ajuste antes del cálculo
-        df_inventario_real = df_p[
-            df_p["nombre"].str.upper() != "AJUSTE DE CAJA"
-        ].copy()
-
-        # Convertir las columnas a valores numéricos
-        df_inventario_real["precio_costo_num"] = pd.to_numeric(
-            df_inventario_real["precio_costo"], errors="coerce"
-        ).fillna(0)
-        df_inventario_real["stock_num"] = pd.to_numeric(
-            df_inventario_real["stock"], errors="coerce"
-        ).fillna(0)
-
-        # Multiplica el costo unitario por la cantidad en stock de productos reales
-        suma_precios_costo = (
-            df_inventario_real["precio_costo_num"]
-            * df_inventario_real["stock_num"]
-        ).sum()
-
-        col_metric, col_boton = st.columns([2, 1])
-
-        with col_metric:
-            st.metric(
-                label="💰 Valor Total del Inventario (Costo x Stock)",
-                value=formatear_gs(suma_precios_costo),
-            )
-
-        with col_boton:
-            st.write("")
-            st.write("")
-
-            # Conversión directa a Excel en memoria
-            output = io.BytesIO()
-            with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                df_mostrar.to_excel(writer, index=False, sheet_name="Inventario")
-            excel_data = output.getvalue()
-
-            st.download_button(
-                label="📥 Descargar para Excel",
-                data=excel_data,
-                file_name="inventario_productos.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
-            )
-
-    else:
-        st.info("No hay productos registrados en el inventario.")
-
-# ==========================================
-# GESTOR DE PRODUCTOS
-# ==========================================
-elif opcion in [
-    "📦 Gestor de Productos",
-    "➕ Registrar Producto",
-    "✏️ Editar / Modificar Producto",
-]:
-    st.markdown(
-        '<p class="main-title">📦 Gestor de Productos</p>',
-        unsafe_allow_html=True,
-    )
-
-    tab_reg_p, tab_edit_p = st.tabs(
-        ["➕ Registrar Producto", "✏️ Editar / Modificar Producto"]
-    )
-
-    with tab_reg_p:
-        st.subheader("Registrar Nuevo Producto")
-        cats = obtener_categorias()
-        marcas = obtener_marcas()
-
-        # 1. Verifica se deve limpar os campos ANTES de renderizar os widgets
-        if st.session_state.get("debo_limpiar_form", False):
-            st.session_state["reg_cod_barras"] = ""
-            st.session_state["reg_nombre"] = ""
-            st.session_state["reg_costo"] = 0
-            st.session_state["reg_ganancia"] = 30
-            st.session_state["reg_precio_venta"] = 0
-            st.session_state["reg_stock"] = 1
-            st.session_state["reg_desc"] = ""
-            st.session_state["debo_limpiar_form"] = False
-
-        # 2. Inicialização dos valores padrão na primeira vez
-        if "reg_cod_barras" not in st.session_state:
-            st.session_state["reg_cod_barras"] = ""
-        if "reg_nombre" not in st.session_state:
-            st.session_state["reg_nombre"] = ""
-        if "reg_costo" not in st.session_state:
-            st.session_state["reg_costo"] = 0
-        if "reg_ganancia" not in st.session_state:
-            st.session_state["reg_ganancia"] = 30
-        if "reg_precio_venta" not in st.session_state:
-            st.session_state["reg_precio_venta"] = 0
-        if "reg_stock" not in st.session_state:
-            st.session_state["reg_stock"] = 1
-        if "reg_desc" not in st.session_state:
-            st.session_state["reg_desc"] = ""
-
-        # 3. Callbacks de cálculo dinâmico
-        def recalcular_por_ganancia():
-            costo = st.session_state.reg_costo
-            ganancia = st.session_state.reg_ganancia
-            st.session_state.reg_precio_venta = int(
-                costo + (costo * (ganancia / 100))
-            )
-
-        def recalcular_por_precio():
-            costo = st.session_state.reg_costo
-            precio_v = st.session_state.reg_precio_venta
-            if costo > 0:
-                st.session_state.reg_ganancia = int(
-                    ((precio_v - costo) / costo) * 100
-                )
-            else:
-                st.session_state.reg_ganancia = 0
-
-        col1, col2 = st.columns(2)
-        cod_barras = col1.text_input("Código de Barras:", key="reg_cod_barras")
-        nombre = col2.text_input("Nombre del Producto:", key="reg_nombre")
-        cat = col1.selectbox("Categoría:", cats, key="reg_cat")
-        marca = col2.selectbox("Marca:", marcas, key="reg_marca")
-
-        costo = col1.number_input(
-            "Precio Costo (Gs.):",
-            min_value=0,
-            step=1000,
-            key="reg_costo",
-            on_change=recalcular_por_ganancia,
-        )
-
-        ganancia = col2.number_input(
-            "% Ganancia:",
-            min_value=0,
-            key="reg_ganancia",
-            on_change=recalcular_por_ganancia,
-        )
-
-        precio_venta = col1.number_input(
-            "Precio Venta (Gs.):",
-            min_value=0,
-            step=1000,
-            key="reg_precio_venta",
-            on_change=recalcular_por_precio,
-        )
-
-        stock = col2.number_input("Stock Inicial:", min_value=0, key="reg_stock")
-        desc = st.text_area("Descripción:", key="reg_desc")
-
-        if st.button("💾 Guardar Producto", type="primary"):
-            if nombre.strip():
-                registrar_producto(
-                    cod_barras,
-                    nombre,
-                    cat,
-                    marca,
-                    costo,
-                    ganancia,
-                    precio_venta,
-                    stock,
-                    desc,
-                )
-                st.success("¡Producto registrado exitosamente!")
-                
-                # Ativa a flag para limpar na próxima execução e recarrega a página de forma limpa
-                st.session_state["debo_limpiar_form"] = True
-                st.rerun()
-            else:
-                st.warning("El nombre del producto es obligatorio.")
-    with tab_edit_p:
-        st.subheader("Modificar / Eliminar Producto")
-        df_p = obtener_productos()
-
-        if not df_p.empty:
-            # Filtros superiores opcionales
-            col_f1, col_f2 = st.columns(2)
-            cats_filtro = ["Todas"] + list(obtener_categorias())
-            marcas_filtro = ["Todas"] + list(obtener_marcas())
-
-            cat_sel = col_f1.selectbox(
-                "Filtrar por Categoría:", cats_filtro, key="filtro_cat_edit"
-            )
-            marca_sel = col_f2.selectbox(
-                "Filtrar por Marca:", marcas_filtro, key="filtro_marca_edit"
-            )
-
-            # Filtrar datos si se selecciona una categoría o marca específica
-            df_filtrado = df_p.copy()
-            if cat_sel != "Todas":
-                df_filtrado = df_filtrado[df_filtrado["categoria"] == cat_sel]
-            if marca_sel != "Todas":
-                df_filtrado = df_filtrado[df_filtrado["marca"] == marca_sel]
-
-            dict_productos = {}
-            for _, r in df_filtrado.iterrows():
-                cod_str = str(r.get("codigo_barras", "")).strip()
-                prefix_cod = (
-                    f"[{cod_str}] "
-                    if cod_str and cod_str not in ["nan", "None", ""]
-                    else ""
-                )
-                cat_str = str(r.get("categoria", "")).strip()
-                marca_str = str(r.get("marca", "")).strip()
-
-                label = f"{prefix_cod}{r['nombre']} | Cat: {cat_str} | Marca: {marca_str}"
-                dict_productos[label] = str(r["id"])
-
-            prod_sel_label = st.selectbox(
-                "🔍 Busca por Nombre, Código de Barras, Categoría o Marca:",
-                options=list(dict_productos.keys()),
-                index=None,
-                placeholder="Escribe cualquier dato del producto...",
-                key="select_edit_prod",
-            )
-
-            if prod_sel_label:
-                id_p = dict_productos[prod_sel_label]
-                p_row = df_p[df_p["id"].astype(str) == id_p].iloc[0]
-
-                cats = obtener_categorias()
-                marcas = obtener_marcas()
-
-                with st.form("form_edit_prod"):
-                    col1, col2 = st.columns(2)
-                    cod_barras = col1.text_input(
-                        "Código de Barras:",
-                        value=str(p_row.get("codigo_barras", "")),
-                    )
-                    nombre = col2.text_input(
-                        "Nombre del Producto:", value=p_row["nombre"]
-                    )
-                    cat = col1.selectbox(
-                        "Categoría:",
-                        cats,
-                        index=(
-                            cats.index(p_row["categoria"])
-                            if p_row["categoria"] in cats
-                            else 0
-                        ),
-                    )
-                    marca = col2.selectbox(
-                        "Marca:",
-                        marcas,
-                        index=(
-                            marcas.index(p_row["marca"])
-                            if p_row["marca"] in marcas
-                            else 0
-                        ),
-                    )
-                    costo = col1.number_input(
-                        "Precio Costo (Gs.):",
-                        min_value=0,
-                        value=int(p_row["precio_costo"]),
-                    )
-                    ganancia = col2.number_input(
-                        "% Ganancia:",
-                        min_value=0,
-                        value=int(p_row["ganancia_porcentaje"]),
-                    )
-                    precio_venta = col1.number_input(
-                        "Precio Venta (Gs.):",
-                        min_value=0,
-                        value=int(p_row["precio_venta"]),
-                    )
-                    stock = col2.number_input(
-                        "Stock:", min_value=0, value=int(p_row["stock"])
-                    )
-                    desc = st.text_area(
-                        "Descripción:",
-                        value=str(p_row.get("descripcion", "")),
-                    )
-
-                    c_save, _ = st.columns([1, 1])
-                    if c_save.form_submit_button(
-                        "Guardar Cambios", type="primary"
-                    ):
-                        actualizar_producto(
-                            id_p,
-                            cod_barras,
-                            nombre,
-                            cat,
-                            marca,
-                            costo,
-                            ganancia,
-                            precio_venta,
-                            stock,
-                            desc,
-                        )
-                        st.success("Producto actualizado correctamente.")
-                        st.rerun()
-
-                if st.button("🗑️ Eliminar Producto", key="btn_del_prod"):
-                    eliminar_producto(id_p)
-                    st.success("Producto eliminado.")
-                    st.rerun()
-        else:
-            st.info("No hay productos registrados para modificar.")
-
-# ==========================================
-# GESTOR DE CATEGORÍAS Y MARCAS
-# ==========================================
-elif opcion in [
-    "🏷️ Gestor de Categorías",
-    "🏢 Gestor de Marcas",
-    "Gestor de Categorías",
-    "Gestor de Marcas",
-]:
-    st.markdown(
-        '<p class="main-title">🏷️ Gestor de Categorías y Marcas</p>',
-        unsafe_allow_html=True,
-    )
-
-    tab_cat, tab_mar = st.tabs(["🏷️ Categorías", "🏢 Marcas"])
-
-    with tab_cat:
-        st.subheader("Gestión de Categorías")
-        cats = obtener_categorias()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            nueva_cat = st.text_input("Nueva Categoría:", key="input_nueva_cat")
-            if st.button("Agregar Categoría", type="primary", key="btn_add_cat"):
-                if nueva_cat.strip():
-                    registrar_categoria(nueva_cat)
-                    st.success("Categoría agregada.")
-                    st.rerun()
-        with col2:
-            cat_del = st.selectbox(
-                "Eliminar Categoría:", cats, key="select_del_cat"
-            )
-            if st.button("Eliminar Categoría", key="btn_del_cat"):
-                eliminar_categoria(cat_del)
-                st.success("Categoría eliminada.")
-                st.rerun()
-
-        st.markdown("---")
-        st.write("Categorías actuales:", cats)
-
-    with tab_mar:
-        st.subheader("Gestión de Marcas")
-        marcas = obtener_marcas()
-
-        col1, col2 = st.columns(2)
-        with col1:
-            nueva_marca = st.text_input("Nueva Marca:", key="input_nueva_marca")
-            if st.button(
-                "Agregar Marca", type="primary", key="btn_add_marca"
-            ):
-                if nueva_marca.strip():
-                    registrar_marca(nueva_marca)
-                    st.success("Marca agregada.")
-                    st.rerun()
-        with col2:
-            marca_del = st.selectbox(
-                "Eliminar Marca:", marcas, key="select_del_marca"
-            )
-            if st.button("Eliminar Marca", key="btn_del_marca"):
-                eliminar_marca(marca_del)
-                st.success("Marca eliminada.")
-                st.rerun()
-
-        st.markdown("---")
-        st.write("Marcas actuales:", marcas)
