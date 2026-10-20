@@ -80,9 +80,10 @@ def obtener_conexion():
     return sqlite3.connect("inventario.db")
     
 def obtener_conexion_db():
+    """Conexión segura al nuevo Firestore o fallback a SQLite."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
-            # Aponta diretamente para o banco novo que criamos hoje
+            # Especifica explicitamente o banco 'sistema1encanto' que criamos
             client = firestore.Client.from_service_account_info(
                 dict(st.secrets["gcp_service_account"]),
                 database="sistema1encanto"
