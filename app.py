@@ -81,7 +81,7 @@ def obtener_conexion():
 
 
 def obtener_conexion_db():
-    """Conexión a Firestore en Cloud apuntando ao banco sistema1encanto."""
+    """Conexión a Firestore segura: se la cuota se agota, retorna None para usar SQLite."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
             return firestore.Client.from_service_account_info(
@@ -89,6 +89,7 @@ def obtener_conexion_db():
                 database="sistema1encanto"
             )
         except Exception:
+            # Se atingir a cota (429) ou falhar, retorna None silenciosamente
             return None
     return None
 
