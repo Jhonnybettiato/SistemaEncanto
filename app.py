@@ -81,18 +81,16 @@ def obtener_conexion():
 
 
 def obtener_conexion_db():
-    """Conexión a Firestore segura: se la cuota se agota, retorna None para usar SQLite."""
+    """Conexión a Firestore en Cloud apuntando al nuevo banco sistema1encanto."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
             return firestore.Client.from_service_account_info(
                 dict(st.secrets["gcp_service_account"]),
-                database="sistema1encanto"
+                database="sistema1encanto"  # <--- Adicionar esta linha aqui
             )
         except Exception:
-            # Se atingir a cota (429) ou falhar, retorna None silenciosamente
             return None
     return None
-
 
 # ==========================================
 # 1. CONTROL DE BASE DE DATOS Y PERSISTENCIA
