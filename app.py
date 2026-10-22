@@ -989,7 +989,7 @@ def obtener_productos():
                     df["marca"] = "Sin Marca"
                 return df
         except Exception:
-            pass  # Se a coleção não existir no banco novo, usa o SQLite abaixo
+            pass  # Se a nuvem falhar ou a coleção não existir, passa para o SQLite abaixo
 
     # Fallback seguro para o SQLite local
     conn = obtener_conexion()
