@@ -990,9 +990,9 @@ def obtener_productos():
                     df["marca"] = "Sin Marca"
                 return df
         except Exception:
-            pass  # Se a nuvem falhar ou a coleção não existir, passa para o SQLite abaixo
+            pass  # Se falhar ou a coleção não existir, usa SQLite
 
-    # Fallback seguro para o SQLite local
+    # Fallback para SQLite local
     conn = obtener_conexion()
     df = pd.read_sql_query("SELECT * FROM productos", conn)
     conn.close()
@@ -1076,33 +1076,29 @@ def registrar_venta(
 def obtener_ventas():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        docs = db_cloud.collection("ventas").stream()
-        lista = []
-        for doc in docs:
-            d = doc.to_dict()
-            d["id"] = doc.id
-            lista.append(d)
-        if not lista:
-            return pd.DataFrame(
-                columns=[
-                    "id",
-                    "fecha_hora",
-                    "producto_id",
-                    "producto_nombre",
-                    "cantidad",
-                    "precio_unitario",
-                    "total",
-                    "tipo_venta",
-                    "metodo_pago",
-                    "cliente_nombre",
-                    "estado_pago",
-                ]
-            )
-        df = pd.DataFrame(lista)
-    else:
-        conn = obtener_conexion()
-        df = pd.read_sql_query("SELECT * FROM ventas", conn)
-        conn.close()
+        try:
+            docs = db_cloud.collection("ventas").stream()
+            lista = []
+            for doc in docs:
+                d = doc.to_dict()
+                d["id"] = doc.id
+                lista.append(d)
+            if lista:
+                df = pd.DataFrame(lista)
+                if "tipo_venta" not in df.columns:
+                    df["tipo_venta"] = "Contado"
+                if "estado_pago" not in df.columns:
+                    df["estado_pago"] = "Pagado"
+                if "cliente_nombre" not in df.columns:
+                    df["cliente_nombre"] = "Cliente Ocasional"
+                return df
+        except Exception:
+            pass
+
+    # Fallback para SQLite local
+    conn = obtener_conexion()
+    df = pd.read_sql_query("SELECT * FROM ventas", conn)
+    conn.close()
 
     if "tipo_venta" not in df.columns:
         df["tipo_venta"] = "Contado"
