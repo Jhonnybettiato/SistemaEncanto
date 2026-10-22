@@ -81,12 +81,12 @@ def obtener_conexion():
 
 
 def obtener_conexion_db():
-    """Conexión a Firestore en Cloud apuntando al nuevo banco sistema1encanto."""
+    """Conexión a Firestore en Cloud apuntando al banco sistema1encanto."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
             return firestore.Client.from_service_account_info(
                 dict(st.secrets["gcp_service_account"]),
-                database="sistema1encanto"  # <--- Adicionar esta linha aqui
+                database="sistema1encanto"
             )
         except Exception:
             return None
@@ -974,32 +974,27 @@ def eliminar_producto(id_prod):
 def obtener_productos():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        docs = db_cloud.collection("productos").stream()
-        lista = []
-        for doc in docs:
-            datos = doc.to_dict()
-            datos["id"] = doc.id
-            lista.append(datos)
-        if not lista:
-            return pd.DataFrame(
-                columns=[
-                    "id",
-                    "codigo_barras",
-                    "nombre",
-                    "marca",
-                    "categoria",
-                    "precio_costo",
-                    "ganancia_porcentaje",
-                    "precio_venta",
-                    "stock",
-                    "descripcion",
-                ]
-            )
-        df = pd.DataFrame(lista)
-    else:
-        conn = obtener_conexion()
-        df = pd.read_sql_query("SELECT * FROM productos", conn)
-        conn.close()
+        try:
+            docs = db_cloud.collection("productos").stream()
+            lista = []
+            for doc in docs:
+                datos = doc.to_dict()
+                datos["id"] = doc.id
+                lista.append(datos)
+            if lista:
+                df = pd.DataFrame(lista)
+                if "codigo_barras" not in df.columns:
+                    df["codigo_barras"] = ""
+                if "marca" not in df.columns:
+                    df["marca"] = "Sin Marca"
+                return df
+        except Exception:
+            pass  # Se a coleção não existir no banco novo, usa o SQLite abaixo
+
+    # Fallback seguro para o SQLite local
+    conn = obtener_conexion()
+    df = pd.read_sql_query("SELECT * FROM productos", conn)
+    conn.close()
 
     if "codigo_barras" not in df.columns:
         df["codigo_barras"] = ""
