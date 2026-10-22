@@ -557,24 +557,25 @@ def eliminar_cliente(id_cliente):
 def obtener_clientes():
     db_cloud = obtener_conexion_db()
     if db_cloud is not None:
-        docs = db_cloud.collection("clientes").stream()
-        lista = []
-        for doc in docs:
-            d = doc.to_dict()
-            d["id"] = doc.id
-            lista.append(d)
-        return (
-            pd.DataFrame(lista)
-            if lista
-            else pd.DataFrame(
-                columns=["id", "nombre", "apellido", "ci", "telefono", "ciudad"]
-            )
-        )
-    else:
-        conn = obtener_conexion()
-        df = pd.read_sql_query("SELECT * FROM clientes", conn)
-        conn.close()
-        return df
+        try:
+            docs = db_cloud.collection("clientes").stream()
+            lista = []
+            for doc in docs:
+                d = doc.to_dict()
+                d["id"] = doc.id
+                lista.append(d)
+            if lista:
+                return pd.DataFrame(lista)
+        except Exception:
+            pass  # Se a coleção não existir no Firestore, passa para o SQLite abaixo
+
+    # Fallback para SQLite local
+    conn = obtener_conexion()
+    df = pd.read_sql_query("SELECT * FROM clientes", conn)
+    conn.close()
+    if df.empty:
+        return pd.DataFrame(columns=["id", "nombre", "apellido", "ci", "telefono", "ciudad"])
+    return df
 
 # --- FUNCIONES PROVEEDORES Y COMPRAS ---
 def registrar_proveedor(nombre, ruc_ci, telefono, ciudad):
