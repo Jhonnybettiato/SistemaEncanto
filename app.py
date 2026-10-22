@@ -567,7 +567,7 @@ def obtener_clientes():
             if lista:
                 return pd.DataFrame(lista)
         except Exception:
-            pass  # Se a coleção não existir no Firestore, passa para o SQLite abaixo
+            pass
 
     # Fallback para SQLite local
     conn = obtener_conexion()
@@ -990,9 +990,9 @@ def obtener_productos():
                     df["marca"] = "Sin Marca"
                 return df
         except Exception:
-            pass  # Se falhar ou a coleção não existir, usa SQLite
+            pass  # Se a nuvem falhar ou a coleção não existir, usa o SQLite local
 
-    # Fallback para SQLite local
+    # Fallback seguro para o SQLite local
     conn = obtener_conexion()
     df = pd.read_sql_query("SELECT * FROM productos", conn)
     conn.close()
