@@ -1756,17 +1756,101 @@ elif opcion == "🏬 Gestor de Proveedores":
 
         if not df_compras.empty and "estado_pago" in df_compras.columns:
             deudas = df_compras[df_compras["estado_pago"].isin(["Pendiente", "Parcial"])].copy()
+            
             if not deudas.empty:
-                deudas["monto_total"] = deudas["monto_total"].fillna(0).astype(int)
-                deudas["monto_pagado"] = deudas["monto_pagado"].fillna(0).astype(int) if "monto_pagado" in deudas.columns else 0
+                deudas["monto_total"] = pd.to_numeric(deudas["monto_total"], errors="coerce").fillna(0).astype(int)
+                if "monto_pagado" not in deudas.columns:
+                    deudas["monto_pagado"] = 0
+                else:
+                    deudas["monto_pagado"] = pd.to_numeric(deudas["monto_pagado"], errors="coerce").fillna(0).astype(int)
+
                 deudas["saldo_pendiente"] = deudas["monto_total"] - deudas["monto_pagado"]
+                deudas_activas = deudas[deudas["saldo_pendiente"] > 0].copy()
 
-                df_show_deudas = deudas.copy()
-                df_show_deudas["monto_total"] = df_show_deudas["monto_total"].apply(formatear_gs)
-                df_show_deudas["monto_pagado"] = df_show_deudas["monto_pagado"].apply(formatear_gs)
-                df_show_deudas["saldo_pendiente"] = df_show_deudas["saldo_pendiente"].apply(formatear_gs)
+                if not deudas_activas.empty:
+                    df_show_deudas = deudas_activas.copy()
+                    df_show_deudas["monto_total"] = df_show_deudas["monto_total"].apply(formatear_gs)
+                    df_show_deudas["monto_pagado"] = df_show_deudas["monto_pagado"].apply(formatear_gs)
+                    df_show_deudas["saldo_pendiente"] = df_show_deudas["saldo_pendiente"].apply(formatear_gs)
 
-                st.dataframe(df_show_deudas, use_container_width=True)
+                    columnas_deseadas = [
+                        "fecha_hora",
+                        "proveedor_nombre",
+                        "concepto",
+                        "monto_total",
+                        "monto_pagado",
+                        "saldo_pendiente",
+                        "estado_pago",
+                        "metodo_pago",
+                    ]
+                    cols_existentes = [c for c in columnas_deseadas if c in df_show_deudas.columns]
+                    st.dataframe(df_show_deudas[cols_existentes], use_container_width=True, hide_index=True)
+
+                    st.markdown("---")
+                    st.subheader("💵 Registrar Pago o Abono a Proveedor")
+
+                    dict_deudas = {}
+                    for _, r in deudas_activas.iterrows():
+                        nombre_prov = r.get("proveedor_nombre", r.get("proveedor", "Proveedor"))
+                        label = f"ID: {r['id']} | {nombre_prov} | Concepto: {r.get('concepto', '')} | Saldo: {formatear_gs(r['saldo_pendiente'])}"
+                        dict_deudas[label] = r["id"]
+
+                    compra_sel_label = st.selectbox(
+                        "Selecciona la compra a abonar o pagar:",
+                        options=list(dict_deudas.keys()),
+                        key="select_compra_prov_abonar"
+                    )
+
+                    if compra_sel_label:
+                        id_compra_sel = dict_deudas[compra_sel_label]
+                        compra_row = deudas_activas[deudas_activas["id"].astype(str) == str(id_compra_sel)].iloc[0]
+
+                        saldo_actual = int(compra_row["saldo_pendiente"])
+                        monto_pagado_actual = int(compra_row["monto_pagado"])
+                        monto_total_original = int(compra_row["monto_total"])
+                        prov_nombre_final = compra_row.get("proveedor_nombre", compra_row.get("proveedor", "Proveedor"))
+
+                        col_p1, col_p2 = st.columns(2)
+                        col_p1.metric("Monto Total Compra", formatear_gs(monto_total_original))
+                        col_p2.metric("Saldo Pendiente Actual", formatear_gs(saldo_actual))
+
+                        with st.form("form_pago_proveedor", clear_on_submit=True):
+                            col_f1, col_f2 = st.columns(2)
+                            with col_f1:
+                                monto_a_pagar = st.number_input(
+                                    "Monto a Abonar / Entregar (Gs.):",
+                                    min_value=1,
+                                    max_value=max(1, saldo_actual),
+                                    value=saldo_actual,
+                                    step=5000,
+                                    help="Ingrese el valor del abono parcial o deje el saldo total para liquidar la deuda."
+                                )
+                            with col_f2:
+                                metodo_pago_deuda = st.selectbox(
+                                    "Método de Pago:",
+                                    ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"]
+                                )
+
+                            if st.form_submit_button("✅ Confirmar Pago", type="primary"):
+                                nuevo_monto_pagado = monto_pagado_actual + monto_a_pagar
+                                nuevo_estado = "Pagado" if nuevo_monto_pagado >= monto_total_original else "Parcial"
+
+                                actualizar_pago_compra_proveedor(
+                                    id_compra=id_compra_sel,
+                                    nuevo_monto_pagado=nuevo_monto_pagado,
+                                    nuevo_estado=nuevo_estado,
+                                )
+
+                                registrar_salida_caja(
+                                    motivo=f"Pago deuda proveedor {prov_nombre_final} (ID: {id_compra_sel})",
+                                    monto=monto_a_pagar,
+                                    metodo=metodo_pago_deuda,
+                                )
+
+                                st.success(f"¡Pago de {formatear_gs(monto_a_pagar)} registrado con éxito!")
+                                st.rerun()
+                else:
+                    st.success("🎉 ¡No hay saldos pendientes con proveedores!")
             else:
                 st.success("🎉 ¡No hay deudas pendientes con proveedores!")
         else:
