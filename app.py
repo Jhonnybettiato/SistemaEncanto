@@ -1812,6 +1812,92 @@ elif opcion == "💳 Deudas de Clientes":
                     
                     deuda_total_cliente = compras_cliente["saldo_pendiente"].sum()
                     st.info(f"💰 **Saldo Total Pendiente del Cliente:** {formatear_gs(deuda_total_cliente)}")
+
+                    st.markdown("---")
+                    st.subheader("💵 Registrar Pago o Abono")
+                    
+                    dict_compras_cli = {}
+                    for _, row_c in compras_cliente.iterrows():
+                        label_c = f"{row_c['producto_nombre']} | Saldo: {formatear_gs(row_c['saldo_pendiente'])} | Fecha: {row_c['fecha_hora']}"
+                        dict_compras_cli[label_c] = row_c["id"]
+                    
+                    compra_a_abonar_label = st.selectbox(
+                        "Selecciona la compra específica a abonar:",
+                        options=list(dict_compras_cli.keys()),
+                        key="select_compra_abonar"
+                    )
+                    
+                    if compra_a_abonar_label:
+                        id_venta_sel = dict_compras_cli[compra_a_abonar_label]
+                        venta_row = compras_cliente[compras_cliente["id"].astype(str) == str(id_venta_sel)].iloc[0]
+                        
+                        max_saldo_venta = int(venta_row["saldo_pendiente"])
+                        monto_pagado_actual = int(venta_row["monto_pagado"])
+                        total_venta_original = int(venta_row["total"])
+                        
+                        with st.form("form_abono_cliente", clear_on_submit=True):
+                            col_p1, col_p2 = st.columns(2)
+                            with col_p1:
+                                monto_abono = st.number_input(
+                                    "Monto a entregar / abonar (Gs.):",
+                                    min_value=1,
+                                    max_value=max(1, max_saldo_venta),
+                                    value=max_saldo_venta,
+                                    step=1000,
+                                    help="Ingrese el monto parcial o deje el total para cancelar la deuda."
+                                )
+                            with col_p2:
+                                metodo_pago_abono = st.selectbox(
+                                    "Método de Pago:",
+                                    ["Efectivo", "Transferencia", "Tarjeta", "Giros / Otro"]
+                                )
+                            
+                            if st.form_submit_button("✅ Confirmar y Registrar Abono", type="primary"):
+                                nuevo_monto_pagado = monto_pagado_actual + monto_abono
+                                nuevo_estado = "Pagado" if nuevo_monto_pagado >= total_venta_original else "Parcial"
+                                fecha_ahora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                
+                                db_cloud = obtener_conexion_db()
+                                if db_cloud is not None:
+                                    try:
+                                        db_cloud.collection("ventas").document(str(id_venta_sel)).update({
+                                            "monto_pagado": int(nuevo_monto_pagado),
+                                            "estado_pago": str(nuevo_estado)
+                                        })
+                                        db_cloud.collection("pagos_clientes").add({
+                                            "fecha_hora": fecha_ahora,
+                                            "cliente_nombre": str(cliente_seleccionado),
+                                            "monto": int(monto_abono),
+                                            "metodo_pago": str(metodo_pago_abono)
+                                        })
+                                    except Exception:
+                                        pass
+                                else:
+                                    conn = obtener_conexion()
+                                    cursor = conn.cursor()
+                                    cursor.execute("""
+                                        UPDATE ventas 
+                                        SET monto_pagado = ?, estado_pago = ? 
+                                        WHERE id = ?
+                                    """, (
+                                        int(nuevo_monto_pagado),
+                                        str(nuevo_estado),
+                                        int(id_venta_sel) if str(id_venta_sel).isdigit() else id_venta_sel
+                                    ))
+                                    cursor.execute("""
+                                        INSERT INTO pagos_clientes (fecha_hora, cliente_nombre, monto, metodo_pago)
+                                        VALUES (?, ?, ?, ?)
+                                    """, (
+                                        fecha_ahora,
+                                        str(cliente_seleccionado),
+                                        int(monto_abono),
+                                        str(metodo_pago_abono)
+                                    ))
+                                    conn.commit()
+                                    conn.close()
+                                
+                                st.success(f"¡Abono de {formatear_gs(monto_abono)} registrado con éxito!")
+                                st.rerun()
             else:
                 st.success("🎉 ¡No hay saldos pendientes de clientes!")
         else:
