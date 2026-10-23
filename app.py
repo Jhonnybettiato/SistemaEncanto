@@ -2086,14 +2086,109 @@ elif opcion == "📈 Flujo de Caja Mensual":
 
 elif opcion in ["📦 Ver Stock / Inventario", "Ver Stock / Inventario"]:
     import io
-    st.markdown('<p class="main-title">📦 Ver Stock / Inventario</p>', unsafe_allow_html=True)
+
+    st.markdown(
+        '<p class="main-title">📦 Ver Stock / Inventario</p>',
+        unsafe_allow_html=True,
+    )
+
     df_p = obtener_productos()
 
     if not df_p.empty:
+        # Ordenar el DataFrame alfabéticamente por nombre
         df_p = df_p.sort_values(by="nombre", ascending=True)
-        st.dataframe(df_p, use_container_width=True, hide_index=True)
+
+        # Buscador / Filtro de productos
+        opciones_filtro = ["-- Mostrar Todos --"]
+        for _, r in df_p.iterrows():
+            cod = str(r.get("codigo_barras", "")).strip()
+            label = f"{r['nombre']} | Marca: {r.get('marca', '')} | Cat: {r.get('categoria', '')}"
+            if cod and cod not in ["nan", "None", ""]:
+                label = f"[{cod}] " + label
+            opciones_filtro.append(label)
+
+        seleccion = st.selectbox(
+            "🔍 Empieza a escribir el Nombre, Código, Marca o Categoría:",
+            options=opciones_filtro,
+            index=0,
+            key="buscar_instantaneo",
+        )
+
+        # Filtrado de la vista según la opción seleccionada
+        df_mostrar_vista = df_p.copy()
+        if seleccion != "-- Mostrar Todos --":
+            if "]" in seleccion:
+                cod_extraido = seleccion.split("]")[0].replace("[", "").strip()
+                df_mostrar_vista = df_p[df_p["codigo_barras"].astype(str) == cod_extraido]
+            else:
+                nombre_extraido = seleccion.split(" | ")[0].strip()
+                df_mostrar_vista = df_p[df_p["nombre"] == nombre_extraido]
+
+        # Ordenar columnas
+        orden_columnas = [
+            "codigo_barras",
+            "nombre",
+            "stock",
+            "marca",
+            "categoria",
+            "precio_costo",
+            "ganancia_porcentaje",
+            "precio_venta",
+        ]
+        resto_columnas = [col for col in df_p.columns if col not in orden_columnas]
+        columnas_finales = [col for col in orden_columnas if col in df_p.columns] + resto_columnas
+
+        df_tabla = df_mostrar_vista[columnas_finales]
+
+        # Mostrar tabla de productos
+        st.dataframe(df_tabla, use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+
+        # --- CÁLCULO DEL VALOR TOTAL EN STOCK (EXCLUYENDO "AJUSTE DE CAJA") ---
+        df_inventario_real = df_p[
+            df_p["nombre"].astype(str).str.upper().str.strip() != "AJUSTE DE CAJA"
+        ].copy()
+
+        df_inventario_real["precio_costo_num"] = pd.to_numeric(
+            df_inventario_real["precio_costo"], errors="coerce"
+        ).fillna(0)
+        df_inventario_real["stock_num"] = pd.to_numeric(
+            df_inventario_real["stock"], errors="coerce"
+        ).fillna(0)
+
+        # Multiplicación de costo x cantidad para cada producto e ingreso de total general
+        suma_valor_costo_total = (
+            df_inventario_real["precio_costo_num"] * df_inventario_real["stock_num"]
+        ).sum()
+
+        col_metric, col_boton = st.columns([2, 1])
+
+        with col_metric:
+            st.metric(
+                label="💰 Valor Total del Inventario (Costo x Cantidad en Stock)",
+                value=formatear_gs(suma_valor_costo_total),
+                help="Suma total multiplicando el precio de costo de cada producto por su cantidad disponible (Excluye 'Ajuste de Caja')."
+            )
+
+        with col_boton:
+            st.write("")
+            st.write("")
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine="openpyxl") as writer:
+                df_tabla.to_excel(writer, index=False, sheet_name="Inventario")
+            excel_data = output.getvalue()
+
+            st.download_button(
+                label="📥 Descargar para Excel",
+                data=excel_data,
+                file_name="inventario_productos.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+            )
+
     else:
-        st.info("No hay productos registrados.")
+        st.info("No hay productos registrados en el inventario.")
 
 elif opcion in ["📦 Gestor de Productos", "➕ Registrar Producto", "✏️ Editar / Modificar Producto"]:
     st.markdown('<p class="main-title">📦 Gestor de Productos</p>', unsafe_allow_html=True)
