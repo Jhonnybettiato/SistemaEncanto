@@ -68,12 +68,11 @@ def obtener_conexion():
 
 
 def obtener_conexion_db():
-    """Conexión a Firestore en Cloud apuntando específicamente al banco sistema1encanto."""
+    """Conexión a Firestore en Cloud apuntando al banco padrão."""
     if FIRESTORE_DISPONIBLE and "gcp_service_account" in st.secrets:
         try:
             return firestore.Client.from_service_account_info(
-                dict(st.secrets["gcp_service_account"]),
-                database="sistema1encanto"
+                dict(st.secrets["gcp_service_account"])
             )
         except Exception:
             return None
