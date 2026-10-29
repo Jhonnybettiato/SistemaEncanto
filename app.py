@@ -1413,7 +1413,7 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 st.session_state.carrito = []
                 st.rerun()
 
-            st.markdown("---")
+        st.markdown("---")
         st.subheader("📋 Histórico de Ventas Realizadas")
         df_ventas_hist = obtener_ventas()
         
