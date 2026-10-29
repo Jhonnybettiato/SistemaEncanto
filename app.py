@@ -1413,6 +1413,49 @@ if opcion == "🛒 Ventas y Cierre de Caja":
                 st.session_state.carrito = []
                 st.rerun()
 
+    st.markdown("---")
+        st.subheader("📋 Histórico de Ventas Realizadas")
+        df_ventas_hist = obtener_ventas()
+        
+        if not df_ventas_hist.empty:
+            df_ventas_show = df_ventas_hist.copy()
+            if "total" in df_ventas_show.columns:
+                df_ventas_show["total"] = df_ventas_show["total"].apply(formatear_gs)
+            if "precio_unitario" in df_ventas_show.columns:
+                df_ventas_show["precio_unitario"] = df_ventas_show["precio_unitario"].apply(formatear_gs)
+            
+            cols_v_show = [c for c in ["fecha_hora", "cliente_nombre", "producto_nombre", "cantidad", "precio_unitario", "total", "tipo_venta", "metodo_pago", "estado_pago"] if c in df_ventas_show.columns]
+            st.dataframe(df_ventas_show[cols_v_show], use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+            expander_venta_admin = st.expander("🛠️ Ver Detalle o Gestionar Venta")
+            with expander_venta_admin:
+                dict_ventas_edit = {}
+                for _, r in df_ventas_hist.iterrows():
+                    label = f"ID: {r['id']} | {r.get('fecha_hora', '')} | {r.get('cliente_nombre', 'Cliente')} | {r.get('producto_nombre', '')} ({r.get('cantidad', 1)} un.) - {formatear_gs(r.get('total', 0))}"
+                    dict_ventas_edit[label] = r["id"]
+
+                venta_sel_admin = st.selectbox("Selecciona la venta para ver detalles:", options=list(dict_ventas_edit.keys()), key="select_venta_admin_hist")
+
+                if venta_sel_admin:
+                    id_v_sel = dict_ventas_edit[venta_sel_admin]
+                    v_row = df_ventas_hist[df_ventas_hist["id"].astype(str) == str(id_v_sel)].iloc[0]
+
+                    st.info(f"""
+                    📌 **Detalle de la Venta Seleccionada:**
+                    - **Fecha y Hora:** {v_row.get('fecha_hora', '')}
+                    - **Cliente:** {v_row.get('cliente_nombre', '')}
+                    - **Producto:** {v_row.get('producto_nombre', '')}
+                    - **Cantidad:** {v_row.get('cantidad', '')}
+                    - **Precio Unitario:** {formatear_gs(v_row.get('precio_unitario', 0))}
+                    - **Total:** {formatear_gs(v_row.get('total', 0))}
+                    - **Tipo de Venta:** {v_row.get('tipo_venta', '')}
+                    - **Método de Pago:** {v_row.get('metodo_pago', '')}
+                    - **Estado de Pago:** {v_row.get('estado_pago', '')}
+                    """)
+        else:
+            st.info("No hay ventas registradas aún.")
+
     with tab_salida:
         st.subheader("Registrar Salida / Gasto de Caja")
         with st.form("form_salida_caja", clear_on_submit=True):
